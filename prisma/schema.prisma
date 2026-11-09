@@ -1,0 +1,413 @@
+// Схема БД «Цифрового деканата».
+// Модели User/Session/Account/Verification/RateLimit генерирует Better Auth
+// (`npx auth@1.7.18 generate --config src/server/auth.ts --output prisma/schema.prisma`);
+// после перегенерации верните связи User -> student/staff/..., Account.@@unique([providerId, accountId])
+// и раздел предметной модели ниже.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id              String    @id
+  name            String
+  email           String
+  emailVerified   Boolean   @default(false)
+  image           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  username        String?
+  displayUsername String?
+  role            String    @default("student")
+  sessions        Session[]
+  accounts        Account[]
+
+  student       StudentProfile?
+  staff         StaffProfile?
+  notifications NotificationRecipient[]
+  requestEvents RequestEvent[]
+
+  @@unique([email])
+  @@unique([username])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([providerId, accountId]) // добавлено вручную: идемпотентный seed
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model RateLimit {
+  id          String @id
+  key         String
+  count       Int
+  lastRequest BigInt
+
+  @@unique([key])
+  @@map("rateLimit")
+}
+
+// ─── Предметная модель ───────────────────────────────────────────────────────
+// Владелец личных данных — StudentProfile. Все запросы к личным данным фильтруются
+// по studentId из серверной сессии (см. AGENTS.md, раздел «Безопасность»).
+
+model StudentProfile {
+  id               String     @id @default(cuid())
+  userId           String     @unique
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId          String
+  group            StudyGroup @relation(fields: [groupId], references: [id])
+  recordBookNumber String     @unique // вымышленный номер зачётной книжки
+  studyForm        String     @default("очная")
+  funding          String // «бюджет» | «договор»
+  enrolledAt       DateTime   @db.Date
+
+  grades   GradeResult[]
+  requests Request[]
+
+  @@index([groupId])
+  @@map("student_profile")
+}
+
+model StaffProfile {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  position    String
+  // Граница доступа сотрудника деканата: видит заявки только студентов своего факультета.
+  facultyCode String
+  faculty     Faculty @relation(fields: [facultyCode], references: [code])
+
+  @@index([facultyCode])
+  @@map("staff_profile")
+}
+
+model Faculty {
+  code      String @id // короткий код, например «MO»
+  title     String
+  shortName String // «МО»
+
+  groups StudyGroup[]
+  staff  StaffProfile[]
+
+  @@map("faculty")
+}
+
+model StudyGroup {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  facultyCode String
+  faculty     Faculty @relation(fields: [facultyCode], references: [code])
+  program     String // направление подготовки
+  profile     String? // профиль / программа
+  course      Int
+  level       String  @default("бакалавриат")
+
+  students  StudentProfile[]
+  offerings CourseOffering[]
+
+  @@index([facultyCode])
+  @@map("study_group")
+}
+
+model AcademicTerm {
+  id              String   @id @default(cuid())
+  title           String // «Осенний семестр 2026/27»
+  startsOn        DateTime @db.Date
+  endsOn          DateTime @db.Date
+  sessionStartsOn DateTime @db.Date
+  sessionEndsOn   DateTime @db.Date
+
+  offerings CourseOffering[]
+
+  @@map("academic_term")
+}
+
+model Discipline {
+  id         String  @id @default(cuid())
+  title      String
+  shortTitle String?
+
+  offerings CourseOffering[]
+
+  @@map("discipline")
+}
+
+model Teacher {
+  id       String  @id @default(cuid())
+  fullName String // вымышленное ФИО
+  position String?
+
+  lessons   Lesson[]
+  offerings CourseOffering[]
+
+  @@map("teacher")
+}
+
+enum ControlForm {
+  EXAM // экзамен
+  CREDIT // зачёт
+  GRADED_CREDIT // зачёт с оценкой
+}
+
+// Дисциплина конкретной группы в конкретном семестре.
+model CourseOffering {
+  id            String       @id @default(cuid())
+  disciplineId  String
+  discipline    Discipline   @relation(fields: [disciplineId], references: [id])
+  groupId       String
+  group         StudyGroup   @relation(fields: [groupId], references: [id])
+  termId        String
+  term          AcademicTerm @relation(fields: [termId], references: [id])
+  leadTeacherId String
+  leadTeacher   Teacher      @relation(fields: [leadTeacherId], references: [id])
+  controlForm   ControlForm
+  credits       Int // зачётные единицы
+
+  lessons     Lesson[]
+  assessments Assessment[]
+
+  @@unique([disciplineId, groupId, termId])
+  @@index([groupId, termId])
+  @@map("course_offering")
+}
+
+enum LessonKind {
+  LECTURE
+  SEMINAR
+  LANGUAGE
+  PRACTICE
+  CONSULTATION
+}
+
+enum LessonStatus {
+  SCHEDULED
+  RESCHEDULED // перенесено (время/аудитория изменены, история в LessonChange)
+  CANCELLED
+}
+
+// Конкретное датированное занятие (без движка повторений — для прототипа достаточно).
+model Lesson {
+  id         String         @id @default(cuid())
+  offeringId String
+  offering   CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  kind       LessonKind
+  startsAt   DateTime       @db.Timestamptz(6)
+  endsAt     DateTime       @db.Timestamptz(6)
+  room       String?
+  online     Boolean        @default(false)
+  teacherId  String? // переопределение; по умолчанию — offering.leadTeacher
+  teacher    Teacher?       @relation(fields: [teacherId], references: [id])
+  status     LessonStatus   @default(SCHEDULED)
+
+  changes       LessonChange[]
+  notifications Notification[]
+
+  @@index([offeringId, startsAt])
+  @@index([startsAt])
+  @@map("lesson")
+}
+
+// Полный переход «было → стало». Занятие при переносе не пересоздаётся;
+// изменение Lesson + LessonChange + уведомление выполняются одной транзакцией.
+model LessonChange {
+  id               String       @id @default(cuid())
+  lessonId         String
+  lesson           Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  previousStatus   LessonStatus
+  newStatus        LessonStatus
+  previousStartsAt DateTime     @db.Timestamptz(6)
+  previousEndsAt   DateTime     @db.Timestamptz(6)
+  previousRoom     String?
+  newStartsAt      DateTime     @db.Timestamptz(6)
+  newEndsAt        DateTime     @db.Timestamptz(6)
+  newRoom          String?
+  reason           String?
+  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
+
+  @@index([lessonId, createdAt])
+  @@map("lesson_change")
+}
+
+enum AssessmentKind {
+  EXAM
+  CREDIT
+  GRADED_CREDIT
+  MIDTERM // рубежный контроль
+  ASSIGNMENT // работа с дедлайном (эссе, доклад, курсовая)
+}
+
+model Assessment {
+  id          String         @id @default(cuid())
+  offeringId  String
+  offering    CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  kind        AssessmentKind
+  title       String
+  scheduledAt DateTime?      @db.Timestamptz(6) // для экзаменов/зачётов
+  dueAt       DateTime?      @db.Timestamptz(6) // для работ с дедлайном
+  room        String?
+
+  results GradeResult[]
+
+  @@index([offeringId])
+  @@map("assessment")
+}
+
+model GradeResult {
+  id           String         @id @default(cuid())
+  studentId    String
+  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assessmentId String
+  assessment   Assessment     @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  // CHECK в миграции: attempt > 0; grade 2–5; ровно одно из grade / passed.
+  // Нет результата — нет строки. Группа студента = группа испытания — проверяет сервис.
+  attempt      Int            @default(1)
+  grade        Int? // 2–5 для экзамена / зачёта с оценкой / работ
+  passed       Boolean? // для зачёта
+  comment      String?
+  gradedAt     DateTime       @db.Timestamptz(6)
+
+  @@unique([studentId, assessmentId, attempt])
+  @@index([assessmentId])
+  @@map("grade_result")
+}
+
+enum RequestStatus {
+  SUBMITTED // подана
+  IN_PROGRESS // в работе
+  NEEDS_INFO // нужно уточнение от студента
+  READY // готова (справку можно забрать / скачать)
+  DONE // выдана / исполнена
+  REJECTED // отклонена
+  CANCELLED // отозвана студентом
+}
+
+model Request {
+  id        String         @id @default(cuid())
+  number    Int            @unique @default(autoincrement()) // показывается как «З-000123»
+  studentId String
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  type      String // ключ из каталога заявок в коде (src/server/requests/catalog.ts)
+  status    RequestStatus  @default(SUBMITTED)
+  payload   Json // поля заявления, провалидированные схемой типа
+  createdAt DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime       @updatedAt @db.Timestamptz(6)
+
+  events        RequestEvent[]
+  notifications Notification[]
+
+  @@index([studentId, createdAt])
+  @@index([status])
+  @@map("request")
+}
+
+enum ActorType {
+  STUDENT
+  STAFF
+  SYSTEM
+}
+
+model RequestEvent {
+  id          String         @id @default(cuid())
+  requestId   String
+  request     Request        @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  fromStatus  RequestStatus?
+  toStatus    RequestStatus
+  actorType   ActorType
+  actorUserId String?
+  actor       User?          @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  comment     String? // видно студенту
+  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
+
+  @@index([requestId, createdAt])
+  @@map("request_event")
+}
+
+enum NotificationKind {
+  ANNOUNCEMENT // объявление деканата
+  SCHEDULE_CHANGE // перенос / отмена
+  DEADLINE // напоминание о сроке
+  REQUEST_STATUS // изменился статус заявки
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  kind        NotificationKind
+  title       String
+  body        String
+  important   Boolean          @default(false)
+  publishedAt DateTime         @default(now()) @db.Timestamptz(6)
+  lessonId    String?
+  lesson      Lesson?          @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  requestId   String?
+  request     Request?         @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  recipients NotificationRecipient[]
+
+  @@index([publishedAt])
+  @@index([lessonId])
+  @@index([requestId])
+  @@map("notification")
+}
+
+// Адресная доставка: объявление группе/факультету разворачивается в получателей при создании.
+model NotificationRecipient {
+  notificationId String
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt         DateTime?    @db.Timestamptz(6)
+
+  @@id([notificationId, userId])
+  @@index([userId, readAt])
+  @@map("notification_recipient")
+}

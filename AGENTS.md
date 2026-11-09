@@ -104,8 +104,26 @@ OFL для шрифтов); сохранять требуемые уведомл
 
 ## Команды
 
-Будут добавлены после подключения БД и авторизации. Сейчас: `npm run dev`, `npm run build`,
-`npm run lint`.
+| Команда | Что делает |
+|---|---|
+| `npm run db` | Локальный PostgreSQL 18 (embedded-postgres) на 127.0.0.1, держать запущенным |
+| `npm run db:migrate` | Новая миграция по `prisma/schema.prisma` + генерация клиента |
+| `npm run db:seed` | **Стирает** данные и создаёт демо-данные (пароли — `SEED_PASSWORD_*` в `.env`) |
+| `npm run db:reset` | Пересоздать БД с нуля (миграции + seed) |
+| `npm run dev` | Dev-сервер Next.js |
+| `npm run lint` / `npm run typecheck` / `npm run build` | Проверки и сборка |
+
+Первый запуск: `cp .env.example .env` → заполнить → `npm install` → `npm run db` (отдельный терминал)
+→ `npx prisma migrate deploy` → `npm run db:seed` → `npm run dev`.
+
+### Где что лежит
+
+- `src/server/` — только сервер: Prisma (`db.ts`), Better Auth (`auth.ts`), guards (`session.ts`), DAL.
+  Импорт Prisma вне `src/server` запрещён ESLint.
+- `src/lib/` — общий для клиента и сервера код без секретов (каталог заявок, утилиты).
+- `prisma/` — схема, миграции (CHECK-ограничения дописаны в SQL вручную), seed.
+- Prisma 7: не обновлять до 8 (Better Auth пока не поддерживает). Конфиг — `prisma7.config.ts`.
+- После `npx auth generate` вернуть ручные правки схемы (см. комментарий в начале `schema.prisma`).
 
 <!-- BEGIN:nextjs-agent-rules -->
 
