@@ -182,6 +182,20 @@ model Discipline {
   @@map("discipline")
 }
 
+// Учебный корпус. Координаты — для ссылок-маршрутов в Яндекс Картах и оценки времени в пути.
+model Building {
+  id      String  @id // короткий код, например «kronv»
+  title   String // «Главный корпус»
+  address String // «Кронверкский пр., 49»
+  lat     Float
+  lon     Float
+  metro   String?
+
+  lessons Lesson[]
+
+  @@map("building")
+}
+
 model Teacher {
   id       String  @id @default(cuid())
   fullName String // вымышленное ФИО
@@ -243,6 +257,8 @@ model Lesson {
   kind       LessonKind
   startsAt   DateTime       @db.Timestamptz(6)
   endsAt     DateTime       @db.Timestamptz(6)
+  buildingId String?
+  building   Building?      @relation(fields: [buildingId], references: [id])
   room       String?
   online     Boolean        @default(false)
   teacherId  String? // переопределение; по умолчанию — offering.leadTeacher
@@ -260,19 +276,21 @@ model Lesson {
 // Полный переход «было → стало». Занятие при переносе не пересоздаётся;
 // изменение Lesson + LessonChange + уведомление выполняются одной транзакцией.
 model LessonChange {
-  id               String       @id @default(cuid())
-  lessonId         String
-  lesson           Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  previousStatus   LessonStatus
-  newStatus        LessonStatus
-  previousStartsAt DateTime     @db.Timestamptz(6)
-  previousEndsAt   DateTime     @db.Timestamptz(6)
-  previousRoom     String?
-  newStartsAt      DateTime     @db.Timestamptz(6)
-  newEndsAt        DateTime     @db.Timestamptz(6)
-  newRoom          String?
-  reason           String?
-  createdAt        DateTime     @default(now()) @db.Timestamptz(6)
+  id                 String       @id @default(cuid())
+  lessonId           String
+  lesson             Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  previousStatus     LessonStatus
+  newStatus          LessonStatus
+  previousStartsAt   DateTime     @db.Timestamptz(6)
+  previousEndsAt     DateTime     @db.Timestamptz(6)
+  previousRoom       String?
+  previousBuildingId String?
+  newStartsAt        DateTime     @db.Timestamptz(6)
+  newEndsAt          DateTime     @db.Timestamptz(6)
+  newRoom            String?
+  newBuildingId      String?
+  reason             String?
+  createdAt          DateTime     @default(now()) @db.Timestamptz(6)
 
   @@index([lessonId, createdAt])
   @@map("lesson_change")
@@ -295,6 +313,8 @@ model Assessment {
   scheduledAt DateTime?      @db.Timestamptz(6) // для экзаменов/зачётов
   dueAt       DateTime?      @db.Timestamptz(6) // для работ с дедлайном
   room        String?
+  // Максимум баллов за элемент. Сумма по дисциплине за семестр — 100 (проверяет seed/сервис).
+  maxPoints   Int?
 
   results GradeResult[]
 
@@ -308,11 +328,12 @@ model GradeResult {
   student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
   assessmentId String
   assessment   Assessment     @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  // CHECK в миграции: attempt > 0; grade 2–5; ровно одно из grade / passed.
+  // CHECK в миграции: attempt > 0; grade 2–5; points >= 0; есть хотя бы одно из grade/passed/points.
   // Нет результата — нет строки. Группа студента = группа испытания — проверяет сервис.
   attempt      Int            @default(1)
   grade        Int? // 2–5 для экзамена / зачёта с оценкой / работ
   passed       Boolean? // для зачёта
+  points       Float? // баллы за элемент контроля (БаРС)
   comment      String?
   gradedAt     DateTime       @db.Timestamptz(6)
 
