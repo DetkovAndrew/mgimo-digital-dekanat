@@ -45,3 +45,38 @@ export async function getMyGrades() {
 }
 
 export type MyTerm = Awaited<ReturnType<typeof getMyGrades>>[number];
+
+/** Ближайшие сроки: неоценённые у ЭТОГО студента контрольные точки и аттестации его группы. */
+export async function getMyUpcomingDeadlines(range: { from: Date; to: Date }) {
+  const { studentId, groupId } = await requireStudent();
+  const rows = await prisma.assessment.findMany({
+    where: {
+      offering: { groupId },
+      results: { none: { studentId } },
+      // Эффективная дата — dueAt, а при его отсутствии scheduledAt (то же правило, что при выводе).
+      OR: [
+        { dueAt: { gte: range.from, lt: range.to } },
+        { dueAt: null, scheduledAt: { gte: range.from, lt: range.to } },
+      ],
+    },
+    select: {
+      id: true,
+      kind: true,
+      title: true,
+      dueAt: true,
+      scheduledAt: true,
+      maxPoints: true,
+      offering: { select: { discipline: { select: { title: true, shortTitle: true } } } },
+    },
+  });
+  return rows
+    .map((a) => ({
+      id: a.id,
+      kind: a.kind,
+      title: a.title,
+      at: (a.dueAt ?? a.scheduledAt)!,
+      maxPoints: a.maxPoints,
+      discipline: a.offering.discipline.shortTitle ?? a.offering.discipline.title,
+    }))
+    .sort((x, y) => x.at.getTime() - y.at.getTime());
+}

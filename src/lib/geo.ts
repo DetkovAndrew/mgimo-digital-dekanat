@@ -8,6 +8,7 @@ const STREET_FACTOR = 1.35; // улицы длиннее прямой линии
 const WALK_M_PER_MIN = 75; // ≈ 4.5 км/ч
 const TRANSIT_M_PER_MIN = 300; // ≈ 18 км/ч в среднем по городу с пересадками
 const TRANSIT_OVERHEAD_MIN = 10; // дойти до остановки/метро и подождать
+const MIN_TRANSFER_MIN = 3; // даже соседняя литера: выйти, дойти, подняться на этаж
 
 export function distanceMeters(a: Point, b: Point): number {
   const rad = (deg: number) => (deg * Math.PI) / 180;
@@ -23,7 +24,7 @@ export function estimateTravel(a: Point, b: Point): TravelEstimate {
   const meters = distanceMeters(a, b) * STREET_FACTOR;
   return {
     meters: Math.round(meters),
-    walkMin: Math.ceil(meters / WALK_M_PER_MIN),
+    walkMin: Math.max(MIN_TRANSFER_MIN, Math.ceil(meters / WALK_M_PER_MIN)),
     transitMin: Math.ceil(TRANSIT_OVERHEAD_MIN + meters / TRANSIT_M_PER_MIN),
   };
 }

@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { Fragment } from "react";
 import { LessonCard } from "@/components/lesson-card";
+import { TransferNote } from "@/components/transfer-note";
 import { Empty, PageTitle } from "@/components/ui";
 import { addDays, formatDay, mskDayKey, mskWeekStart } from "@/lib/format";
+import { transfersForDay } from "@/lib/transfers";
 import { getMySchedule } from "@/server/dal/schedule";
 
 function weekLabel(offset: number) {
@@ -22,7 +25,7 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
     date: d,
     key: mskDayKey(d),
     lessons: lessons.filter((l) => mskDayKey(l.startsAt) === mskDayKey(d)),
-  }));
+  })).map((d) => ({ ...d, transfers: transfersForDay(d.lessons) }));
 
   const nav = (n: number, label: string) => (
     <Link href={`/schedule?week=${n}`} className="rounded-lg px-3 py-2 text-sm text-brand hover:bg-brand/10">
@@ -49,9 +52,15 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
               </h2>
               {d.lessons.length ? (
                 <div className="space-y-2">
-                  {d.lessons.map((l) => (
-                    <LessonCard key={l.id} lesson={l} />
-                  ))}
+                  {d.lessons.map((l) => {
+                    const t = d.transfers.get(l.id);
+                    return (
+                      <Fragment key={l.id}>
+                        <LessonCard lesson={l} />
+                        {t && <TransferNote transfer={t} />}
+                      </Fragment>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-sm text-slate-400">Нет занятий</p>

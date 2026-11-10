@@ -1,6 +1,9 @@
-// Демонстрационные данные. ВСЕ ЛЮДИ, ОЦЕНКИ И НОМЕРА ВЫМЫШЛЕНЫ.
+// Демонстрационные данные University. ВСЕ ЛЮДИ, БАЛЛЫ И НОМЕРА ВЫМЫШЛЕНЫ.
+// Адреса и координаты корпусов — открытые данные (см. docs/ai-log/codex/05-concept-itmo.md);
+// координаты литер Ломоносова, 9 — приблизительные.
 // Запуск: `npm run db:seed`. Seed ПОЛНОСТЬЮ пересоздаёт данные (демо-сброс).
-// Пароли тестовых аккаунтов берутся из окружения (SEED_PASSWORD_*), в коде их нет.
+// Оценки ставятся только за точки, срок которых прошёл к моменту запуска, — поэтому перед
+// показом жюри seed запускают заново, и картина «как у меня дела» остаётся живой.
 import { existsSync } from "node:fs";
 import { betterAuth } from "better-auth";
 import { username } from "better-auth/plugins";
@@ -33,36 +36,53 @@ const seedAuth = betterAuth({
   plugins: [username()],
 });
 
+const NOW = new Date();
+
 // ─── Время ──────────────────────────────────────────────────────────────────
-// Москва — UTC+3 круглый год. Даты занятий задаём по московскому времени.
+// Санкт-Петербург, как и Москва, — UTC+3 круглый год.
 const msk = (date: string, time = "00:00") => new Date(`${date}T${time}:00+03:00`);
 const day = (date: string) => new Date(`${date}T00:00:00Z`); // для полей @db.Date
 const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000);
 const isoDay = (d: Date) => new Date(d.getTime() + 3 * 3_600_000).toISOString().slice(0, 10);
+const weekdayOf = (date: string) => ((new Date(`${date}T12:00:00Z`).getUTCDay() + 6) % 7) + 1; // 1 — пн
 
-// Сетка пар (демонстрационная).
+// Сетка пар University (демо, по мотивам расписания ИТМО).
 const SLOTS = [
-  ["09:00", "10:20"],
-  ["10:30", "11:50"],
-  ["12:40", "14:00"],
-  ["14:10", "15:30"],
-  ["15:40", "17:00"],
-  ["17:10", "18:30"],
+  ["08:10", "09:40"],
+  ["09:50", "11:20"],
+  ["11:30", "13:00"],
+  ["13:30", "15:00"],
+  ["15:20", "16:50"],
+  ["17:00", "18:30"],
+  ["18:40", "20:10"],
 ] as const;
 
+const TERM = { start: "2026-09-01", end: "2026-12-27", sessionStart: "2026-12-28", sessionEnd: "2027-01-31" };
 const HOLIDAYS = new Set(["2026-11-04"]); // День народного единства
 
 // ─── Справочники ────────────────────────────────────────────────────────────
+const BUILDINGS = [
+  { id: "kronv", title: "Кронверкский, 49", address: "Кронверкский пр., 49", lat: 59.95636, lon: 30.31001, metro: "Горьковская" },
+  { id: "lom-a", title: "Ломоносова, 9, лит. А", address: "ул. Ломоносова, 9, лит. А", lat: 59.92716, lon: 30.33808, metro: "Достоевская" },
+  { id: "lom-b", title: "Ломоносова, 9, лит. Б", address: "ул. Ломоносова, 9, лит. Б", lat: 59.92742, lon: 30.33872, metro: "Достоевская" },
+  { id: "lom-e", title: "Ломоносова, 9, лит. Е", address: "ул. Ломоносова, 9, лит. Е", lat: 59.92705, lon: 30.33861, metro: "Достоевская" },
+  { id: "lom-m", title: "Ломоносова, 9, лит. М", address: "ул. Ломоносова, 9, лит. М", lat: 59.92729, lon: 30.33835, metro: "Достоевская" },
+  { id: "birzh", title: "Биржевая линия, 14", address: "Биржевая линия, 14", lat: 59.94413, lon: 30.29545, metro: "Спортивная" },
+  { id: "grivc", title: "Гривцова, 14", address: "пер. Гривцова, 14–16", lat: 59.92953, lon: 30.31506, metro: "Садовая" },
+  { id: "chaik", title: "Чайковского, 11/2", address: "ул. Чайковского, 11/2", lat: 59.94636, lon: 30.3458, metro: "Чернышевская" },
+  { id: "sport", title: "Спорткомплекс, Вяземский пер.", address: "Вяземский пер., 5–7", lat: 59.97263, lon: 30.3025, metro: "Петроградская" },
+] as const;
+type BuildingId = (typeof BUILDINGS)[number]["id"];
+
 const FACULTIES = [
-  { code: "MO", title: "Факультет международных отношений", shortName: "МО" },
-  { code: "MEO", title: "Факультет международных экономических отношений", shortName: "МЭО" },
+  { code: "CHB", title: "Факультет химии и биотехнологий", shortName: "ФХБ" },
+  { code: "SE", title: "Факультет программной инженерии и компьютерной техники", shortName: "ФПИиКТ" },
 ];
 
 const TEACHERS = {
   belyaev: ["Беляев Олег Викторович", "профессор"],
   zorina: ["Зорина Марина Сергеевна", "доцент"],
   kalinin: ["Калинин Игорь Дмитриевич", "доцент"],
-  lemoine: ["Лемуан Софи-Анна Петровна", "старший преподаватель"],
   harris: ["Харрис Елена Джоновна", "старший преподаватель"],
   sadykov: ["Садыков Ренат Ильдарович", "доцент"],
   vetrova: ["Ветрова Анна Константиновна", "доцент"],
@@ -70,27 +90,35 @@ const TEACHERS = {
   shults: ["Шульц Ирина Викторовна", "старший преподаватель"],
   nazarov: ["Назаров Денис Олегович", "доцент"],
   frolova: ["Фролова Яна Михайловна", "доцент"],
-  osipov: ["Осипов Глеб Андреевич", "преподаватель"],
+  osipov: ["Осипов Глеб Андреевич", "ассистент"],
+  lemoine: ["Лемуан Софи-Анна Петровна", "старший преподаватель"],
 } as const;
 type TeacherKey = keyof typeof TEACHERS;
+
+type Control = "EXAM" | "CREDIT" | "GRADED_CREDIT";
 
 type OfferingSeed = {
   key: string;
   title: string;
   short?: string;
-  control: "EXAM" | "CREDIT" | "GRADED_CREDIT";
+  control: Control;
   credits: number;
   teacher: TeacherKey;
+  /** Доля от максимума, которую студент набирает за оценённые точки (0..1). */
+  level: number;
 };
 
 type WeeklySlot = {
   offering: string;
-  weekday: 1 | 2 | 3 | 4 | 5 | 6; // 1 — понедельник
-  slot: 1 | 2 | 3 | 4 | 5 | 6;
+  weekday: 1 | 2 | 3 | 4 | 5 | 6;
+  slot: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   kind: "LECTURE" | "SEMINAR" | "LANGUAGE" | "PRACTICE";
-  room: string;
+  building?: BuildingId; // нет — онлайн
+  room?: string;
   teacher?: TeacherKey;
 };
+
+type PreviousSeed = { title: string; control: Control; credits: number; teacher: TeacherKey; attempts: number[] };
 
 type StudentSeed = {
   login: string;
@@ -99,18 +127,11 @@ type StudentSeed = {
   recordBook: string;
   funding: string;
   enrolledAt: string;
-  group: {
-    code: string;
-    faculty: string;
-    program: string;
-    profile: string;
-    course: number;
-  };
+  group: { code: string; faculty: string; program: string; profile: string; course: number };
   current: OfferingSeed[];
   weekly: WeeklySlot[];
-  /** Оценки за рубежный контроль (октябрь) по ключу дисциплины. */
-  midterms: Record<string, number>;
-  previous: (OfferingSeed & { results: (number | boolean)[] })[];
+  previousTitle: string;
+  previous: PreviousSeed[];
 };
 
 const STUDENTS: StudentSeed[] = [
@@ -118,108 +139,145 @@ const STUDENTS: StudentSeed[] = [
     login: "alina.lebedeva",
     passwordEnv: "SEED_PASSWORD_STUDENT_A",
     name: "Лебедева Алина Игоревна",
-    recordBook: "24-МО-0417",
+    recordBook: "424117",
     funding: "бюджет",
-    enrolledAt: "2025-09-01",
+    enrolledAt: "2024-09-01",
     group: {
-      code: "МО-204",
-      faculty: "MO",
-      program: "41.03.05 Международные отношения",
-      profile: "Мировая политика",
-      course: 2,
+      code: "H3301",
+      faculty: "CHB",
+      program: "18.03.01 Химическая технология",
+      profile: "Инфохимия",
+      course: 3,
     },
     current: [
-      { key: "tmo", title: "Теория международных отношений", short: "ТМО", control: "EXAM", credits: 5, teacher: "belyaev" },
-      { key: "imo", title: "История международных отношений", short: "ИМО", control: "EXAM", credits: 4, teacher: "zorina" },
-      { key: "eng", title: "Английский язык", control: "GRADED_CREDIT", credits: 4, teacher: "harris" },
-      { key: "fra", title: "Французский язык (второй иностранный)", short: "Французский", control: "GRADED_CREDIT", credits: 4, teacher: "lemoine" },
-      { key: "wec", title: "Мировая экономика", control: "CREDIT", credits: 3, teacher: "kalinin" },
-      { key: "phi", title: "Философия", control: "CREDIT", credits: 2, teacher: "sadykov" },
+      { key: "org", title: "Органическая химия", control: "EXAM", credits: 6, teacher: "belyaev", level: 0.86 },
+      { key: "phys", title: "Физическая химия", control: "EXAM", credits: 5, teacher: "gromov", level: 0.48 },
+      { key: "chinf", title: "Хемоинформатика", control: "GRADED_CREDIT", credits: 4, teacher: "nazarov", level: 0.92 },
+      { key: "bio", title: "Биохимия", control: "CREDIT", credits: 3, teacher: "vetrova", level: 0.74 },
+      { key: "eng", title: "English C1 / Английский язык C1", short: "Английский C1", control: "CREDIT", credits: 2, teacher: "harris", level: 0.81 },
+      { key: "phil", title: "Философия", control: "EXAM", credits: 3, teacher: "sadykov", level: 0.67 },
     ],
     weekly: [
-      { offering: "tmo", weekday: 1, slot: 1, kind: "LECTURE", room: "ауд. 1012" },
-      { offering: "eng", weekday: 1, slot: 2, kind: "LANGUAGE", room: "ауд. 3108" },
-      { offering: "imo", weekday: 1, slot: 3, kind: "SEMINAR", room: "ауд. 2045" },
-      { offering: "fra", weekday: 2, slot: 2, kind: "LANGUAGE", room: "ауд. 3214" },
-      { offering: "wec", weekday: 2, slot: 3, kind: "LECTURE", room: "ауд. 1001" },
-      { offering: "phi", weekday: 2, slot: 4, kind: "SEMINAR", room: "ауд. 2117" },
-      { offering: "imo", weekday: 3, slot: 1, kind: "LECTURE", room: "ауд. 1012" },
-      { offering: "eng", weekday: 3, slot: 2, kind: "LANGUAGE", room: "ауд. 3108" },
-      { offering: "tmo", weekday: 4, slot: 2, kind: "SEMINAR", room: "ауд. 2031", teacher: "osipov" },
-      { offering: "fra", weekday: 4, slot: 3, kind: "LANGUAGE", room: "ауд. 3214" },
-      { offering: "wec", weekday: 5, slot: 2, kind: "SEMINAR", room: "ауд. 2203" },
-      { offering: "eng", weekday: 5, slot: 3, kind: "LANGUAGE", room: "ауд. 3108" },
+      // Пн: всё на Ломоносова, переход между литерами М → А за 10 минут (успеть можно)
+      { offering: "org", weekday: 1, slot: 1, kind: "LECTURE", building: "lom-m", room: "ауд. 1121" },
+      { offering: "org", weekday: 1, slot: 2, kind: "PRACTICE", building: "lom-m", room: "ауд. 1220", teacher: "osipov" },
+      { offering: "phys", weekday: 1, slot: 3, kind: "LECTURE", building: "lom-a", room: "ауд. 2219" },
+      // Вт: Ломоносова → Гривцова за 10 минут — не успеть (показываем предупреждение)
+      { offering: "eng", weekday: 2, slot: 1, kind: "LANGUAGE", building: "lom-e", room: "ауд. 3228" },
+      { offering: "chinf", weekday: 2, slot: 2, kind: "PRACTICE", building: "grivc", room: "ауд. 466" },
+      { offering: "chinf", weekday: 2, slot: 3, kind: "LECTURE", building: "grivc", room: "ауд. 466" },
+      // Ср: Ломоносова → Кронверкский за большой перерыв — только на транспорте, впритык
+      { offering: "phys", weekday: 3, slot: 2, kind: "PRACTICE", building: "lom-m", room: "ауд. 1329" },
+      { offering: "phys", weekday: 3, slot: 3, kind: "PRACTICE", building: "lom-m", room: "ауд. 1329" },
+      { offering: "phil", weekday: 3, slot: 4, kind: "LECTURE", building: "kronv", room: "ауд. 2337" },
+      // Чт: свободный день — онлайн-семинар по философии
+      { offering: "phil", weekday: 4, slot: 5, kind: "SEMINAR" },
+      // Пт
+      { offering: "bio", weekday: 5, slot: 3, kind: "LECTURE", building: "lom-m", room: "ауд. 1221" },
+      { offering: "org", weekday: 5, slot: 4, kind: "LECTURE", building: "lom-m", room: "ауд. 1121" },
+      { offering: "eng", weekday: 5, slot: 5, kind: "LANGUAGE", building: "lom-b", room: "ауд. 4302" },
     ],
-    midterms: { tmo: 5, imo: 4, eng: 5, fra: 3, wec: 4, phi: 5 },
+    previousTitle: "Весенний семестр 2025/26",
     previous: [
-      { key: "itmo", title: "Введение в теорию международных отношений", control: "EXAM", credits: 4, teacher: "belyaev", results: [5] },
-      { key: "hist", title: "История России", control: "EXAM", credits: 4, teacher: "zorina", results: [4] },
-      { key: "eng1", title: "Английский язык", control: "GRADED_CREDIT", credits: 4, teacher: "harris", results: [5] },
-      { key: "fra1", title: "Французский язык (второй иностранный)", control: "GRADED_CREDIT", credits: 4, teacher: "lemoine", results: [4] },
-      { key: "econ", title: "Основы экономической теории", control: "CREDIT", credits: 3, teacher: "kalinin", results: [true] },
-      { key: "it", title: "Информационные технологии в международных отношениях", control: "CREDIT", credits: 2, teacher: "nazarov", results: [true] },
+      { title: "Аналитическая химия", control: "EXAM", credits: 5, teacher: "belyaev", attempts: [88] },
+      { title: "Неорганическая химия", control: "EXAM", credits: 5, teacher: "zorina", attempts: [79] },
+      { title: "Основы программирования и алгоритмизации", control: "GRADED_CREDIT", credits: 3, teacher: "nazarov", attempts: [95] },
+      { title: "Физика", control: "EXAM", credits: 4, teacher: "gromov", attempts: [71] },
+      { title: "English B2 / Английский язык B2", control: "CREDIT", credits: 2, teacher: "harris", attempts: [86] },
+      { title: "История России", control: "CREDIT", credits: 2, teacher: "kalinin", attempts: [77] },
     ],
   },
   {
     login: "timur.orlov",
     passwordEnv: "SEED_PASSWORD_STUDENT_B",
     name: "Орлов Тимур Русланович",
-    recordBook: "23-МЭО-0932",
+    recordBook: "451932",
     funding: "договор",
-    enrolledAt: "2024-09-01",
+    enrolledAt: "2025-09-01",
     group: {
-      code: "МЭО-301",
-      faculty: "MEO",
-      program: "38.03.01 Экономика",
-      profile: "Мировая экономика",
-      course: 3,
+      code: "P3212",
+      faculty: "SE",
+      program: "09.03.04 Программная инженерия",
+      profile: "Системное и прикладное программное обеспечение",
+      course: 2,
     },
     current: [
-      { key: "mvko", title: "Международные валютно-кредитные отношения", short: "МВКО", control: "EXAM", credits: 5, teacher: "gromov" },
-      { key: "ectr", title: "Эконометрика", control: "EXAM", credits: 4, teacher: "nazarov" },
-      { key: "eng", title: "Английский язык (деловой)", short: "Английский", control: "GRADED_CREDIT", credits: 4, teacher: "harris" },
-      { key: "deu", title: "Немецкий язык (второй иностранный)", short: "Немецкий", control: "GRADED_CREDIT", credits: 4, teacher: "shults" },
-      { key: "cfin", title: "Корпоративные финансы", control: "CREDIT", credits: 3, teacher: "vetrova" },
-      { key: "mtr", title: "Мировые товарные рынки", control: "CREDIT", credits: 3, teacher: "frolova" },
+      { key: "algo", title: "Алгоритмы и структуры данных", short: "АиСД", control: "EXAM", credits: 6, teacher: "nazarov", level: 0.78 },
+      { key: "db", title: "Базы данных", control: "EXAM", credits: 5, teacher: "frolova", level: 0.9 },
+      { key: "java", title: "Программирование на Java", short: "Java", control: "GRADED_CREDIT", credits: 4, teacher: "kalinin", level: 0.95 },
+      { key: "dm", title: "Дискретная математика", short: "Дискретка", control: "EXAM", credits: 4, teacher: "zorina", level: 0.42 },
+      { key: "eng", title: "English B2 / Английский язык B2", short: "Английский B2", control: "CREDIT", credits: 2, teacher: "shults", level: 0.7 },
+      { key: "hist", title: "История России", control: "CREDIT", credits: 2, teacher: "sadykov", level: 0.83 },
     ],
     weekly: [
-      { offering: "ectr", weekday: 1, slot: 2, kind: "LECTURE", room: "ауд. 1003" },
-      { offering: "ectr", weekday: 1, slot: 3, kind: "PRACTICE", room: "комп. класс 4012" },
-      { offering: "mvko", weekday: 2, slot: 1, kind: "LECTURE", room: "ауд. 1001" },
-      { offering: "eng", weekday: 2, slot: 2, kind: "LANGUAGE", room: "ауд. 3302" },
-      { offering: "deu", weekday: 2, slot: 4, kind: "LANGUAGE", room: "ауд. 3410" },
-      { offering: "cfin", weekday: 3, slot: 3, kind: "LECTURE", room: "ауд. 1014" },
-      { offering: "mvko", weekday: 3, slot: 4, kind: "SEMINAR", room: "ауд. 2210" },
-      { offering: "eng", weekday: 4, slot: 2, kind: "LANGUAGE", room: "ауд. 3302" },
-      { offering: "mtr", weekday: 4, slot: 3, kind: "LECTURE", room: "ауд. 1003" },
-      { offering: "deu", weekday: 5, slot: 1, kind: "LANGUAGE", room: "ауд. 3410" },
-      { offering: "cfin", weekday: 5, slot: 2, kind: "SEMINAR", room: "ауд. 2105", teacher: "osipov" },
-      { offering: "mtr", weekday: 5, slot: 3, kind: "SEMINAR", room: "ауд. 2105" },
+      { offering: "algo", weekday: 1, slot: 2, kind: "LECTURE", building: "kronv", room: "ауд. 1404" },
+      { offering: "algo", weekday: 1, slot: 3, kind: "PRACTICE", building: "kronv", room: "ауд. 2306" },
+      { offering: "dm", weekday: 2, slot: 1, kind: "LECTURE", building: "kronv", room: "ауд. 1216" },
+      { offering: "dm", weekday: 2, slot: 2, kind: "PRACTICE", building: "kronv", room: "ауд. 1216", teacher: "osipov" },
+      // Вт: Кронверкский → Биржевая за 10 минут — не успеть
+      { offering: "eng", weekday: 2, slot: 3, kind: "LANGUAGE", building: "birzh", room: "ауд. 312" },
+      { offering: "db", weekday: 3, slot: 3, kind: "LECTURE", building: "kronv", room: "ауд. 1404" },
+      // Ср: обед 30 минут, Кронверкский → Биржевая пешком
+      { offering: "db", weekday: 3, slot: 4, kind: "PRACTICE", building: "birzh", room: "ауд. 210" },
+      { offering: "java", weekday: 4, slot: 4, kind: "LECTURE", building: "kronv", room: "ауд. 2337" },
+      { offering: "java", weekday: 4, slot: 5, kind: "PRACTICE", building: "kronv", room: "ауд. 3214" },
+      // Пт: история онлайн
+      { offering: "hist", weekday: 5, slot: 2, kind: "LECTURE" },
+      { offering: "eng", weekday: 5, slot: 3, kind: "LANGUAGE", building: "kronv", room: "ауд. 1132" },
     ],
-    midterms: { mvko: 4, ectr: 3, eng: 4, deu: 5, cfin: 5, mtr: 4 },
+    previousTitle: "Весенний семестр 2025/26",
     previous: [
-      { key: "macro", title: "Макроэкономика", control: "EXAM", credits: 5, teacher: "gromov", results: [2, 4] },
-      { key: "stat", title: "Статистика", control: "EXAM", credits: 4, teacher: "nazarov", results: [5] },
-      { key: "eng1", title: "Английский язык", control: "GRADED_CREDIT", credits: 4, teacher: "harris", results: [4] },
-      { key: "deu1", title: "Немецкий язык (второй иностранный)", control: "GRADED_CREDIT", credits: 4, teacher: "shults", results: [5] },
-      { key: "acc", title: "Бухгалтерский учёт", control: "CREDIT", credits: 3, teacher: "vetrova", results: [true] },
-      { key: "mkt", title: "Международный маркетинг", control: "CREDIT", credits: 2, teacher: "frolova", results: [true] },
+      { title: "Математический анализ", control: "EXAM", credits: 5, teacher: "zorina", attempts: [52, 68] },
+      { title: "Программирование", control: "EXAM", credits: 5, teacher: "kalinin", attempts: [92] },
+      { title: "Основы профессиональной деятельности", control: "GRADED_CREDIT", credits: 4, teacher: "nazarov", attempts: [84] },
+      { title: "Линейная алгебра", control: "EXAM", credits: 4, teacher: "gromov", attempts: [75] },
+      { title: "English B1 / Английский язык B1", control: "CREDIT", credits: 2, teacher: "shults", attempts: [80] },
+      { title: "Физическая культура и спорт", control: "CREDIT", credits: 0, teacher: "osipov", attempts: [65] },
     ],
   },
 ];
 
 const STAFF = {
-  login: "dekanat.mo",
+  login: "dekanat.fhb",
   passwordEnv: "SEED_PASSWORD_STAFF",
   name: "Миронова Ксения Павловна",
-  position: "Специалист по учебной работе деканата",
-  faculty: "MO",
+  position: "Специалист по учебной работе деканата ФХБ",
+  faculty: "CHB",
 };
+
+// ─── Контрольные точки (сумма = 100) ────────────────────────────────────────
+type CheckpointSeed = { title: string; kind: "MIDTERM" | "ASSIGNMENT"; max: number; due: string };
+
+function checkpointsFor(control: Control, i: number): CheckpointSeed[] {
+  const shift = (date: string) => isoDay(addDays(msk(date), i)); // разносим сроки между дисциплинами
+  if (control === "EXAM") {
+    return [
+      { title: "Лабораторная работа 1", kind: "ASSIGNMENT", max: 10, due: shift("2026-09-29") },
+      { title: "Лабораторная работа 2", kind: "ASSIGNMENT", max: 10, due: shift("2026-10-20") },
+      { title: "Контрольная работа", kind: "MIDTERM", max: 20, due: shift("2026-10-30") },
+      { title: "Лабораторная работа 3", kind: "ASSIGNMENT", max: 10, due: shift("2026-11-17") },
+      { title: "Лабораторная работа 4", kind: "ASSIGNMENT", max: 10, due: shift("2026-12-08") },
+    ]; // + экзамен 40
+  }
+  return [
+    { title: "Тест 1", kind: "MIDTERM", max: 20, due: shift("2026-10-06") },
+    { title: "Тест 2", kind: "MIDTERM", max: 20, due: shift("2026-11-03") },
+    { title: control === "GRADED_CREDIT" ? "Проект" : "Доклад", kind: "ASSIGNMENT", max: 40, due: shift("2026-12-01") },
+  ]; // + зачёт 20
+}
+const finalMax = (control: Control) => (control === "EXAM" ? 40 : 20);
+const finalTitle = (control: Control) =>
+  control === "EXAM" ? "Экзамен" : control === "CREDIT" ? "Зачёт" : "Дифференцированный зачёт";
+
+// Детерминированный «шум», чтобы баллы не были одинаковыми.
+const jitter = (seed: number) => ((Math.sin(seed * 9301 + 49297) + 1) / 2) * 0.24 - 0.12;
+const roundHalf = (n: number) => Math.round(n * 2) / 2;
+const gradeFor = (p: number) => (p >= 91 ? 5 : p >= 75 ? 4 : p >= 60 ? 3 : 2);
 
 // ─── Утилиты ────────────────────────────────────────────────────────────────
 async function createUser(login: string, name: string, password: string) {
   const { user } = await seedAuth.api.signUpEmail({
-    body: { email: `${login}@demo.dekanat.example`, name, password, username: login },
+    body: { email: `${login}@demo.university.example`, name, password, username: login },
   });
   return user.id;
 }
@@ -242,6 +300,7 @@ async function wipe() {
   await prisma.courseOffering.deleteMany();
   await prisma.discipline.deleteMany();
   await prisma.teacher.deleteMany();
+  await prisma.building.deleteMany();
   await prisma.academicTerm.deleteMany();
   await prisma.studentProfile.deleteMany();
   await prisma.staffProfile.deleteMany();
@@ -265,6 +324,7 @@ async function main() {
   await wipe();
 
   await prisma.faculty.createMany({ data: FACULTIES });
+  await prisma.building.createMany({ data: BUILDINGS.map((b) => ({ ...b })) });
 
   const teacherIds = {} as Record<TeacherKey, string>;
   for (const [key, [fullName, position]] of Object.entries(TEACHERS)) {
@@ -275,23 +335,22 @@ async function main() {
   const prevTerm = await prisma.academicTerm.create({
     data: {
       title: "Весенний семестр 2025/26",
-      startsOn: day("2026-02-09"),
-      endsOn: day("2026-06-07"),
-      sessionStartsOn: day("2026-06-08"),
+      startsOn: day("2026-02-02"),
+      endsOn: day("2026-05-31"),
+      sessionStartsOn: day("2026-06-01"),
       sessionEndsOn: day("2026-06-30"),
     },
   });
   const term = await prisma.academicTerm.create({
     data: {
       title: "Осенний семестр 2026/27",
-      startsOn: day("2026-09-01"),
-      endsOn: day("2026-12-27"),
-      sessionStartsOn: day("2027-01-09"),
-      sessionEndsOn: day("2027-01-29"),
+      startsOn: day(TERM.start),
+      endsOn: day(TERM.end),
+      sessionStartsOn: day(TERM.sessionStart),
+      sessionEndsOn: day(TERM.sessionEnd),
     },
   });
 
-  // Сотрудник деканата факультета МО
   const staffUserId = await createUser(STAFF.login, STAFF.name, passwords[STAFF.login]);
   await prisma.user.update({ where: { id: staffUserId }, data: { role: "staff" } });
   await prisma.staffProfile.create({
@@ -306,9 +365,10 @@ async function main() {
 
   const counts = {
     users: await prisma.user.count(),
+    buildings: await prisma.building.count(),
     lessons: await prisma.lesson.count(),
     changes: await prisma.lessonChange.count(),
-    grades: await prisma.gradeResult.count(),
+    results: await prisma.gradeResult.count(),
     requests: await prisma.request.count(),
     notifications: await prisma.notification.count(),
   };
@@ -344,7 +404,7 @@ async function seedStudent(
   });
 
   // Дисциплины текущего семестра
-  const offerings: Record<string, { id: string; teacherId: string; title: string }> = {};
+  const offerings: Record<string, { id: string; title: string }> = {};
   for (const o of s.current) {
     const discipline = await prisma.discipline.create({ data: { title: o.title, shortTitle: o.short } });
     const offering = await prisma.courseOffering.create({
@@ -357,149 +417,82 @@ async function seedStudent(
         credits: o.credits,
       },
     });
-    offerings[o.key] = { id: offering.id, teacherId: teacherIds[o.teacher], title: o.short ?? o.title };
+    offerings[o.key] = { id: offering.id, title: o.short ?? o.title };
   }
 
   // Расписание на весь семестр по недельному шаблону
   const lessons: Prisma.LessonCreateManyInput[] = [];
-  for (let d = msk("2026-09-01"); d <= msk("2026-12-27"); d = addDays(d, 1)) {
+  for (let d = msk(TERM.start); d <= msk(TERM.end); d = addDays(d, 1)) {
     const date = isoDay(d);
-    // День недели по московской дате (полдень UTC той же даты — без сдвига суток).
-    const mskWeekday = ((new Date(`${date}T12:00:00Z`).getUTCDay() + 6) % 7) + 1;
     if (HOLIDAYS.has(date)) continue;
-    for (const w of s.weekly.filter((x) => x.weekday === mskWeekday)) {
+    for (const w of s.weekly.filter((x) => x.weekday === weekdayOf(date))) {
       const [from, to] = SLOTS[w.slot - 1];
       lessons.push({
         offeringId: offerings[w.offering].id,
         kind: w.kind,
         startsAt: msk(date, from),
         endsAt: msk(date, to),
-        room: w.room,
+        buildingId: w.building ?? null,
+        room: w.room ?? null,
+        online: !w.building,
         teacherId: w.teacher ? teacherIds[w.teacher] : null,
       });
     }
   }
   await prisma.lesson.createMany({ data: lessons });
 
-  // Переносы: по одному изменению в неделю, с октября по декабрь,
-  // чтобы в любой день показа рядом было свежее изменение.
-  const allLessons = await prisma.lesson.findMany({
-    where: { offering: { groupId: group.id }, startsAt: { gte: msk("2026-10-01"), lte: msk("2026-12-26") } },
-    orderBy: { startsAt: "asc" },
-    include: { offering: { include: { discipline: true } } },
-  });
-  const byWeek = new Map<number, typeof allLessons>();
-  for (const l of allLessons) {
-    const week = Math.floor((l.startsAt.getTime() - msk("2026-09-28").getTime()) / (7 * 86_400_000));
-    byWeek.set(week, [...(byWeek.get(week) ?? []), l]);
-  }
-  for (const [week, weekLessons] of byWeek) {
-    const lesson = weekLessons[(week * 5 + s.login.length) % weekLessons.length];
-    const variant = week % 3; // 0 — другая аудитория, 1 — другое время, 2 — отмена
-    const title = lesson.offering.discipline.shortTitle ?? lesson.offering.discipline.title;
-    const date = isoDay(lesson.startsAt);
-    let data: { startsAt: Date; endsAt: Date; room: string | null; status: "RESCHEDULED" | "CANCELLED" };
-    let reason: string;
-    let body: string;
-    if (variant === 0) {
-      data = { startsAt: lesson.startsAt, endsAt: lesson.endsAt, room: "ауд. 1101 (Большой зал)", status: "RESCHEDULED" };
-      reason = "Аудитория занята под конференцию";
-      body = `Занятие «${title}» ${date} пройдёт в ауд. 1101 (Большой зал) вместо ${lesson.room}.`;
-    } else if (variant === 1) {
-      const [from, to] = SLOTS[5];
-      data = { startsAt: msk(date, from), endsAt: msk(date, to), room: lesson.room, status: "RESCHEDULED" };
-      reason = "Преподаватель на научной конференции";
-      body = `Занятие «${title}» ${date} перенесено на ${from}–${to}, ${lesson.room}.`;
-    } else {
-      data = { startsAt: lesson.startsAt, endsAt: lesson.endsAt, room: lesson.room, status: "CANCELLED" };
-      reason = "Болезнь преподавателя, отработка будет назначена дополнительно";
-      body = `Занятие «${title}» ${date} отменено. Отработку назначат дополнительно.`;
+  await seedScheduleChanges(s, group.id, userId);
+
+  // Успеваемость текущего семестра: контрольные точки + аттестация.
+  for (const [i, o] of s.current.entries()) {
+    const offeringId = offerings[o.key].id;
+    for (const [j, cp] of checkpointsFor(o.control, i).entries()) {
+      const dueAt = msk(cp.due, "23:59");
+      const a = await prisma.assessment.create({
+        data: {
+          offeringId,
+          kind: cp.kind,
+          title: cp.title,
+          maxPoints: cp.max,
+          ...(cp.kind === "MIDTERM" ? { scheduledAt: msk(cp.due, "11:30") } : { dueAt }),
+        },
+      });
+      // Оценено, если срок прошёл больше двух дней назад.
+      if (addDays(dueAt, 2) < NOW) {
+        const ratio = Math.min(1, Math.max(0, o.level + jitter(i * 10 + j + s.login.length)));
+        await prisma.gradeResult.create({
+          data: {
+            studentId: student.id,
+            assessmentId: a.id,
+            points: roundHalf(cp.max * ratio),
+            gradedAt: addDays(dueAt, 2),
+          },
+        });
+      } else if (dueAt > NOW) {
+        await prisma.notification.create({
+          data: {
+            kind: "DEADLINE",
+            title: `Срок через неделю: ${cp.title.toLowerCase()} — ${offerings[o.key].title}`,
+            body: `Сдать до ${isoDay(dueAt).split("-").reverse().join(".")} 23:59. Максимум — ${cp.max} баллов.`,
+            publishedAt: addDays(dueAt, -7),
+            recipients: { create: { userId } },
+          },
+        });
+      }
     }
-    await prisma.$transaction([
-      prisma.lesson.update({ where: { id: lesson.id }, data }),
-      prisma.lessonChange.create({
-        data: {
-          lessonId: lesson.id,
-          previousStatus: lesson.status,
-          newStatus: data.status,
-          previousStartsAt: lesson.startsAt,
-          previousEndsAt: lesson.endsAt,
-          previousRoom: lesson.room,
-          newStartsAt: data.startsAt,
-          newEndsAt: data.endsAt,
-          newRoom: data.room,
-          reason,
-          createdAt: addDays(lesson.startsAt, -2),
-        },
-      }),
-      prisma.notification.create({
-        data: {
-          kind: "SCHEDULE_CHANGE",
-          title: data.status === "CANCELLED" ? `Отмена: ${title}` : `Изменение: ${title}`,
-          body: `${body} Причина: ${reason.toLowerCase()}.`,
-          important: true,
-          publishedAt: addDays(lesson.startsAt, -2),
-          lessonId: lesson.id,
-          recipients: { create: { userId, readAt: lesson.startsAt < new Date() ? lesson.startsAt : null } },
-        },
-      }),
-    ]);
-  }
-
-  // Успеваемость текущего семестра: рубежный контроль (с оценками), работы, итоговый контроль.
-  const keys = Object.keys(offerings);
-  for (const [i, key] of keys.entries()) {
-    const o = offerings[key];
-    const spec = s.current.find((c) => c.key === key)!;
-    const midterm = await prisma.assessment.create({
-      data: {
-        offeringId: o.id,
-        kind: "MIDTERM",
-        title: "Рубежный контроль 1",
-        scheduledAt: msk(`2026-10-${String(13 + i * 2).padStart(2, "0")}`, "10:30"),
-      },
-    });
-    await prisma.gradeResult.create({
-      data: {
-        studentId: student.id,
-        assessmentId: midterm.id,
-        grade: s.midterms[key],
-        gradedAt: msk(`2026-10-${String(15 + i * 2).padStart(2, "0")}`, "18:00"),
-      },
-    });
-
-    // Работа с дедлайном: у части дисциплин уже сдана, у части — впереди (для напоминаний).
-    const dueAt = msk(isoDay(addDays(msk("2026-11-12"), i * 6)), "23:59");
-    const assignment = await prisma.assessment.create({
-      data: {
-        offeringId: o.id,
-        kind: "ASSIGNMENT",
-        title: i % 2 === 0 ? "Эссе" : "Аналитическая записка",
-        dueAt,
-      },
-    });
-    await prisma.notification.create({
-      data: {
-        kind: "DEADLINE",
-        title: `Через неделю срок: ${assignment.title.toLowerCase()} — ${o.title}`,
-        body: `Сдать до ${isoDay(dueAt)} 23:59 через преподавателя дисциплины.`,
-        publishedAt: addDays(dueAt, -7),
-        recipients: { create: { userId } },
-      },
-    });
-
     await prisma.assessment.create({
       data: {
-        offeringId: o.id,
-        kind: spec.control,
-        title: spec.control === "EXAM" ? "Экзамен" : spec.control === "CREDIT" ? "Зачёт" : "Зачёт с оценкой",
-        scheduledAt: msk(isoDay(addDays(msk("2027-01-11"), i * 3)), "10:00"),
-        room: spec.control === "EXAM" ? "ауд. 1012" : null,
+        offeringId,
+        kind: o.control,
+        title: finalTitle(o.control),
+        maxPoints: finalMax(o.control),
+        scheduledAt: msk(isoDay(addDays(msk("2026-12-28"), i * 4 + (o.control === "EXAM" ? 6 : 0))), "10:00"),
+        room: o.control === "EXAM" ? "ауд. 1404" : null,
       },
     });
   }
 
-  // Прошлый семестр: закрытая сессия (включая пересдачу).
+  // Прошлый семестр: итоговые баллы по шкале (у второго студента — пересдача).
   for (const p of s.previous) {
     const discipline = await prisma.discipline.create({ data: { title: p.title } });
     const offering = await prisma.courseOffering.create({
@@ -512,30 +505,105 @@ async function seedStudent(
         credits: p.credits,
       },
     });
-    const exam = await prisma.assessment.create({
+    const final = await prisma.assessment.create({
       data: {
         offeringId: offering.id,
         kind: p.control,
-        title: p.control === "EXAM" ? "Экзамен" : p.control === "CREDIT" ? "Зачёт" : "Зачёт с оценкой",
+        title: `Итог: ${finalTitle(p.control).toLowerCase()}`,
+        maxPoints: 100,
         scheduledAt: msk("2026-06-15", "10:00"),
       },
     });
-    for (const [attemptIndex, r] of p.results.entries()) {
+    for (const [k, points] of p.attempts.entries()) {
       await prisma.gradeResult.create({
         data: {
           studentId: student.id,
-          assessmentId: exam.id,
-          attempt: attemptIndex + 1,
-          grade: typeof r === "number" ? r : null,
-          passed: typeof r === "boolean" ? r : null,
-          comment: attemptIndex > 0 ? "Пересдача" : null,
-          gradedAt: msk(attemptIndex > 0 ? "2026-09-10" : "2026-06-16", "15:00"),
+          assessmentId: final.id,
+          attempt: k + 1,
+          points,
+          ...(p.control === "CREDIT" ? { passed: points >= 60 } : { grade: gradeFor(points) }),
+          comment: k > 0 ? "Пересдача" : null,
+          gradedAt: msk(k > 0 ? "2026-09-12" : "2026-06-16", "15:00"),
         },
       });
     }
   }
 
   await seedRequests(s, student.id, userId, staffUserId);
+}
+
+// Переносы: одно изменение в неделю, с октября по декабрь, чтобы в любой день показа
+// рядом было свежее. Часть переносов — в другой корпус (меняется маршрут).
+async function seedScheduleChanges(s: StudentSeed, groupId: string, userId: string) {
+  const all = await prisma.lesson.findMany({
+    where: { offering: { groupId }, startsAt: { gte: msk("2026-10-01"), lte: msk("2026-12-26") }, online: false },
+    orderBy: { startsAt: "asc" },
+    include: { offering: { include: { discipline: true } }, building: true },
+  });
+  const byWeek = new Map<number, typeof all>();
+  for (const l of all) {
+    const week = Math.floor((l.startsAt.getTime() - msk("2026-09-28").getTime()) / (7 * 86_400_000));
+    byWeek.set(week, [...(byWeek.get(week) ?? []), l]);
+  }
+  const altBuilding = (current: string | null): BuildingId => (current === "kronv" ? "chaik" : "kronv");
+
+  for (const [week, weekLessons] of byWeek) {
+    const lesson = weekLessons[(week * 5 + s.login.length) % weekLessons.length];
+    const variant = week % 3; // 0 — другой корпус, 1 — другое время, 2 — отмена
+    const title = lesson.offering.discipline.shortTitle ?? lesson.offering.discipline.title;
+    const date = isoDay(lesson.startsAt).split("-").reverse().join(".");
+    let data: { startsAt: Date; endsAt: Date; room: string | null; buildingId: string | null; status: "RESCHEDULED" | "CANCELLED" };
+    let reason: string;
+    let body: string;
+    if (variant === 0) {
+      const to = BUILDINGS.find((b) => b.id === altBuilding(lesson.buildingId))!;
+      data = { startsAt: lesson.startsAt, endsAt: lesson.endsAt, room: "ауд. 1101", buildingId: to.id, status: "RESCHEDULED" };
+      reason = "Аудитория занята под конференцию";
+      body = `«${title}» ${date} пройдёт в корпусе ${to.title}, ауд. 1101 (было: ${lesson.building?.title}, ${lesson.room}). Маршрут — в расписании.`;
+    } else if (variant === 1) {
+      const [from, to] = SLOTS[5];
+      const d = isoDay(lesson.startsAt);
+      data = { startsAt: msk(d, from), endsAt: msk(d, to), room: lesson.room, buildingId: lesson.buildingId, status: "RESCHEDULED" };
+      reason = "Преподаватель на научной конференции";
+      body = `«${title}» ${date} перенесено на ${from}–${to}, ${lesson.room}.`;
+    } else {
+      data = { startsAt: lesson.startsAt, endsAt: lesson.endsAt, room: lesson.room, buildingId: lesson.buildingId, status: "CANCELLED" };
+      reason = "Болезнь преподавателя, отработку назначат дополнительно";
+      body = `«${title}» ${date} отменено. Отработку назначат дополнительно.`;
+    }
+    const publishedAt = addDays(lesson.startsAt, -2);
+    await prisma.$transaction([
+      prisma.lesson.update({ where: { id: lesson.id }, data }),
+      prisma.lessonChange.create({
+        data: {
+          lessonId: lesson.id,
+          previousStatus: lesson.status,
+          newStatus: data.status,
+          previousStartsAt: lesson.startsAt,
+          previousEndsAt: lesson.endsAt,
+          previousRoom: lesson.room,
+          previousBuildingId: lesson.buildingId,
+          newStartsAt: data.startsAt,
+          newEndsAt: data.endsAt,
+          newRoom: data.room,
+          newBuildingId: data.buildingId,
+          reason,
+          createdAt: publishedAt,
+        },
+      }),
+      prisma.notification.create({
+        data: {
+          kind: "SCHEDULE_CHANGE",
+          title: data.status === "CANCELLED" ? `Отмена: ${title}` : `Изменение: ${title}`,
+          body: `${body} Причина: ${reason.toLowerCase()}.`,
+          important: true,
+          publishedAt,
+          lessonId: lesson.id,
+          recipients: { create: { userId, readAt: lesson.startsAt < NOW ? lesson.startsAt : null } },
+        },
+      }),
+    ]);
+  }
 }
 
 type DemoRequest = {
@@ -546,8 +614,8 @@ type DemoRequest = {
 };
 
 async function seedRequests(s: StudentSeed, studentId: string, userId: string, staffUserId: string) {
-  const isA = s.group.faculty === "MO";
-  const demo: DemoRequest[] = isA
+  const hasStaff = s.group.faculty === STAFF.faculty;
+  const demo: DemoRequest[] = hasStaff
     ? [
         {
           type: "study_certificate",
@@ -555,7 +623,7 @@ async function seedRequests(s: StudentSeed, studentId: string, userId: string, s
           submittedAt: "2026-10-20T11:15:00+03:00",
           steps: [
             { status: "IN_PROGRESS", at: "2026-10-20T15:00:00+03:00" },
-            { status: "READY", at: "2026-10-21T12:30:00+03:00", comment: "Справка подписана, PDF доступен" },
+            { status: "READY", at: "2026-10-21T12:30:00+03:00", comment: "Справка подписана электронной подписью, PDF доступен" },
             { status: "DONE", at: "2026-10-21T12:31:00+03:00" },
           ],
         },
@@ -573,14 +641,14 @@ async function seedRequests(s: StudentSeed, studentId: string, userId: string, s
             reason: "internship",
             dateFrom: "2026-11-16",
             dateTo: "2026-12-25",
-            details: "Стажировка в аналитическом отделе банка, 4 дня в неделю.",
+            details: "Стажировка в команде бэкенда, 4 дня в неделю.",
           },
           submittedAt: "2026-11-02T18:20:00+03:00",
           steps: [
             {
               status: "NEEDS_INFO",
               at: "2026-11-03T13:10:00+03:00",
-              comment: "Уточните, в какие дни недели вы сможете посещать семинары по эконометрике.",
+              comment: "Уточните, в какие дни сможете посещать практики по дискретной математике.",
             },
           ],
         },
@@ -590,7 +658,7 @@ async function seedRequests(s: StudentSeed, studentId: string, userId: string, s
           submittedAt: "2026-10-28T09:00:00+03:00",
           steps: [
             { status: "IN_PROGRESS", at: "2026-10-28T14:00:00+03:00" },
-            { status: "READY", at: "2026-10-30T11:00:00+03:00", comment: "Можно забрать в деканате, каб. 215, 10:00–17:00" },
+            { status: "READY", at: "2026-10-30T11:00:00+03:00", comment: "Можно забрать в деканате: Кронверкский, 49, ауд. 1117, 10:00–17:00" },
           ],
         },
       ];
@@ -615,8 +683,8 @@ async function seedRequests(s: StudentSeed, studentId: string, userId: string, s
           fromStatus: status,
           toStatus: step.status,
           actorType: "STAFF",
-          // У факультета МЭО в демо нет аккаунта сотрудника — событие без привязки к пользователю.
-          actorUserId: isA ? staffUserId : null,
+          // У второго факультета в демо нет аккаунта сотрудника — событие без привязки к пользователю.
+          actorUserId: hasStaff ? staffUserId : null,
           comment: step.comment,
           createdAt: new Date(step.at),
         },
@@ -640,38 +708,44 @@ async function seedRequests(s: StudentSeed, studentId: string, userId: string, s
 
 async function seedAnnouncements() {
   const students = await prisma.studentProfile.findMany({ include: { group: true } });
-  const toFaculty = (code: string | null) =>
+  const to = (code: string | null) =>
     students.filter((s) => code === null || s.group.facultyCode === code).map((s) => ({ userId: s.userId }));
 
   const items: { faculty: string | null; title: string; body: string; at: string; important?: boolean }[] = [
     {
       faculty: null,
-      title: "Расписание зимней сессии",
-      body: "Расписание экзаменов опубликуют 10 декабря. Сессия: 9–29 января 2027 г.",
-      at: "2026-11-02T10:00:00+03:00",
-    },
-    {
-      faculty: null,
-      title: "4 ноября — выходной день",
-      body: "Занятий нет. Деканаты не работают, онлайн-заявки принимаются как обычно.",
+      title: "4 ноября — выходной",
+      body: "Занятий нет. Онлайн-заявки принимаются как обычно, деканаты ответят 5 ноября.",
       at: "2026-10-30T12:00:00+03:00",
     },
     {
-      faculty: "MO",
-      title: "Отбор на программы обмена — весна 2027",
-      body: "Заявки принимаются до 20 ноября. Понадобится выписка оценок на английском — закажите её в разделе «Заявки».",
+      faculty: null,
+      title: "Расписание сессии",
+      body: "Расписание экзаменов опубликуют 10 декабря — даты появятся в разделе «Учёба». Сессия: 28 декабря — 31 января.",
+      at: "2026-11-02T10:00:00+03:00",
+    },
+    {
+      faculty: "CHB",
+      title: "Отбор на обмен — весна 2027",
+      body: "Заявки до 20 ноября. Понадобится выписка оценок на английском — закажите её в разделе «Заявки».",
       at: "2026-11-01T09:00:00+03:00",
       important: true,
     },
     {
-      faculty: "MEO",
-      title: "Ярмарка стажировок МЭО",
-      body: "25 ноября, 15:00, Большой зал. Банки, консалтинг, госкорпорации — регистрация не нужна.",
+      faculty: "SE",
+      title: "Ярмарка стажировок",
+      body: "25 ноября, 15:00, Кронверкский, 49, актовый зал. Регистрация не нужна.",
       at: "2026-11-06T16:00:00+03:00",
     },
     {
       faculty: null,
-      title: "Продление студенческих проездных",
+      title: "Корпус на Гривцова: вход только с переулка",
+      body: "До 30 ноября вход со стороны набережной закрыт на ремонт. Закладывайте пару лишних минут.",
+      at: "2026-11-09T09:00:00+03:00",
+    },
+    {
+      faculty: null,
+      title: "Продление проездных",
       body: "Если срок действия социальной карты истекает в декабре — подайте заявление до 15 декабря.",
       at: "2026-11-20T10:00:00+03:00",
     },
@@ -684,7 +758,7 @@ async function seedAnnouncements() {
         body: a.body,
         important: a.important ?? false,
         publishedAt: new Date(a.at),
-        recipients: { createMany: { data: toFaculty(a.faculty) } },
+        recipients: { createMany: { data: to(a.faculty) } },
       },
     });
   }

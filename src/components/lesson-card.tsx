@@ -26,8 +26,11 @@ export function LessonCard({ lesson }: { lesson: ScheduleLesson }) {
         </div>
         <h3 className={`font-medium leading-snug ${cancelled ? "line-through" : ""}`}>{lesson.title}</h3>
         <p className="mt-0.5 text-sm text-slate-600">
-          {[lesson.room, lesson.building?.title].filter(Boolean).join(" · ")}
-          {lesson.online && " · онлайн"}
+          {lesson.online ? (
+            <Badge tone="info">Онлайн</Badge>
+          ) : (
+            [lesson.room, lesson.building?.title].filter(Boolean).join(" · ")
+          )}
         </p>
         <p className="text-sm text-slate-500">{lesson.teacher}</p>
         {ch && (moved || cancelled) && (
@@ -46,9 +49,10 @@ export function LessonCard({ lesson }: { lesson: ScheduleLesson }) {
             href={yandexRouteUrl(lesson.building, "mt")}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 inline-block text-sm font-medium text-brand"
+            className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-brand"
           >
-            Как добраться →
+            Маршрут в Яндекс Картах →
+            {lesson.building.metro && <span className="font-normal text-slate-500">м. {lesson.building.metro}</span>}
           </a>
         )}
       </div>

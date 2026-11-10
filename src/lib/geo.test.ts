@@ -31,3 +31,11 @@ describe("geo", () => {
     expect(yandexRouteUrl(far, "pd")).toBe("https://yandex.ru/maps/?rtext=~59.9265,30.3383&rtt=pd");
   });
 });
+
+describe("литеры одного корпуса", () => {
+  it("переход занимает минимум 3 минуты", () => {
+    const litA = { id: "lom-a", lat: 59.9273, lon: 30.3384 };
+    const litM = { id: "lom-m", lat: 59.92735, lon: 30.33855 };
+    expect(judgeTransfer(litA, litM, 10)).toMatchObject({ kind: "ok", mode: "walk", estimate: { walkMin: 3 } });
+  });
+});
