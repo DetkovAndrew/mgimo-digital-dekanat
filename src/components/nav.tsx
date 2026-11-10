@@ -4,12 +4,19 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
+// Нижнее меню телефона — 5 главных разделов; уведомления — колокольчик в шапке.
 const items = [
   { href: "/today", label: "Сегодня", icon: "◉" },
   { href: "/schedule", label: "Расписание", icon: "▦" },
   { href: "/grades", label: "Учёба", icon: "★" },
+  { href: "/sport", label: "Спорт", icon: "◎" },
   { href: "/requests", label: "Заявки", icon: "✉" },
-  { href: "/notifications", label: "Новости", icon: "●" },
+] as const;
+
+const desktopItems = [
+  ...items,
+  { href: "/notifications", label: "Уведомления", icon: "●" },
+  { href: "/profile", label: "Профиль", icon: "☺" },
 ] as const;
 
 export function Nav({ unread }: { unread: number }) {
@@ -32,11 +39,6 @@ export function Nav({ unread }: { unread: number }) {
               >
                 <span aria-hidden className="text-lg leading-none">{i.icon}</span>
                 {i.label}
-                {i.href === "/notifications" && unread > 0 && (
-                  <span className="absolute top-1.5 right-[calc(50%-18px)] min-w-4 rounded-full bg-red-500 px-1 text-[10px] leading-4 text-white">
-                    {unread}
-                  </span>
-                )}
               </Link>
             </li>
           ))}
@@ -54,7 +56,7 @@ export function Nav({ unread }: { unread: number }) {
           </span>
         </Link>
         <ul className="space-y-1">
-          {[...items, { href: "/profile", label: "Профиль", icon: "☺" } as const].map((i) => (
+          {desktopItems.map((i) => (
             <li key={i.href}>
               <Link
                 href={i.href}
@@ -91,5 +93,23 @@ export function SignOut({ className }: { className?: string }) {
     >
       Выйти
     </button>
+  );
+}
+
+/** Колокольчик уведомлений для шапки на телефоне. */
+export function Bell({ unread }: { unread: number }) {
+  return (
+    <Link
+      href="/notifications"
+      aria-label={unread ? `Уведомления: ${unread} новых` : "Уведомления"}
+      className="relative grid size-11 place-items-center rounded-xl text-lg text-slate-600 hover:bg-slate-100"
+    >
+      <span aria-hidden>🔔</span>
+      {unread > 0 && (
+        <span className="absolute top-1 right-1 min-w-4 rounded-full bg-red-500 px-1 text-center text-[10px] leading-4 text-white">
+          {unread}
+        </span>
+      )}
+    </Link>
   );
 }

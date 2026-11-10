@@ -113,7 +113,8 @@ OFL для шрифтов); сохранять требуемые уведомл
 | `npm run db` | Локальный PostgreSQL 18 (embedded-postgres) на 127.0.0.1, держать запущенным |
 | `npm run db:migrate` | Новая миграция по `prisma/schema.prisma` + генерация клиента |
 | `npm run db:seed` | **Стирает** данные и создаёт демо-данные (пароли — `SEED_PASSWORD_*` в `.env`) |
-| `npm run db:reset` | Пересоздать БД с нуля (миграции + seed) |
+| `npm run db:reset` | Пересоздать БД с нуля (миграции + seed; в Prisma 7 seed вызывается явно) |
+| `npm test` / `npm run test:db` | Модульные тесты / интеграционные тесты DAL на `TEST_DATABASE_URL` (A/B-доступ, физкультура) |
 | `npm run dev` | Dev-сервер Next.js |
 | `npm run lint` / `npm run typecheck` / `npm run build` | Проверки и сборка |
 
@@ -128,6 +129,9 @@ OFL для шрифтов); сохранять требуемые уведомл
 - `prisma/` — схема, миграции (CHECK-ограничения дописаны в SQL вручную), seed.
 - Prisma 7: не обновлять до 8 (Better Auth пока не поддерживает). Конфиг — `prisma7.config.ts`.
 - После `npx auth generate` вернуть ручные правки схемы (см. комментарий в начале `schema.prisma`).
+- После изменения схемы перезапусти `npm run dev`: Prisma-клиент кешируется в `globalThis`.
+- `prisma migrate reset` — разрушительная команда: ИИ-агент запускает её только с явного согласия человека
+  (Prisma сама это требует). Для тестов — `migrate deploy` + seed на `TEST_DATABASE_URL`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

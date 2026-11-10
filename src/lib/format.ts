@@ -36,6 +36,7 @@ export const lessonKindLabel: Record<string, string> = {
   LANGUAGE: "Иностранный язык",
   PRACTICE: "Практика",
   CONSULTATION: "Консультация",
+  SPORT: "Физкультура",
 };
 
 export type Tone = "neutral" | "info" | "warn" | "ok" | "bad";

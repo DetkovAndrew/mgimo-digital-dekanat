@@ -111,8 +111,11 @@ model StudentProfile {
   funding          String // «бюджет» | «договор»
   enrolledAt       DateTime   @db.Date
 
-  grades   GradeResult[]
-  requests Request[]
+  grades           GradeResult[]
+  requests         Request[]
+  sportPreferences SportPreference[]
+  sportBookings    SportBooking[]
+  sportExtra       SportExtraPoints[]
 
   @@index([groupId])
   @@map("student_profile")
@@ -167,7 +170,8 @@ model AcademicTerm {
   sessionStartsOn DateTime @db.Date
   sessionEndsOn   DateTime @db.Date
 
-  offerings CourseOffering[]
+  offerings  CourseOffering[]
+  sportExtra SportExtraPoints[]
 
   @@map("academic_term")
 }
@@ -191,7 +195,8 @@ model Building {
   lon     Float
   metro   String?
 
-  lessons Lesson[]
+  lessons    Lesson[]
+  sportSlots SportSlot[]
 
   @@map("building")
 }
@@ -431,4 +436,120 @@ model NotificationRecipient {
   @@id([notificationId, userId])
   @@index([userId, readAt])
   @@map("notification_recipient")
+}
+
+// ─── Физкультура: честная запись (правило University, демо) ──────────────────
+// Все изменения одной недели (приоритеты, жеребьёвка, отмена, продвижение очереди)
+// выполняются в транзакции с блокировкой строки SportWeek (SELECT … FOR UPDATE).
+
+enum SportWeekStatus {
+  OPEN // принимаются приоритеты
+  DRAWN // жеребьёвка проведена, результат зафиксирован
+}
+
+model SportWeek {
+  weekStart    DateTime        @id @db.Date // понедельник (московская дата)
+  status       SportWeekStatus @default(OPEN)
+  deadline     DateTime        @db.Timestamptz(6) // приём приоритетов до
+  seed         String? // для воспроизводимости жеребьёвки
+  lotteryOrder Json? // порядок участников (studentId[]) — снимок на момент жеребьёвки
+  drawnAt      DateTime?       @db.Timestamptz(6)
+
+  slots       SportSlot[]
+  preferences SportPreference[]
+  bookings    SportBooking[]
+
+  @@map("sport_week")
+}
+
+model SportSection {
+  id          String  @id @default(cuid())
+  title       String // «Волейбол»
+  description String?
+
+  slots SportSlot[]
+
+  @@map("sport_section")
+}
+
+model SportSlot {
+  id         String       @id @default(cuid())
+  sectionId  String
+  section    SportSection @relation(fields: [sectionId], references: [id])
+  weekStart  DateTime     @db.Date
+  week       SportWeek    @relation(fields: [weekStart], references: [weekStart])
+  startsAt   DateTime     @db.Timestamptz(6)
+  endsAt     DateTime     @db.Timestamptz(6)
+  buildingId String
+  building   Building     @relation(fields: [buildingId], references: [id])
+  room       String
+  coach      String // вымышленное ФИО тренера
+  capacity   Int
+
+  preferences SportPreference[]
+  bookings    SportBooking[]
+
+  @@index([weekStart, startsAt])
+  @@map("sport_slot")
+}
+
+model SportPreference {
+  id        String         @id @default(cuid())
+  studentId String
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  slotId    String
+  slot      SportSlot      @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  weekStart DateTime       @db.Date
+  week      SportWeek      @relation(fields: [weekStart], references: [weekStart])
+  rank      Int // 1 — самый желанный
+  createdAt DateTime       @default(now()) @db.Timestamptz(6)
+
+  @@unique([studentId, slotId])
+  @@unique([studentId, weekStart, rank])
+  @@index([weekStart])
+  @@map("sport_preference")
+}
+
+enum SportBookingStatus {
+  CONFIRMED // место есть
+  WAITLIST // в листе ожидания
+  CANCELLED // отменено студентом до начала (место и квота вернулись)
+  ATTENDED // посетил (+5 баллов)
+  MISSED // не пришёл без отмены (квота потрачена)
+}
+
+model SportBooking {
+  id           String             @id @default(cuid())
+  studentId    String
+  student      StudentProfile     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  slotId       String
+  slot         SportSlot          @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  weekStart    DateTime           @db.Date
+  week         SportWeek          @relation(fields: [weekStart], references: [weekStart])
+  status       SportBookingStatus
+  rank         Int? // какой это был выбор
+  lotteryIndex Int? // место студента в порядке жеребьёвки недели (для очереди)
+  explanation  String? // «2-й выбор (1-й: пересечение с парой)»
+  createdAt    DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime           @updatedAt @db.Timestamptz(6)
+
+  @@unique([studentId, slotId])
+  @@index([slotId, status])
+  @@index([studentId, weekStart])
+  @@map("sport_booking")
+}
+
+// Дополнительные баллы (соревнования, нормативы). Начисляет только вуз, не студент.
+model SportExtraPoints {
+  id        String         @id @default(cuid())
+  studentId String
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  termId    String
+  term      AcademicTerm   @relation(fields: [termId], references: [id])
+  title     String
+  points    Int
+  awardedAt DateTime       @db.Timestamptz(6)
+
+  @@index([studentId, termId])
+  @@map("sport_extra_points")
 }
