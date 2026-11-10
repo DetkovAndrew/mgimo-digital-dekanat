@@ -16,3 +16,6 @@ next-env.d.ts
 .data/
 
 /src/generated/prisma
+
+# Скриншоты реальных сервисов — личные данные, не коммитить
+docs/research/screenshots/
