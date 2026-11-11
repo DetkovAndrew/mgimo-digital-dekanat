@@ -38,7 +38,7 @@ export default async function NewRequestPage({ searchParams }: PageProps<"/reque
               .map(([key, s]) => (
                 <RowLink key={key} href={`/requests/new?type=${key}`}>
                   <span className="block font-medium">{s.title}</span>
-                  <span className="block text-sm text-slate-500">{s.description}</span>
+                  <span className="block text-sm text-ink-2">{s.description}</span>
                 </RowLink>
               ))}
           </List>

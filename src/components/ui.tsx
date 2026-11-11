@@ -1,10 +1,11 @@
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Tone } from "@/lib/format";
 import { Chevron } from "./pending";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-1 ring-black/[0.04] ${className}`}>{children}</section>;
+  return <section className={`rounded-2xl bg-surface p-4 ring-1 ring-hairline ${className}`}>{children}</section>;
 }
 
 export function PageTitle({ children, aside, sub }: { children: ReactNode; aside?: ReactNode; sub?: ReactNode }) {
@@ -14,7 +15,7 @@ export function PageTitle({ children, aside, sub }: { children: ReactNode; aside
         <h1 className="text-[28px] leading-tight font-bold tracking-tight">{children}</h1>
         {aside}
       </div>
-      {sub && <p className="mt-0.5 text-sm text-slate-500 first-letter:uppercase">{sub}</p>}
+      {sub && <p className="mt-0.5 text-sm text-ink-2 first-letter:uppercase">{sub}</p>}
     </div>
   );
 }
@@ -25,7 +26,7 @@ export function Section({ title, aside, children, className = "" }: { title?: Re
     <section className={`mb-6 ${className}`}>
       {(title || aside) && (
         <div className="mb-2 flex min-h-6 items-center justify-between gap-3 px-1">
-          {title && <h2 className="text-[13px] font-semibold tracking-wide text-slate-500 uppercase">{title}</h2>}
+          {title && <h2 className="text-[17px] font-semibold text-ink">{title}</h2>}
           {aside}
         </div>
       )}
@@ -34,10 +35,23 @@ export function Section({ title, aside, children, className = "" }: { title?: Re
   );
 }
 
+/** Свёрнутый раздел: заголовок со стрелкой, которая поворачивается при раскрытии. */
+export function Disclosure({ title, children, open, className = "mb-6" }: { title: ReactNode; children: ReactNode; open?: boolean; className?: string }) {
+  return (
+    <details open={open} className={`group ${className}`}>
+      <summary className="mb-2 flex min-h-11 cursor-pointer list-none items-center gap-1.5 px-1 text-[17px] font-semibold text-ink [&::-webkit-details-marker]:hidden">
+        {title}
+        <ChevronDown aria-hidden className="size-4 text-ink-3 transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none" />
+      </summary>
+      {children}
+    </details>
+  );
+}
+
 /** Группа строк в одной карточке, с разделителями. */
 export function List({ children }: { children: ReactNode }) {
   return (
-    <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-1 ring-black/[0.04]">
+    <ul className="divide-y divide-hairline overflow-hidden rounded-2xl bg-surface ring-1 ring-hairline">
       {children}
     </ul>
   );
@@ -50,7 +64,7 @@ export function RowLink({ href, children, back = false }: { href: string; childr
       <Link
         href={href}
         transitionTypes={[back ? "nav-back" : "nav-forward"]}
-        className="group flex min-h-14 items-center gap-3 px-4 py-2.5 transition-colors active:bg-slate-50 md:hover:bg-slate-50/70"
+        className="group flex min-h-14 items-center gap-3 px-4 py-2.5 transition-colors focus-visible:-outline-offset-2 active:bg-fill md:hover:bg-fill/70"
       >
         <span className="min-w-0 flex-1">{children}</span>
         <Chevron />
@@ -64,11 +78,11 @@ export function Row({ children }: { children: ReactNode }) {
 }
 
 const tones: Record<Tone, string> = {
-  neutral: "bg-slate-100 text-slate-600",
-  info: "bg-blue-50 text-blue-700",
-  warn: "bg-amber-50 text-amber-800",
-  ok: "bg-emerald-50 text-emerald-700",
-  bad: "bg-red-50 text-red-700",
+  neutral: "bg-fill text-ink-2",
+  info: "bg-info-soft text-info",
+  warn: "bg-warn-soft text-warn",
+  ok: "bg-ok-soft text-ok",
+  bad: "bg-bad-soft text-bad",
 };
 
 export function Badge({ tone = "neutral", children }: { tone?: Tone; children: ReactNode }) {
@@ -76,5 +90,5 @@ export function Badge({ tone = "neutral", children }: { tone?: Tone; children: R
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="rounded-2xl bg-white/60 p-6 text-center text-sm text-slate-500 ring-1 ring-black/[0.04]">{children}</p>;
+  return <p className="rounded-2xl bg-surface/60 p-6 text-center text-sm text-ink-2 ring-1 ring-hairline">{children}</p>;
 }

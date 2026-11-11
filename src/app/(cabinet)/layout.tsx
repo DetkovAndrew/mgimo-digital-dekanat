@@ -14,7 +14,7 @@ export default async function CabinetLayout({ children }: LayoutProps<"/">) {
       <div className="flex min-w-0 flex-1 flex-col">
         <div style={{ viewTransitionName: "app-header" }} className="sticky top-0 z-20 md:static">
           <Disclaimer />
-          <header className="flex items-center justify-between border-b border-black/5 bg-white/90 py-1 pr-1 pl-4 backdrop-blur-xl md:hidden">
+          <header className="flex items-center justify-between border-b border-hairline bg-surface/90 py-1 pr-1 pl-4 backdrop-blur-xl md:hidden">
             <span className="flex items-center gap-2 font-semibold">
               <span className="scale-[0.8]">
                 <Logo />

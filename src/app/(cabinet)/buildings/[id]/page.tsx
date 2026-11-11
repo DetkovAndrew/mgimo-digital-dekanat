@@ -16,11 +16,11 @@ export default async function BuildingPage({ params }: PageProps<"/buildings/[id
       <BackLink href="/schedule">Расписание</BackLink>
       <PageTitle sub={`${b.address}${b.metro ? ` · м. ${b.metro}` : ""}`}>{b.title}</PageTitle>
       <div className="mb-6 flex gap-2">
-        <a href={yandexRouteUrl(b, "mt")} target="_blank" rel="noopener noreferrer" className={`${button} bg-brand text-white shadow-sm shadow-brand/30`}>
+        <a href={yandexRouteUrl(b, "mt")} target="_blank" rel="noopener noreferrer" className={`${button} bg-brand-fill text-on-brand`}>
           <Navigation aria-hidden className="size-4" />
           Маршрут
         </a>
-        <a href={yandexPointUrl(b)} target="_blank" rel="noopener noreferrer" className={`${button} bg-white text-brand ring-1 ring-black/[0.06]`}>
+        <a href={yandexPointUrl(b)} target="_blank" rel="noopener noreferrer" className={`${button} bg-surface text-brand ring-1 ring-hairline`}>
           <MapIcon aria-hidden className="size-4" />
           На карте
         </a>
@@ -33,11 +33,11 @@ export default async function BuildingPage({ params }: PageProps<"/buildings/[id
               <RowLink key={v.key} href={v.href}>
                 <span className={v.cancelled ? "line-through opacity-60" : ""}>
                   <span className="block font-medium">{v.title}</span>
-                  <span className="block text-sm text-slate-500 first-letter:uppercase">
+                  <span className="block text-sm text-ink-2 first-letter:uppercase">
                     {formatDay(v.startsAt)}, {formatTime(v.startsAt)}–{formatTime(v.endsAt)}
                     {v.room && ` · ${v.room}`}
                   </span>
-                  <span className="block text-xs text-slate-400">{lessonKindLabel[v.kind]}</span>
+                  <span className="block text-xs text-ink-3">{lessonKindLabel[v.kind]}</span>
                 </span>
               </RowLink>
             ))}

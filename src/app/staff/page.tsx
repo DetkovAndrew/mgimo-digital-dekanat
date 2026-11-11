@@ -9,8 +9,8 @@ export default async function StaffPage() {
       <Disclaimer />
       <main className="mx-auto max-w-lg px-4 py-10 text-center">
         <h1 className="mb-2 text-2xl font-semibold">Кабинет сотрудника деканата</h1>
-        <p className="mb-6 text-slate-500">В разработке: здесь будут заявки студентов факультета.</p>
-        <SignOut className="rounded-xl bg-white px-4 py-2 text-sm ring-1 ring-black/5" />
+        <p className="mb-6 text-ink-2">В разработке: здесь будут заявки студентов факультета.</p>
+        <SignOut className="rounded-xl bg-surface px-4 py-2 text-sm ring-1 ring-hairline" />
       </main>
     </div>
   );

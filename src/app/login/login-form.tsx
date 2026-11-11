@@ -37,7 +37,7 @@ export function LoginForm() {
           required
           autoComplete="username"
           autoCapitalize="none"
-          className="w-full rounded-xl border border-slate-300 px-3 py-3 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          className="w-full rounded-xl border border-field px-3 py-3 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
         />
       </label>
       <label className="block">
@@ -47,17 +47,17 @@ export function LoginForm() {
           type="password"
           required
           autoComplete="current-password"
-          className="w-full rounded-xl border border-slate-300 px-3 py-3 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+          className="w-full rounded-xl border border-field px-3 py-3 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
         />
       </label>
       {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded-lg bg-bad-soft px-3 py-2 text-sm text-bad">
           {error}
         </p>
       )}
       <button
         disabled={pending}
-        className="w-full rounded-xl bg-brand px-4 py-3 font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+        className="w-full rounded-xl bg-brand-fill px-4 py-3 font-medium text-on-brand transition hover:opacity-90 disabled:opacity-60"
       >
         {pending ? "Входим…" : "Войти"}
       </button>

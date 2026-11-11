@@ -1,23 +1,108 @@
 @import "tailwindcss";
 
+/* ─── Токены (docs/design/DIRECTION.md) ───────────────────────────────────────
+   Экраны используют только семантические имена: bg-page, bg-surface, text-ink, text-ink-2, border-hairline,
+   text-ok / bg-ok-soft … Цвета Tailwind (slate-500, red-50…) в разметке не используем.
+   Контраст пар проверяет `node scripts/contrast.mjs` (WCAG 2.2 AA). */
 :root {
-  --background: #f5f6fa;
-  --foreground: #14161f;
-  --brand: #3b4cca;
+  color-scheme: light;
+  --page: #f3f5f8;
+  --surface: #ffffff;
+  --fill: #edf0f4; /* нейтральная заливка: нажатие, трек полосы, неактивные элементы */
+  --ink: #1b1f27;
+  --ink-2: #515a68; /* вторичный текст */
+  --ink-3: #5f6876; /* третичный: подписи, время, стрелки */
+  --hairline: #e1e5eb;
+  --field: #7b8492; /* граница полей ввода: должна быть различима (≥ 3:1), в отличие от декоративной hairline */
+  --brand: #3b4cca; /* ссылки и акценты на поверхности */
+  --brand-fill: #3b4cca; /* сплошная заливка кнопок под белым текстом */
+  --on-brand: #ffffff;
+  --brand-soft: #eceefb;
+  --accent: #0b8fc9; /* доп. баллы на полосе физкультуры — единственный второй цвет */
+  --ok: #146c43;
+  --ok-soft: #e6f4ec;
+  --warn: #84530a;
+  --warn-soft: #fbf1df;
+  --bad: #b8261c;
+  --bad-soft: #fcebe9;
+  --bad-fill: #c9302a; /* счётчик непрочитанного под белым текстом */
+  --info: #1d5bb8;
+  --info-soft: #e8f0fc;
+  --focus: #3b4cca;
+  --focus-on-brand: #ffffff; /* фокус на брендовой заливке */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Тёмная тема спроектирована, а не инвертирована: глубина — светлее поверхность, а не тень. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0e1014;
+    --surface: #171a20;
+    --fill: #22262e;
+    --ink: #eceef2;
+    --ink-2: #a9b0bb;
+    --ink-3: #8c94a1;
+    --hairline: #2a2f38;
+    --field: #6b7482;
+    --brand: #a3adff;
+    --brand-fill: #4b5bd8;
+    --on-brand: #ffffff;
+    --brand-soft: #222849;
+    --accent: #4cc3f2;
+    --ok: #6fd6a3;
+    --ok-soft: #13291e;
+    --warn: #f0bd5e;
+    --warn-soft: #2d2412;
+    --bad: #ff978d;
+    --bad-soft: #351a1a;
+    --bad-fill: #d23b35;
+    --info: #94bcff;
+    --info-soft: #172640;
+    --focus: #a3adff;
+    --focus-on-brand: #ffffff;
+  }
+}
+
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-fill: var(--fill);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-hairline: var(--hairline);
+  --color-field: var(--field);
   --color-brand: var(--brand);
+  --color-brand-fill: var(--brand-fill);
+  --color-on-brand: var(--on-brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-bad-fill: var(--bad-fill);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-focus: var(--focus);
+  --color-focus-on-brand: var(--focus-on-brand);
   --font-sans: var(--font-inter);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--page);
+  color: var(--ink);
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Единое кольцо фокуса с клавиатуры для всех интерактивных элементов. */
+:where(a, button, summary, input, select, textarea):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 12px;
 }
 
 /* ─── Переходы между страницами (React <ViewTransition>, см. src/app/(cabinet)/template.tsx) ───

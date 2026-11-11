@@ -26,29 +26,29 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
     <>
       <BackLink href="/requests">Заявки</BackLink>
       {created && (
-        <p role="status" className="mb-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+        <p role="status" className="mb-4 rounded-xl bg-ok-soft px-3 py-2 text-sm text-ok">
           Заявка отправлена. Статус будет обновляться здесь и в уведомлениях.
         </p>
       )}
       <PageTitle aside={<Badge tone={status.tone}>{status.label}</Badge>}>{spec?.title ?? r.type}</PageTitle>
-      <p className="-mt-2 mb-4 text-sm text-slate-500">
+      <p className="-mt-2 mb-4 text-sm text-ink-2">
         {formatRequestNumber(r.number)} · подана {formatDateTime(r.createdAt)}
       </p>
 
       {r.status === "NEEDS_INFO" && (
-        <Card className="mb-4 ring-amber-300">
+        <Card className="mb-4 ring-warn/40">
           <h2 className="mb-1 font-semibold">Деканат просит уточнить</h2>
-          <p className="mb-3 text-sm text-slate-600">{r.events.findLast((e) => e.toStatus === "NEEDS_INFO")?.comment}</p>
+          <p className="mb-3 text-sm text-ink-2">{r.events.findLast((e) => e.toStatus === "NEEDS_INFO")?.comment}</p>
           <AnswerForm id={r.id} />
         </Card>
       )}
 
       <Card className="mb-4">
         <h2 className="mb-2 font-semibold">Данные заявки</h2>
-        <dl className="divide-y divide-slate-100 text-sm">
+        <dl className="divide-y divide-hairline text-sm">
           {Object.entries(payload).map(([k, v]) => (
             <div key={k} className="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] gap-3 py-2">
-              <dt className="text-slate-500">{spec?.fields.find((f) => f.name === k)?.label ?? k}</dt>
+              <dt className="text-ink-2">{spec?.fields.find((f) => f.name === k)?.label ?? k}</dt>
               <dd className="break-words">{valueLabel(k, v)}</dd>
             </div>
           ))}
@@ -57,15 +57,15 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
 
       <Card>
         <h2 className="mb-3 font-semibold">История</h2>
-        <ol className="relative space-y-4 border-l border-slate-200 pl-4">
+        <ol className="relative space-y-4 border-l border-hairline pl-4">
           {r.events.map((e) => (
             <li key={e.id}>
-              <span className="absolute -left-[5px] mt-1.5 size-2.5 rounded-full bg-brand" aria-hidden />
+              <span className="absolute -left-[5px] mt-1.5 size-2.5 rounded-full bg-brand-fill" aria-hidden />
               <p className="text-sm font-medium">{requestStatusLabel[e.toStatus].label}</p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-ink-2">
                 {formatDateTime(e.createdAt)} · {actorLabel[e.actorType]}
               </p>
-              {e.comment && <p className="mt-1 text-sm text-slate-600">{e.comment}</p>}
+              {e.comment && <p className="mt-1 text-sm text-ink-2">{e.comment}</p>}
             </li>
           ))}
         </ol>
@@ -73,7 +73,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
 
       {["SUBMITTED", "IN_PROGRESS", "NEEDS_INFO"].includes(r.status) && (
         <form action={cancelRequest.bind(null, r.id)} className="mt-4">
-          <button className="w-full rounded-xl bg-white px-4 py-3 text-sm text-red-600 ring-1 ring-black/5 hover:bg-red-50">
+          <button className="w-full rounded-xl bg-surface px-4 py-3 text-sm text-bad ring-1 ring-hairline hover:bg-bad-soft">
             Отозвать заявку
           </button>
         </form>

@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { Badge, Empty, List, PageTitle, RowLink, Section } from "@/components/ui";
+import { Badge, Disclosure, Empty, List, PageTitle, RowLink, Section } from "@/components/ui";
 import { formatDateTime, requestStatusLabel } from "@/lib/format";
 import { formatRequestNumber, isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { listMyRequests } from "@/server/dal/requests";
@@ -19,7 +19,7 @@ export default async function RequestsPage() {
         <span className="flex items-center justify-between gap-3">
           <span className="min-w-0">
             <span className="block font-medium">{isRequestType(r.type) ? requestCatalog[r.type].title : r.type}</span>
-            <span className="block text-xs text-slate-500">
+            <span className="block text-xs text-ink-2">
               {formatRequestNumber(r.number)} · {formatDateTime(r.updatedAt)}
             </span>
           </span>
@@ -36,7 +36,7 @@ export default async function RequestsPage() {
           <Link
             href="/requests/new"
             transitionTypes={["nav-forward"]}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-brand px-4 text-sm font-semibold text-white shadow-sm shadow-brand/30 transition active:scale-95"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-brand-fill px-4 text-sm font-semibold text-on-brand transition active:scale-95"
           >
             <Plus aria-hidden className="size-4" />
             Новая
@@ -53,12 +53,9 @@ export default async function RequestsPage() {
             </Section>
           )}
           {done.length > 0 && (
-            <details open={!active.length}>
-              <summary className="flex min-h-11 cursor-pointer list-none items-center px-1 text-[13px] font-semibold tracking-wide text-slate-500 uppercase">
-                Завершённые ({done.length}) ›
-              </summary>
+            <Disclosure open={!active.length} title={`Завершённые (${done.length})`}>
               <List>{done.map(row)}</List>
-            </details>
+            </Disclosure>
           )}
         </>
       ) : (

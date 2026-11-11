@@ -32,7 +32,7 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
       scroll={false}
       transitionTypes={[n > offset ? "nav-forward" : "nav-back"]}
       aria-label={label}
-      className="grid size-11 place-items-center rounded-full text-brand transition hover:bg-brand/10 active:scale-90"
+      className="grid size-11 place-items-center rounded-full text-brand transition hover:bg-brand-soft active:scale-90"
     >
       <Icon aria-hidden className="size-5" />
     </Link>
@@ -41,11 +41,11 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
   return (
     <>
       <PageTitle>Расписание</PageTitle>
-      <div className="mb-5 flex items-center justify-between rounded-full bg-white p-1 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-1 ring-black/[0.04]">
+      <div className="mb-5 flex items-center justify-between rounded-2xl bg-surface p-1 ring-1 ring-hairline">
         {step(offset - 1, "Предыдущая неделя", ChevronLeft)}
         <span className="text-center">
           <span className="block text-sm font-semibold">{weekLabel(offset)}</span>
-          <span className="block text-xs text-slate-500">
+          <span className="block text-xs text-ink-2">
             {formatShortDate(start)} — {formatShortDate(addDays(start, 5))}
           </span>
         </span>
@@ -70,7 +70,7 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
                     })}
                   </div>
                 ) : (
-                  <p className="px-1 text-sm text-slate-400">Нет занятий</p>
+                  <p className="px-1 text-sm text-ink-3">Нет занятий</p>
                 )}
               </Section>
             ))

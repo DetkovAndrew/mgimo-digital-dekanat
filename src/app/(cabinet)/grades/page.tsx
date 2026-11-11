@@ -1,5 +1,5 @@
 import { ViewTransition } from "react";
-import { Badge, Empty, List, PageTitle, RowLink, Section } from "@/components/ui";
+import { Badge, Disclosure, Empty, List, PageTitle, RowLink, Section } from "@/components/ui";
 import { controlFormLabel, formatDate, formatShortDate } from "@/lib/format";
 import { assessmentDate, courseProgress, courseStatus, formatPoints, nextAssessment } from "@/lib/grading";
 import { getMyGrades, type MyTerm } from "@/server/dal/grades";
@@ -26,7 +26,7 @@ function OfferingRow({ o, now, past }: { o: Offering; now: Date; past?: boolean 
               <span className="block w-fit leading-snug font-medium">{o.discipline.title}</span>
             </ViewTransition>
           )}
-          <span className="block text-xs text-slate-500">
+          <span className="block text-xs text-ink-2">
             {next ? (
               <>
                 {next.title}
@@ -41,7 +41,7 @@ function OfferingRow({ o, now, past }: { o: Offering; now: Date; past?: boolean 
         <span className="shrink-0 text-right">
           <span className="block font-semibold tabular-nums">
             {formatPoints(p.earned)}
-            <span className="text-xs font-normal text-slate-400"> / 100</span>
+            <span className="text-xs font-normal text-ink-3"> / 100</span>
           </span>
           <Badge tone={status.tone}>{status.text}</Badge>
         </span>
@@ -68,16 +68,13 @@ export default async function GradesPage() {
       </Section>
 
       {past.map((term) => (
-        <details key={term.id} className="mb-4">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center px-1 text-[13px] font-semibold tracking-wide text-slate-500 uppercase">
-            {term.title} ›
-          </summary>
+        <Disclosure key={term.id} title={term.title} className="mb-4">
           <List>
             {term.offerings.map((o) => (
               <OfferingRow key={o.id} o={o} now={now} past />
             ))}
           </List>
-        </details>
+        </Disclosure>
       ))}
     </>
   );

@@ -5,7 +5,7 @@ import { useTransition } from "react";
 import { toast } from "@/components/toast";
 import { book, cancelBooking } from "./actions";
 
-const base = "inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold transition active:scale-95 disabled:opacity-60";
+const base = "inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition active:scale-95 disabled:opacity-60";
 
 /** Одна кнопка на тренировку: «Записаться» или «В очередь». Результат — сразу в списке и всплывающим сообщением. */
 export function BookButton({ slotId, queue }: { slotId: string; queue: boolean }) {
@@ -20,7 +20,7 @@ export function BookButton({ slotId, queue }: { slotId: string; queue: boolean }
           toast(r.ok, r.ok ? r.message : r.error);
         })
       }
-      className={`${base} ${queue ? "bg-white text-brand ring-1 ring-brand/30" : "bg-brand text-white shadow-sm shadow-brand/30"}`}
+      className={`${base} ${queue ? "bg-surface text-brand ring-1 ring-brand/30" : "bg-brand-fill text-on-brand "}`}
     >
       {pending && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
       {queue ? "В очередь" : "Записаться"}
@@ -30,7 +30,7 @@ export function BookButton({ slotId, queue }: { slotId: string; queue: boolean }
 
 export function Booked({ queued }: { queued: boolean }) {
   return (
-    <span className={`${base} px-3 ${queued ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-700"}`}>
+    <span className={`${base} px-3 ${queued ? "bg-warn-soft text-warn" : "bg-ok-soft text-ok"}`}>
       {!queued && <Check aria-hidden className="size-4" />}
       {queued ? "В очереди" : "Вы записаны"}
     </span>
@@ -50,7 +50,7 @@ export function CancelBookingButton({ id, waitlist }: { id: string; waitlist: bo
           toast(r.ok, r.ok ? r.message : r.error);
         });
       }}
-      className="min-h-11 shrink-0 rounded-full px-3 text-sm font-medium text-red-600 transition hover:bg-red-50 active:scale-95 disabled:opacity-50"
+      className="min-h-11 shrink-0 rounded-xl px-3 text-sm font-medium text-bad transition hover:bg-bad-soft active:scale-95 disabled:opacity-50"
     >
       {pending ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : waitlist ? "Выйти" : "Отменить"}
     </button>

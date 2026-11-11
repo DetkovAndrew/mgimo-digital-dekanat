@@ -46,13 +46,13 @@ export default async function TodayPage() {
       <PageTitle sub={`${formatDay(now)} · ${profile.group}`}>Привет, {firstName}!</PageTitle>
 
       {next && (
-        <section className="mb-6 overflow-hidden rounded-3xl bg-gradient-to-br from-brand to-indigo-500 p-5 text-white shadow-lg shadow-brand/25">
-          <p className="text-sm text-white/80">{ongoing ? "Сейчас идёт" : `Следующая пара — ${startsIn(next.startsAt, now)}`}</p>
-          <Link href={next.href} transitionTypes={["nav-forward"]} className="group mt-1 flex min-h-11 items-center gap-1">
+        <section className="mb-6 overflow-hidden rounded-3xl bg-brand-fill p-5 text-on-brand">
+          <p className="text-sm font-medium text-on-brand">{ongoing ? "Сейчас идёт" : `Следующая пара — ${startsIn(next.startsAt, now)}`}</p>
+          <Link href={next.href} transitionTypes={["nav-forward"]} className="group mt-1 flex min-h-11 items-center gap-1 focus-visible:outline-focus-on-brand">
             <h2 className="text-[22px] leading-snug font-bold">{next.title}</h2>
             <ChevronRight aria-hidden className="size-5 shrink-0 opacity-70 transition group-hover:translate-x-0.5" />
           </Link>
-          <p className="text-[15px] text-white/90">
+          <p className="text-[15px] text-on-brand">
             {formatTime(next.startsAt)}–{formatTime(next.endsAt)} · {next.online ? "онлайн" : [next.room, next.building?.title].filter(Boolean).join(", ")}
           </p>
           {next.status === "RESCHEDULED" && <p className="mt-1 text-sm font-medium">Есть изменение в расписании</p>}
@@ -61,7 +61,7 @@ export default async function TodayPage() {
               href={yandexRouteUrl(next.building, "mt")}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-brand transition active:scale-95"
+              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-surface px-5 text-sm font-semibold text-brand transition active:scale-95"
             >
               <Navigation aria-hidden className="size-4" />
               Маршрут
@@ -78,7 +78,7 @@ export default async function TodayPage() {
                 <span className="flex items-center justify-between gap-3">
                   <span className="min-w-0">
                     <span className="block font-medium">{r.status === "NEEDS_INFO" ? "Деканат ждёт ответа" : "Справка готова"}</span>
-                    <span className="block text-sm text-slate-500">
+                    <span className="block text-sm text-ink-2">
                       {isRequestType(r.type) ? requestCatalog[r.type].title : r.type} · {formatRequestNumber(r.number)}
                     </span>
                   </span>
@@ -88,8 +88,8 @@ export default async function TodayPage() {
             ))}
             {impossible.map((t) => (
               <li key={t.afterLessonId} className="px-4 py-3 text-sm">
-                <b className="font-medium text-red-700">Не успеть на переход → {t.toTitle}</b>
-                <span className="block text-slate-500">
+                <b className="font-medium text-bad">Не успеть на переход → {t.toTitle}</b>
+                <span className="block text-ink-2">
                   {t.verdict.kind === "impossible" && `Перерыв ${t.verdict.gapMin} мин, дорога ≈ ${t.verdict.estimate.transitMin} мин.`}
                 </span>
               </li>
@@ -97,7 +97,7 @@ export default async function TodayPage() {
             {deadlines.slice(0, 3).map((d) => (
               <RowLink key={d.id} href={`/courses/${d.offeringId}`}>
                 <span className="block font-medium">{d.title}</span>
-                <span className="block text-sm text-slate-500">
+                <span className="block text-sm text-ink-2">
                   {d.discipline} · до {formatShortDate(d.at)}
                 </span>
               </RowLink>

@@ -6,10 +6,10 @@ export function TransferNote({ transfer }: { transfer: Transfer }) {
   if (v.kind === "same-building") return null;
   const tone =
     v.kind === "impossible"
-      ? "border-red-200 bg-red-50 text-red-800"
+      ? "border-bad/30 bg-bad-soft text-bad"
       : v.kind === "tight"
-        ? "border-amber-200 bg-amber-50 text-amber-900"
-        : "border-slate-200 bg-slate-50 text-slate-600";
+        ? "border-warn/30 bg-warn-soft text-warn"
+        : "border-hairline bg-fill text-ink-2";
   const text =
     v.kind === "impossible"
       ? `Не успеть: перерыв ${v.gapMin} мин, а дорога ≈ ${v.estimate.transitMin} мин на транспорте. Предупредите преподавателя или подайте заявку.`

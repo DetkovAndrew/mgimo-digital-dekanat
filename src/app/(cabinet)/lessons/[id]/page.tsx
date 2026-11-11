@@ -2,7 +2,7 @@ import { MapPin, Navigation } from "lucide-react";
 import Link from "next/link";
 import { ViewTransition } from "react";
 import { BackLink } from "@/components/back-link";
-import { Badge, Card, List, RowLink, Section } from "@/components/ui";
+import { Badge, Card, Disclosure, List, RowLink, Section } from "@/components/ui";
 import { formatDate, formatDateTime, formatDay, formatTime, lessonKindLabel } from "@/lib/format";
 import { yandexRouteUrl } from "@/lib/geo";
 import { lessonTitleName } from "@/lib/view-transitions";
@@ -15,7 +15,7 @@ function ChangeLine({ c, titles }: { c: MyLesson["changes"][number]; titles: Rec
   const where = (room: string | null, b: string | null) => [room, b ? titles[b] : null].filter(Boolean).join(", ") || "онлайн";
   return (
     <li className="px-4 py-3 text-sm">
-      <span className="block text-xs text-slate-400">{formatDateTime(c.createdAt)}</span>
+      <span className="block text-xs text-ink-3">{formatDateTime(c.createdAt)}</span>
       {c.newStatus === "CANCELLED" ? (
         <>Отменено.</>
       ) : (
@@ -26,7 +26,7 @@ function ChangeLine({ c, titles }: { c: MyLesson["changes"][number]; titles: Rec
           </b>
         </>
       )}
-      {c.reason && <span className="block text-slate-500">{c.reason}</span>}
+      {c.reason && <span className="block text-ink-2">{c.reason}</span>}
     </li>
   );
 }
@@ -40,19 +40,19 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
   return (
     <>
       <BackLink href="/schedule">Расписание</BackLink>
-      <p className="flex items-center gap-2 text-sm text-slate-500">
+      <p className="flex items-center gap-2 text-sm text-ink-2">
         {lessonKindLabel[l.kind]}
         {statusText[l.status] && <Badge tone={cancelled ? "bad" : "warn"}>{statusText[l.status]}</Badge>}
       </p>
       <ViewTransition name={lessonTitleName(l.id)} share="morph" default="none">
         <h1 className={`mt-1 w-fit text-[28px] leading-tight font-bold tracking-tight ${cancelled ? "line-through" : ""}`}>{l.title}</h1>
       </ViewTransition>
-      <p className="mt-1 mb-5 text-[17px] text-slate-700 first-letter:uppercase">
+      <p className="mt-1 mb-5 text-[17px] text-ink first-letter:uppercase">
         {formatDay(l.startsAt)} · {formatTime(l.startsAt)}–{formatTime(l.endsAt)}
       </p>
 
       {latest && !!statusText[l.status] && (
-        <p className="mb-5 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="mb-5 rounded-2xl bg-warn-soft px-4 py-3 text-sm text-warn">
           {cancelled ? "Пара отменена." : `Было: ${formatDateTime(latest.previousStartsAt)}${latest.previousRoom ? `, ${latest.previousRoom}` : ""}.`}{" "}
           {latest.reason}
         </p>
@@ -70,7 +70,7 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
                 <Link href={`/buildings/${l.building.id}`} transitionTypes={["nav-forward"]} className="inline-flex min-h-11 items-center text-brand">
                   {l.building.title}
                 </Link>
-                {l.building.metro && <p className="-mt-2 text-sm text-slate-500">м. {l.building.metro}</p>}
+                {l.building.metro && <p className="-mt-2 text-sm text-ink-2">м. {l.building.metro}</p>}
               </div>
             </div>
             {!cancelled && (
@@ -78,7 +78,7 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
                 href={yandexRouteUrl(l.building, "mt")}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand text-[15px] font-semibold text-white shadow-sm shadow-brand/30 transition active:scale-[0.98]"
+                className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand-fill text-[15px] font-semibold text-on-brand transition active:scale-[0.98]"
               >
                 <Navigation aria-hidden className="size-4" />
                 Маршрут
@@ -86,7 +86,7 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
             )}
           </>
         ) : (
-          <p className="text-slate-500">Аудитория не указана.</p>
+          <p className="text-ink-2">Аудитория не указана.</p>
         )}
       </Card>
 
@@ -94,7 +94,7 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
         <List>
           <RowLink href={`/teachers/${l.teacher.id}`}>
             <span className="block font-medium">{l.teacher.fullName}</span>
-            {l.teacher.position && <span className="block text-sm text-slate-500">{l.teacher.position} · расписание</span>}
+            {l.teacher.position && <span className="block text-sm text-ink-2">{l.teacher.position} · расписание</span>}
           </RowLink>
         </List>
       </Section>
@@ -109,7 +109,7 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
               <span className="block font-medium">
                 Следующая: {lessonKindLabel[l.next.kind].toLowerCase()}, {formatDay(l.next.startsAt)}
               </span>
-              <span className="block text-sm text-slate-500">
+              <span className="block text-sm text-ink-2">
                 {formatTime(l.next.startsAt)} · {l.next.online ? "онлайн" : [l.next.room, l.next.building?.title].filter(Boolean).join(", ")}
               </span>
             </RowLink>
@@ -117,7 +117,7 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
           {l.deadlines.map((d) => (
             <RowLink key={d.id} href={`/courses/${l.offeringId}`}>
               <span className="block font-medium">{d.title}</span>
-              <span className="block text-sm text-slate-500">
+              <span className="block text-sm text-ink-2">
                 до {formatDate(d.at)}
                 {d.maxPoints ? ` · до ${d.maxPoints} баллов` : ""}
               </span>
@@ -127,16 +127,13 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
       </Section>
 
       {l.changes.length > 0 && (
-        <details className="group">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center px-1 text-[13px] font-semibold tracking-wide text-slate-500 uppercase">
-            История изменений ({l.changes.length})
-          </summary>
+        <Disclosure title={`История изменений (${l.changes.length})`} className="">
           <List>
             {l.changes.map((c) => (
               <ChangeLine key={c.id} c={c} titles={l.buildingTitles} />
             ))}
           </List>
-        </details>
+        </Disclosure>
       )}
     </>
   );

@@ -29,7 +29,7 @@ export default async function NotificationsPage() {
         aside={
           unread > 0 && (
             <form action={markAll}>
-              <button className="min-h-11 rounded-full px-3 text-sm font-medium text-brand transition hover:bg-brand/10 active:scale-95">
+              <button className="min-h-11 rounded-xl px-3 text-sm font-medium text-brand transition hover:bg-brand-soft active:scale-95">
                 Прочитать все
               </button>
             </form>
@@ -44,13 +44,13 @@ export default async function NotificationsPage() {
             const link = n.requestId ? `/requests/${n.requestId}` : n.kind === "SCHEDULE_CHANGE" ? "/schedule" : null;
             return (
               <li key={n.id} className="relative px-4 py-3">
-                {!n.readAt && <span aria-label="Новое" className="absolute top-[18px] left-1.5 size-2 rounded-full bg-brand" />}
-                <div className="mb-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                {!n.readAt && <span aria-label="Новое" className="absolute top-[18px] left-1.5 size-2 rounded-full bg-brand-fill" />}
+                <div className="mb-0.5 flex flex-wrap items-center gap-1.5 text-xs text-ink-3">
                   <Badge tone={n.important ? "warn" : "neutral"}>{kindLabel[n.kind]}</Badge>
                   {formatDateTime(n.publishedAt)}
                 </div>
                 <h2 className={`leading-snug ${n.readAt ? "font-medium" : "font-semibold"}`}>{n.title}</h2>
-                <p className="mt-0.5 text-sm text-slate-600">{n.body}</p>
+                <p className="mt-0.5 text-sm text-ink-2">{n.body}</p>
                 {link && (
                   <Link href={link} transitionTypes={["nav-forward"]} className="mt-1 inline-flex min-h-11 items-center gap-0.5 text-sm font-medium text-brand">
                     {n.requestId ? "Открыть заявку" : "К расписанию"}

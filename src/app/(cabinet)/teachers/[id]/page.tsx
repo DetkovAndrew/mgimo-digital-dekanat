@@ -9,7 +9,7 @@ function Body({ l }: { l: TeacherProfile["schedule"][number] }) {
       <span className="w-11 shrink-0 pt-px text-sm font-semibold tabular-nums">{formatTime(l.startsAt)}</span>
       <span className="min-w-0 flex-1">
         <span className="block leading-snug font-medium">{l.title}</span>
-        <span className="block text-xs text-slate-500">
+        <span className="block text-xs text-ink-2">
           {lessonKindLabel[l.kind]} · {l.group} · {l.online ? "онлайн" : [l.room, l.building?.title].filter(Boolean).join(", ")}
         </span>
       </span>
@@ -34,7 +34,7 @@ export default async function TeacherPage({ params }: PageProps<"/teachers/[id]"
             {t.myCourses.map((c) => (
               <RowLink key={c.id} href={`/courses/${c.id}`}>
                 <span className="block font-medium">{c.title}</span>
-                {!c.lead && <span className="block text-sm text-slate-500">часть занятий</span>}
+                {!c.lead && <span className="block text-sm text-ink-2">часть занятий</span>}
               </RowLink>
             ))}
           </List>
@@ -64,7 +64,7 @@ export default async function TeacherPage({ params }: PageProps<"/teachers/[id]"
       ) : (
         <Empty>В ближайшие {TEACHER_SCHEDULE_DAYS} дней занятий нет.</Empty>
       )}
-      <p className="px-1 text-xs text-slate-400">
+      <p className="px-1 text-xs text-ink-3">
         Расписание преподавателей открыто всем студентам University на {TEACHER_SCHEDULE_DAYS} дней вперёд. Оценки и списки студентов
         здесь не показываются.
       </p>

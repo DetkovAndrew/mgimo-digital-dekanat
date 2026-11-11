@@ -24,29 +24,29 @@ export default async function SportPage({ searchParams }: PageProps<"/sport">) {
         <div className="flex items-baseline justify-between gap-3">
           <p className="text-3xl font-bold tabular-nums">
             {p.total}
-            <span className="text-base font-normal text-slate-400"> / {s.rules.total}</span>
+            <span className="text-base font-normal text-ink-3"> / {s.rules.total}</span>
           </p>
           {p.trainingsNeeded === 0 ? (
             <Badge tone="ok">тренировки закрыты</Badge>
           ) : (
-            <span className="text-sm text-slate-500">ещё {p.trainingsNeeded} трен.</span>
+            <span className="text-sm text-ink-2">ещё {p.trainingsNeeded} трен.</span>
           )}
         </div>
-        <div className="relative mt-3 h-2 overflow-hidden rounded-full bg-slate-100" role="img" aria-label={`${p.total} из ${s.rules.total}`}>
-          <div className="absolute inset-y-0 left-0 rounded-full bg-brand" style={{ width: pct(p.trainingPoints) }} />
-          <div className="absolute inset-y-0 rounded-full bg-sky-400" style={{ left: pct(p.trainingPoints), width: pct(p.extraPoints) }} />
-          <span className="absolute inset-y-0 w-px bg-white" style={{ left: pct(s.rules.trainingMin) }} />
+        <div className="relative mt-3 h-2 overflow-hidden rounded-full bg-fill" role="img" aria-label={`${p.total} из ${s.rules.total}`}>
+          <div className="absolute inset-y-0 left-0 rounded-full bg-brand-fill" style={{ width: pct(p.trainingPoints) }} />
+          <div className="absolute inset-y-0 rounded-full bg-accent" style={{ left: pct(p.trainingPoints), width: pct(p.extraPoints) }} />
+          <span className="absolute inset-y-0 w-px bg-surface" style={{ left: pct(s.rules.trainingMin) }} />
         </div>
-        <p className="mt-2 text-sm text-slate-500">
+        <p className="mt-2 text-sm text-ink-2">
           <span className="text-brand">●</span> {p.trainingPoints} из {s.rules.trainingMin} за тренировки ·{" "}
-          <span className="text-sky-500">●</span> {p.extraPoints} доп.
+          <span className="text-accent">●</span> {p.extraPoints} доп.
         </p>
         <details className="group mt-1 text-sm">
           <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-brand">
             <span className="group-open:hidden">Подробнее и правила</span>
             <span className="hidden group-open:inline">Скрыть</span>
           </summary>
-          <ul className="list-disc space-y-1 pl-5 text-slate-600">
+          <ul className="list-disc space-y-1 pl-5 text-ink-2">
             <li>
               Посещено {p.attended}
               {p.missed > 0 && `, пропусков без отмены ${p.missed}`}.
@@ -82,16 +82,16 @@ export default async function SportPage({ searchParams }: PageProps<"/sport">) {
                       <Badge tone="ok">записаны</Badge>
                     )}
                   </span>
-                  <span className="block text-sm text-slate-600 first-letter:uppercase">
+                  <span className="block text-sm text-ink-2 first-letter:uppercase">
                     {formatDay(b.slot.startsAt)}, {formatTime(b.slot.startsAt)}–{formatTime(b.slot.endsAt)}
                   </span>
-                  <span className="block text-xs text-slate-500">
+                  <span className="block text-xs text-ink-2">
                     {b.slot.building.title} · {b.slot.room}
                   </span>
                   {b.status === "WAITLIST" && !b.frozen && (
-                    <span className="block text-xs text-amber-800">Место пока не подтверждено</span>
+                    <span className="block text-xs text-warn">Место пока не подтверждено</span>
                   )}
-                  {b.conflict && <span className="block text-xs text-red-700">Расписание изменилось: {b.conflict}</span>}
+                  {b.conflict && <span className="block text-xs text-bad">Расписание изменилось: {b.conflict}</span>}
                 </span>
                 <CancelBookingButton id={b.id} waitlist={b.status === "WAITLIST"} />
               </li>
@@ -112,10 +112,10 @@ export default async function SportPage({ searchParams }: PageProps<"/sport">) {
                 replace
                 aria-current={on ? "date" : undefined}
                 className={`flex min-h-14 w-12 shrink-0 snap-start flex-col items-center justify-center rounded-2xl text-sm transition-colors ${
-                  on ? "bg-brand text-white shadow-sm shadow-brand/30" : "bg-white text-slate-700 ring-1 ring-black/[0.04]"
+                  on ? "bg-brand-fill text-on-brand" : "bg-surface text-ink ring-1 ring-hairline"
                 }`}
               >
-                <span className={`text-[11px] ${on ? "text-white/80" : "text-slate-400"}`}>{weekday.format(noon(d))}</span>
+                <span className={`text-[11px] ${on ? "text-on-brand" : "text-ink-3"}`}>{weekday.format(noon(d))}</span>
                 <span className="font-semibold">{dayNum.format(noon(d))}</span>
               </Link>
             );
@@ -131,16 +131,16 @@ export default async function SportPage({ searchParams }: PageProps<"/sport">) {
                     <span className="w-11 shrink-0 text-sm font-semibold tabular-nums">{formatTime(x.startsAt)}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block leading-snug font-medium">{x.section.title}</span>
-                      <span className="flex items-center gap-1 text-xs text-slate-500">
+                      <span className="flex items-center gap-1 text-xs text-ink-2">
                         <MapPin aria-hidden className="size-3 shrink-0" />
                         <span className="truncate">
                           {x.building.title} · {x.room}
                         </span>
                       </span>
-                      <span className={`block text-xs ${x.free ? "text-slate-500" : "text-amber-700"}`}>
+                      <span className={`block text-xs ${x.free ? "text-ink-2" : "text-warn"}`}>
                         {x.free ? `свободно ${x.free} из ${x.capacity}` : `мест нет${x.queue ? ` · в очереди ${x.queue}` : ""}`}
                       </span>
-                      {x.note && <span className="block text-xs text-slate-600">{x.note}</span>}
+                      {x.note && <span className="block text-xs text-ink-2">{x.note}</span>}
                     </span>
                     {x.action === "booked" || x.action === "queued" ? (
                       <Booked queued={x.action === "queued"} />

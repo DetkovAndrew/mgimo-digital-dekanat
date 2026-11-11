@@ -9,6 +9,6 @@ export function Chevron() {
   return pending ? (
     <LoaderCircle aria-hidden className="size-4 shrink-0 animate-spin text-brand" />
   ) : (
-    <ChevronRight aria-hidden className="size-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-400" />
+    <ChevronRight aria-hidden className="size-4 shrink-0 text-ink-3 transition group-hover:translate-x-0.5 group-hover:text-ink-3" />
   );
 }
