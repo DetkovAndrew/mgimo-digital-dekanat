@@ -1,12 +1,13 @@
 import { BackLink } from "@/components/back-link";
+import { KindTime } from "@/components/kind";
 import { Badge, Empty, List, PageTitle, Row, RowLink, Section } from "@/components/ui";
 import { formatDay, formatTime, lessonKindLabel, mskDayKey } from "@/lib/format";
 import { getTeacher, TEACHER_SCHEDULE_DAYS, type TeacherProfile } from "@/server/dal/teachers";
 
 function Body({ l }: { l: TeacherProfile["schedule"][number] }) {
   return (
-    <span className={`flex items-start gap-3 ${l.status === "CANCELLED" ? "line-through opacity-60" : ""}`}>
-      <span className="w-11 shrink-0 pt-px text-sm font-semibold tabular-nums">{formatTime(l.startsAt)}</span>
+    <span className={`flex items-center gap-3 ${l.status === "CANCELLED" ? "line-through opacity-60" : ""}`}>
+      <KindTime kind={l.kind} start={formatTime(l.startsAt)} end={formatTime(l.endsAt)} />
       <span className="min-w-0 flex-1">
         <span className="block leading-snug font-medium">{l.title}</span>
         <span className="block text-xs text-ink-2">

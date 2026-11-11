@@ -1,5 +1,6 @@
 import { Map as MapIcon, Navigation } from "lucide-react";
 import { BackLink } from "@/components/back-link";
+import { KindTile } from "@/components/kind";
 import { Empty, List, PageTitle, RowLink, Section } from "@/components/ui";
 import { formatDay, formatTime, lessonKindLabel } from "@/lib/format";
 import { yandexPointUrl, yandexRouteUrl } from "@/lib/geo";
@@ -31,13 +32,16 @@ export default async function BuildingPage({ params }: PageProps<"/buildings/[id
           <List>
             {b.visits.map((v) => (
               <RowLink key={v.key} href={v.href}>
-                <span className={v.cancelled ? "line-through opacity-60" : ""}>
+                <span className={`flex items-center gap-3 ${v.cancelled ? "line-through opacity-60" : ""}`}>
+                  <KindTile kind={v.kind} />
+                  <span className="min-w-0">
                   <span className="block font-medium">{v.title}</span>
                   <span className="block text-sm text-ink-2 first-letter:uppercase">
                     {formatDay(v.startsAt)}, {formatTime(v.startsAt)}–{formatTime(v.endsAt)}
                     {v.room && ` · ${v.room}`}
                   </span>
                   <span className="block text-xs text-ink-3">{lessonKindLabel[v.kind]}</span>
+                  </span>
                 </span>
               </RowLink>
             ))}

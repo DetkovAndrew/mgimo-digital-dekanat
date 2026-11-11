@@ -51,6 +51,7 @@ const pairs = [
   ["focus-on-brand", "brand-fill", 3],
   ["field", "surface", 3],
   ["field", "page", 3],
+  ...["lecture", "practice", "language", "consult", "sport"].flatMap((k) => [[`k-${k}`, `k-${k}-soft`, 4.5], [`k-${k}`, "surface", 4.5]]),
 ];
 
 let failed = 0;

@@ -1,11 +1,16 @@
-import { Plus } from "lucide-react";
+import { FileCheck2, FilePen, MessageCircleQuestion, Plus } from "lucide-react";
 import Link from "next/link";
-import { Badge, Disclosure, Empty, List, PageTitle, RowLink, Section } from "@/components/ui";
+import { Badge, Disclosure, Empty, IconTile, List, PageTitle, RowLink, Section } from "@/components/ui";
 import { formatDateTime, requestStatusLabel } from "@/lib/format";
 import { formatRequestNumber, isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { listMyRequests } from "@/server/dal/requests";
 
 const DONE = new Set(["DONE", "REJECTED", "CANCELLED"]);
+const CATEGORY = {
+  certificate: { icon: FileCheck2, tone: "info" },
+  application: { icon: FilePen, tone: "brand" },
+  question: { icon: MessageCircleQuestion, tone: "warn" },
+} as const;
 
 export default async function RequestsPage() {
   const requests = await listMyRequests();
@@ -14,10 +19,12 @@ export default async function RequestsPage() {
 
   const row = (r: (typeof requests)[number]) => {
     const s = requestStatusLabel[r.status];
+    const c = CATEGORY[isRequestType(r.type) ? requestCatalog[r.type].category : "question"];
     return (
       <RowLink key={r.id} href={`/requests/${r.id}`}>
-        <span className="flex items-center justify-between gap-3">
-          <span className="min-w-0">
+        <span className="flex items-center gap-3">
+          <IconTile icon={c.icon} tone={c.tone} />
+          <span className="min-w-0 flex-1">
             <span className="block font-medium">{isRequestType(r.type) ? requestCatalog[r.type].title : r.type}</span>
             <span className="block text-xs text-ink-2">
               {formatRequestNumber(r.number)} · {formatDateTime(r.updatedAt)}

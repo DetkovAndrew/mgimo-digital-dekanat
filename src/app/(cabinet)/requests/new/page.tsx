@@ -1,12 +1,13 @@
 import { BackLink } from "@/components/back-link";
-import { Card, List, PageTitle, RowLink, Section } from "@/components/ui";
+import { FileCheck2, FilePen, MessageCircleQuestion } from "lucide-react";
+import { Card, IconTile, List, PageTitle, RowLink, Section } from "@/components/ui";
 import { isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { RequestForm } from "./request-form";
 
 const groups = [
-  { category: "certificate", title: "Справки" },
-  { category: "application", title: "Заявления" },
-  { category: "question", title: "Вопрос" },
+  { category: "certificate", title: "Справки", icon: FileCheck2, tone: "info" },
+  { category: "application", title: "Заявления", icon: FilePen, tone: "brand" },
+  { category: "question", title: "Вопрос", icon: MessageCircleQuestion, tone: "warn" },
 ] as const;
 
 export default async function NewRequestPage({ searchParams }: PageProps<"/requests/new">) {
@@ -37,8 +38,13 @@ export default async function NewRequestPage({ searchParams }: PageProps<"/reque
               .filter(([, s]) => s.category === g.category)
               .map(([key, s]) => (
                 <RowLink key={key} href={`/requests/new?type=${key}`}>
-                  <span className="block font-medium">{s.title}</span>
-                  <span className="block text-sm text-ink-2">{s.description}</span>
+                  <span className="flex items-center gap-3">
+                    <IconTile icon={g.icon} tone={g.tone} />
+                    <span className="min-w-0">
+                      <span className="block font-medium">{s.title}</span>
+                      <span className="block text-sm text-ink-2">{s.description}</span>
+                    </span>
+                  </span>
                 </RowLink>
               ))}
           </List>

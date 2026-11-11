@@ -3,6 +3,7 @@ import { ViewTransition } from "react";
 import { formatDateTime, formatTime, lessonKindLabel } from "@/lib/format";
 import type { ScheduleLesson } from "@/server/dal/schedule";
 import { lessonTitleName } from "@/lib/view-transitions";
+import { KindTime, kindStyle } from "./kind";
 import { Chevron } from "./pending";
 import { Badge } from "./ui";
 
@@ -27,26 +28,23 @@ export function LessonCard({ lesson }: { lesson: ScheduleLesson }) {
     <Link
       href={lesson.href}
       transitionTypes={["nav-forward"]}
-      className={`group flex items-center gap-3 rounded-2xl bg-surface p-3.5 ring-1 transition active:scale-[0.99] md:hover:ring-brand/30 ${
+      className={`group flex items-center gap-3 rounded-2xl bg-surface p-2.5 pr-3.5 ring-1 transition active:scale-[0.99] md:hover:ring-brand/30 ${
         cancelled ? "opacity-70 ring-bad/30" : moved ? "ring-warn/40" : "ring-hairline"
       }`}
     >
-      <span className="w-12 shrink-0 text-center">
-        <span className={`block text-sm font-semibold ${cancelled ? "line-through" : ""}`}>{formatTime(lesson.startsAt)}</span>
-        <span className="block text-xs text-ink-2">{formatTime(lesson.endsAt)}</span>
-      </span>
+      <KindTime kind={lesson.kind} start={formatTime(lesson.startsAt)} end={formatTime(lesson.endsAt)} struck={cancelled} />
       <span className="min-w-0 flex-1">
         <span className="mb-0.5 flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-ink-2">{lessonKindLabel[lesson.kind]}</span>
+          <span className={`text-xs font-semibold ${kindStyle(lesson.kind).text}`}>{lessonKindLabel[lesson.kind]}</span>
           {cancelled && <Badge tone="bad">Отменено</Badge>}
           {moved && <Badge tone="warn">Изменено</Badge>}
         </span>
         {lesson.source === "lesson" ? (
           <ViewTransition name={lessonTitleName(lesson.id)} share="morph" default="none">
-            <span className={`block w-fit font-medium leading-snug ${cancelled ? "line-through" : ""}`}>{lesson.title}</span>
+            <span className={`block w-fit leading-snug font-semibold ${cancelled ? "line-through" : ""}`}>{lesson.title}</span>
           </ViewTransition>
         ) : (
-          <span className="block font-medium leading-snug">{lesson.title}</span>
+          <span className="block leading-snug font-semibold">{lesson.title}</span>
         )}
         <span className="block truncate text-sm text-ink-2">
           {place}

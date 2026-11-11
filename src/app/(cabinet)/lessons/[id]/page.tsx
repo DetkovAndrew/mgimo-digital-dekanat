@@ -1,8 +1,9 @@
-import { MapPin, Navigation } from "lucide-react";
+import { BookOpen, ClipboardCheck, MapPin, Navigation, UserRound } from "lucide-react";
 import Link from "next/link";
 import { ViewTransition } from "react";
 import { BackLink } from "@/components/back-link";
-import { Badge, Card, Disclosure, List, RowLink, Section } from "@/components/ui";
+import { KindTile, kindStyle } from "@/components/kind";
+import { Badge, Card, Disclosure, IconTile, List, RowLink, Section } from "@/components/ui";
 import { formatDate, formatDateTime, formatDay, formatTime, lessonKindLabel } from "@/lib/format";
 import { yandexRouteUrl } from "@/lib/geo";
 import { lessonTitleName } from "@/lib/view-transitions";
@@ -40,8 +41,10 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
   return (
     <>
       <BackLink href="/schedule">Расписание</BackLink>
-      <p className="flex items-center gap-2 text-sm text-ink-2">
-        {lessonKindLabel[l.kind]}
+      <p className="flex items-center gap-2 text-sm">
+        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${kindStyle(l.kind).soft} ${kindStyle(l.kind).text}`}>
+          {lessonKindLabel[l.kind]}
+        </span>
         {statusText[l.status] && <Badge tone={cancelled ? "bad" : "warn"}>{statusText[l.status]}</Badge>}
       </p>
       <ViewTransition name={lessonTitleName(l.id)} share="morph" default="none">
@@ -93,8 +96,13 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
       <Section title="Преподаватель">
         <List>
           <RowLink href={`/teachers/${l.teacher.id}`}>
-            <span className="block font-medium">{l.teacher.fullName}</span>
-            {l.teacher.position && <span className="block text-sm text-ink-2">{l.teacher.position} · расписание</span>}
+            <span className="flex items-center gap-3">
+              <IconTile icon={UserRound} tone="neutral" />
+              <span className="min-w-0">
+                <span className="block font-medium">{l.teacher.fullName}</span>
+                {l.teacher.position && <span className="block text-sm text-ink-2">{l.teacher.position} · расписание</span>}
+              </span>
+            </span>
           </RowLink>
         </List>
       </Section>
@@ -102,24 +110,37 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
       <Section title="Дисциплина">
         <List>
           <RowLink href={`/courses/${l.offeringId}`}>
-            <span className="block font-medium">Баллы и контрольные</span>
+            <span className="flex items-center gap-3">
+              <IconTile icon={BookOpen} />
+              <span className="font-medium">Баллы и контрольные</span>
+            </span>
           </RowLink>
           {l.next && (
             <RowLink href={`/lessons/${l.next.id}`}>
-              <span className="block font-medium">
-                Следующая: {lessonKindLabel[l.next.kind].toLowerCase()}, {formatDay(l.next.startsAt)}
-              </span>
-              <span className="block text-sm text-ink-2">
-                {formatTime(l.next.startsAt)} · {l.next.online ? "онлайн" : [l.next.room, l.next.building?.title].filter(Boolean).join(", ")}
+              <span className="flex items-center gap-3">
+                <KindTile kind={l.next.kind} />
+                <span className="min-w-0">
+                  <span className="block font-medium">
+                    Следующая: {lessonKindLabel[l.next.kind].toLowerCase()}, {formatDay(l.next.startsAt)}
+                  </span>
+                  <span className="block text-sm text-ink-2">
+                    {formatTime(l.next.startsAt)} · {l.next.online ? "онлайн" : [l.next.room, l.next.building?.title].filter(Boolean).join(", ")}
+                  </span>
+                </span>
               </span>
             </RowLink>
           )}
           {l.deadlines.map((d) => (
             <RowLink key={d.id} href={`/courses/${l.offeringId}`}>
-              <span className="block font-medium">{d.title}</span>
-              <span className="block text-sm text-ink-2">
-                до {formatDate(d.at)}
-                {d.maxPoints ? ` · до ${d.maxPoints} баллов` : ""}
+              <span className="flex items-center gap-3">
+                <IconTile icon={ClipboardCheck} tone="info" />
+                <span className="min-w-0">
+                  <span className="block font-medium">{d.title}</span>
+                  <span className="block text-sm text-ink-2">
+                    до {formatDate(d.at)}
+                    {d.maxPoints ? ` · до ${d.maxPoints} баллов` : ""}
+                  </span>
+                </span>
               </span>
             </RowLink>
           ))}

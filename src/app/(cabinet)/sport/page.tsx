@@ -1,6 +1,7 @@
 import { MapPin } from "lucide-react";
 import Link from "next/link";
 import { ViewTransition } from "react";
+import { KindTile, KindTime } from "@/components/kind";
 import { Badge, Card, Empty, List, PageTitle, Section } from "@/components/ui";
 import { formatDate, formatDay, formatTime } from "@/lib/format";
 import { getMySport } from "@/server/dal/sport";
@@ -71,6 +72,7 @@ export default async function SportPage({ searchParams }: PageProps<"/sport">) {
           <List>
             {s.bookings.map((b) => (
               <li key={b.id} className="flex items-center gap-3 px-4 py-3">
+                <KindTile kind="SPORT" />
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-1.5">
                     <b className="font-semibold">{b.slot.section.title}</b>
@@ -128,7 +130,7 @@ export default async function SportPage({ searchParams }: PageProps<"/sport">) {
               <List>
                 {s.slots.map((x) => (
                   <li key={x.id} className="flex items-center gap-3 px-4 py-3">
-                    <span className="w-11 shrink-0 text-sm font-semibold tabular-nums">{formatTime(x.startsAt)}</span>
+                    <KindTime kind="SPORT" start={formatTime(x.startsAt)} end={formatTime(x.endsAt)} />
                     <span className="min-w-0 flex-1">
                       <span className="block leading-snug font-medium">{x.section.title}</span>
                       <span className="flex items-center gap-1 text-xs text-ink-2">

@@ -26,6 +26,12 @@ function OfferingRow({ o, now, past }: { o: Offering; now: Date; past?: boolean 
               <span className="block w-fit leading-snug font-medium">{o.discipline.title}</span>
             </ViewTransition>
           )}
+          {!past && (
+            <span aria-hidden className="relative my-1.5 block h-1.5 max-w-48 overflow-hidden rounded-full bg-fill">
+              <span className={`absolute inset-y-0 left-0 rounded-full ${p.earned >= 60 ? "bg-ok" : "bg-brand-fill"}`} style={{ width: `${Math.min(100, p.earned)}%` }} />
+              <span className="absolute inset-y-0 left-[60%] w-px bg-ink-3" />
+            </span>
+          )}
           <span className="block text-xs text-ink-2">
             {next ? (
               <>

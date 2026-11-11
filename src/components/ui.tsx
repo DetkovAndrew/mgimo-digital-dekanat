@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Tone } from "@/lib/format";
@@ -11,8 +11,8 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 export function PageTitle({ children, aside, sub }: { children: ReactNode; aside?: ReactNode; sub?: ReactNode }) {
   return (
     <div className="mb-5">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-[28px] leading-tight font-bold tracking-tight">{children}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h1 className="text-[32px] leading-[1.1] font-bold tracking-tight">{children}</h1>
         {aside}
       </div>
       {sub && <p className="mt-0.5 text-sm text-ink-2 first-letter:uppercase">{sub}</p>}
@@ -26,7 +26,7 @@ export function Section({ title, aside, children, className = "" }: { title?: Re
     <section className={`mb-6 ${className}`}>
       {(title || aside) && (
         <div className="mb-2 flex min-h-6 items-center justify-between gap-3 px-1">
-          {title && <h2 className="text-[17px] font-semibold text-ink">{title}</h2>}
+          {title && <h2 className="text-[17px] font-semibold text-ink first-letter:uppercase">{title}</h2>}
           {aside}
         </div>
       )}
@@ -70,6 +70,24 @@ export function RowLink({ href, children, back = false }: { href: string; childr
         <Chevron />
       </Link>
     </li>
+  );
+}
+
+const tiles: Record<Tone | "brand", string> = {
+  brand: "bg-brand-soft text-brand",
+  neutral: "bg-fill text-ink-2",
+  info: "bg-info-soft text-info",
+  warn: "bg-warn-soft text-warn",
+  ok: "bg-ok-soft text-ok",
+  bad: "bg-bad-soft text-bad",
+};
+
+/** Цветная плитка с иконкой в начале строки: тип строки узнаётся до чтения. */
+export function IconTile({ icon: Icon, tone = "brand", className = "" }: { icon: LucideIcon; tone?: Tone | "brand"; className?: string }) {
+  return (
+    <span aria-hidden className={`grid size-10 shrink-0 place-items-center rounded-xl ${tiles[tone]} ${className}`}>
+      <Icon className="size-5" />
+    </span>
   );
 }
 

@@ -1,7 +1,9 @@
 import { ViewTransition } from "react";
+import { UserRound } from "lucide-react";
 import { BackLink } from "@/components/back-link";
+import { KindTile } from "@/components/kind";
 import { PointsBar } from "@/components/points-bar";
-import { Badge, Card, List, RowLink, Section } from "@/components/ui";
+import { Badge, Card, IconTile, List, RowLink, Section } from "@/components/ui";
 import { controlFormLabel, formatDate, formatDay, formatTime, lessonKindLabel } from "@/lib/format";
 import { assessmentDate, courseProgress, courseStatus, formatPoints, officialResult, PASS_POINTS } from "@/lib/grading";
 import { courseTitleName } from "@/lib/view-transitions";
@@ -88,11 +90,16 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
           <List>
             {c.upcoming.map((l) => (
               <RowLink key={l.id} href={`/lessons/${l.id}`}>
-                <span className={`block font-medium first-letter:uppercase ${l.status === "CANCELLED" ? "line-through opacity-70" : ""}`}>
-                  {formatDay(l.startsAt)}, {formatTime(l.startsAt)}
-                </span>
-                <span className="block text-sm text-ink-2">
-                  {lessonKindLabel[l.kind]} · {l.online ? "онлайн" : [l.room, l.building?.title].filter(Boolean).join(", ")}
+                <span className="flex items-center gap-3">
+                  <KindTile kind={l.kind} />
+                  <span className="min-w-0">
+                    <span className={`block font-medium first-letter:uppercase ${l.status === "CANCELLED" ? "line-through opacity-70" : ""}`}>
+                      {formatDay(l.startsAt)}, {formatTime(l.startsAt)}
+                    </span>
+                    <span className="block text-sm text-ink-2">
+                      {lessonKindLabel[l.kind]} · {l.online ? "онлайн" : [l.room, l.building?.title].filter(Boolean).join(", ")}
+                    </span>
+                  </span>
                 </span>
               </RowLink>
             ))}
@@ -104,10 +111,15 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
         <List>
           {c.teachers.map((t, i) => (
             <RowLink key={t.id} href={`/teachers/${t.id}`}>
-              <span className="block font-medium">{t.fullName}</span>
-              <span className="block text-sm text-ink-2">
-                {i === 0 ? "ведущий" : "ведёт часть занятий"}
-                {t.position && ` · ${t.position}`}
+              <span className="flex items-center gap-3">
+                <IconTile icon={UserRound} tone="neutral" />
+                <span className="min-w-0">
+                  <span className="block font-medium">{t.fullName}</span>
+                  <span className="block text-sm text-ink-2">
+                    {i === 0 ? "ведущий" : "ведёт часть занятий"}
+                    {t.position && ` · ${t.position}`}
+                  </span>
+                </span>
               </span>
             </RowLink>
           ))}

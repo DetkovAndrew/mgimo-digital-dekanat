@@ -6,13 +6,13 @@
    Контраст пар проверяет `node scripts/contrast.mjs` (WCAG 2.2 AA). */
 :root {
   color-scheme: light;
-  --page: #f3f5f8;
+  --page: #f1f3fa;
   --surface: #ffffff;
-  --fill: #edf0f4; /* нейтральная заливка: нажатие, трек полосы, неактивные элементы */
-  --ink: #1b1f27;
-  --ink-2: #515a68; /* вторичный текст */
-  --ink-3: #5f6876; /* третичный: подписи, время, стрелки */
-  --hairline: #e1e5eb;
+  --fill: #eaedf6; /* нейтральная заливка: нажатие, трек полосы, неактивные элементы */
+  --ink: #171b2b;
+  --ink-2: #4c5570; /* вторичный текст */
+  --ink-3: #5b6480; /* третичный: подписи, время, стрелки */
+  --hairline: #dfe3ef;
   --field: #7b8492; /* граница полей ввода: должна быть различима (≥ 3:1), в отличие от декоративной hairline */
   --brand: #3b4cca; /* ссылки и акценты на поверхности */
   --brand-fill: #3b4cca; /* сплошная заливка кнопок под белым текстом */
@@ -28,6 +28,17 @@
   --bad-fill: #c9302a; /* счётчик непрочитанного под белым текстом */
   --info: #1d5bb8;
   --info-soft: #e8f0fc;
+  /* Цвет типа занятия — категория, а не украшение: одинаковый в расписании, на «Сегодня» и у преподавателя. */
+  --k-lecture: #4338ca;
+  --k-lecture-soft: #eceefe;
+  --k-practice: #0f6e66;
+  --k-practice-soft: #e2f4f1;
+  --k-language: #b0195a;
+  --k-language-soft: #fce9f1;
+  --k-consult: #6d32d6;
+  --k-consult-soft: #f1ebfe;
+  --k-sport: #17733b;
+  --k-sport-soft: #e4f5e9;
   --focus: #3b4cca;
   --focus-on-brand: #ffffff; /* фокус на брендовой заливке */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -37,13 +48,13 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --page: #0e1014;
-    --surface: #171a20;
-    --fill: #22262e;
+    --page: #0d0f17;
+    --surface: #161925;
+    --fill: #212536;
     --ink: #eceef2;
-    --ink-2: #a9b0bb;
-    --ink-3: #8c94a1;
-    --hairline: #2a2f38;
+    --ink-2: #a7aec4;
+    --ink-3: #8b93ab;
+    --hairline: #2a2f42;
     --field: #6b7482;
     --brand: #a3adff;
     --brand-fill: #4b5bd8;
@@ -59,6 +70,16 @@
     --bad-fill: #d23b35;
     --info: #94bcff;
     --info-soft: #172640;
+    --k-lecture: #b4b9ff;
+    --k-lecture-soft: #23264a;
+    --k-practice: #6fe0cf;
+    --k-practice-soft: #12302c;
+    --k-language: #ff9cc6;
+    --k-language-soft: #3a1729;
+    --k-consult: #cbb2ff;
+    --k-consult-soft: #2a1f47;
+    --k-sport: #7fe3a2;
+    --k-sport-soft: #14301e;
     --focus: #a3adff;
     --focus-on-brand: #ffffff;
   }
@@ -87,6 +108,16 @@
   --color-bad-fill: var(--bad-fill);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
+  --color-k-lecture: var(--k-lecture);
+  --color-k-lecture-soft: var(--k-lecture-soft);
+  --color-k-practice: var(--k-practice);
+  --color-k-practice-soft: var(--k-practice-soft);
+  --color-k-language: var(--k-language);
+  --color-k-language-soft: var(--k-language-soft);
+  --color-k-consult: var(--k-consult);
+  --color-k-consult-soft: var(--k-consult-soft);
+  --color-k-sport: var(--k-sport);
+  --color-k-sport-soft: var(--k-sport-soft);
   --color-focus: var(--focus);
   --color-focus-on-brand: var(--focus-on-brand);
   --font-sans: var(--font-inter);
