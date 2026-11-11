@@ -3,12 +3,11 @@ import { Fragment } from "react";
 import { LessonCard } from "@/components/lesson-card";
 import { TransferNote } from "@/components/transfer-note";
 import { Badge, Card, Empty, PageTitle } from "@/components/ui";
-import { addDays, formatDate, formatDateTime, formatDay, formatTime, mskStartOfDay, requestStatusLabel } from "@/lib/format";
+import { addDays, formatDate, formatDay, formatTime, mskStartOfDay, requestStatusLabel } from "@/lib/format";
 import { yandexRouteUrl } from "@/lib/geo";
 import { formatRequestNumber, isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { transfersForDay } from "@/lib/transfers";
 import { getMyUpcomingDeadlines } from "@/server/dal/grades";
-import { listMyNotifications } from "@/server/dal/notifications";
 import { getMyProfile } from "@/server/dal/profile";
 import { listMyRequests } from "@/server/dal/requests";
 import { getMySchedule } from "@/server/dal/schedule";
@@ -23,10 +22,9 @@ function minutesUntil(d: Date, now: Date) {
 export default async function TodayPage() {
   const now = new Date();
   const today = mskStartOfDay(now);
-  const [profile, upcoming, notifications, requests, deadlines] = await Promise.all([
+  const [profile, upcoming, requests, deadlines] = await Promise.all([
     getMyProfile(),
     getMySchedule({ from: today, to: addDays(today, 8) }),
-    listMyNotifications({ unreadOnly: true, take: 4 }),
     listMyRequests(),
     getMyUpcomingDeadlines({ from: now, to: addDays(now, 8) }),
   ]);
@@ -53,7 +51,11 @@ export default async function TodayPage() {
           <p className="text-sm opacity-80">
             {ongoing ? "Сейчас идёт" : `Следующая пара ${minutesUntil(next.startsAt, now)}`}
           </p>
-          <h2 className="mt-0.5 text-xl font-semibold leading-snug">{next.title}</h2>
+          <h2 className="mt-0.5 text-xl font-semibold leading-snug">
+            <Link href={next.href} className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
+              {next.title} <span aria-hidden>›</span>
+            </Link>
+          </h2>
           <p className="mt-1 text-sm opacity-90">
             {formatTime(next.startsAt)}–{formatTime(next.endsAt)} ·{" "}
             {next.online ? "онлайн" : [next.room, next.building?.title].filter(Boolean).join(", ")}
@@ -105,7 +107,7 @@ export default async function TodayPage() {
             {deadlines.slice(0, 4).map((d) => (
               <li key={d.id}>
                 <Link
-                  href="/grades"
+                  href={`/courses/${d.offeringId}`}
                   className="flex items-center justify-between gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-black/5"
                 >
                   <span className="text-sm">
@@ -147,26 +149,6 @@ export default async function TodayPage() {
         )}
       </section>
 
-      <Card>
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="font-semibold">Новое</h2>
-          <Link href="/notifications" className="text-sm text-brand">
-            Все
-          </Link>
-        </div>
-        {notifications.length ? (
-          <ul className="divide-y divide-slate-100">
-            {notifications.map((n) => (
-              <li key={n.id} className="py-2">
-                <p className="text-sm font-medium">{n.title}</p>
-                <p className="text-xs text-slate-500">{formatDateTime(n.publishedAt)}</p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-slate-500">Непрочитанных уведомлений нет.</p>
-        )}
-      </Card>
     </>
   );
 }

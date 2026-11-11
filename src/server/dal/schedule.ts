@@ -17,11 +17,12 @@ export async function getMySchedule(range: { from: Date; to: Date }) {
       online: true,
       status: true,
       building: { select: { id: true, title: true, address: true, lat: true, lon: true, metro: true } },
-      teacher: { select: { fullName: true } },
+      teacher: { select: { id: true, fullName: true } },
       offering: {
         select: {
+          id: true,
           discipline: { select: { title: true, shortTitle: true } },
-          leadTeacher: { select: { fullName: true } },
+          leadTeacher: { select: { id: true, fullName: true } },
         },
       },
       changes: {
@@ -61,6 +62,8 @@ export async function getMySchedule(range: { from: Date; to: Date }) {
   const items = lessons.map((l) => ({
     id: l.id,
     source: "lesson" as "lesson" | "sport",
+    href: `/lessons/${l.id}`,
+    offeringId: l.offering.id as string | null,
     kind: l.kind as string,
     startsAt: l.startsAt,
     endsAt: l.endsAt,
@@ -71,6 +74,7 @@ export async function getMySchedule(range: { from: Date; to: Date }) {
     title: l.offering.discipline.title,
     shortTitle: l.offering.discipline.shortTitle ?? l.offering.discipline.title,
     teacher: (l.teacher ?? l.offering.leadTeacher).fullName,
+    teacherId: (l.teacher ?? l.offering.leadTeacher).id as string | null,
     change: (l.changes[0] ?? null) as (typeof l.changes)[number] | null,
   }));
 
@@ -78,6 +82,8 @@ export async function getMySchedule(range: { from: Date; to: Date }) {
     items.push({
       id: `sport-${b.id}`,
       source: "sport",
+      href: "/sport", // у тренировки пока нет своей страницы
+      offeringId: null,
       kind: "SPORT",
       startsAt: b.slot.startsAt,
       endsAt: b.slot.endsAt,
@@ -88,6 +94,7 @@ export async function getMySchedule(range: { from: Date; to: Date }) {
       title: `Физкультура: ${b.slot.section.title}`,
       shortTitle: b.slot.section.title,
       teacher: b.slot.coach,
+      teacherId: null, // тренер — пока строка, без профиля
       change: null,
     });
   }

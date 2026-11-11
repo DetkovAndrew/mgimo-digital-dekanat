@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bandFor, disciplineProgress } from "./grading";
+import { bandFor, courseStatus, disciplineProgress, nextAssessment } from "./grading";
 
 describe("шкала University", () => {
   it.each([
@@ -30,7 +30,7 @@ describe("прогресс по дисциплине", () => {
 
   it("считает набранное и оставшееся", () => {
     const p = disciplineProgress(cps);
-    expect(p).toMatchObject({ earned: 23.5, graded: 30, remaining: 70, remainingBeforeFinal: 30 });
+    expect(p).toMatchObject({ earned: 23.5, pending: 0, remaining: 70 });
     expect(p.toPass).toBe(36.5);
     expect(p.passReachable).toBe(true);
   });
@@ -48,33 +48,7 @@ describe("прогресс по дисциплине", () => {
   });
 });
 
-describe("темп и прогноз", () => {
-  it("в середине семестра 35 из 40 → прогноз B, не в зоне риска", () => {
-    const p = disciplineProgress([
-      { maxPoints: 40, points: 35, isFinal: false },
-      { maxPoints: 20, points: null, isFinal: false },
-      { maxPoints: 40, points: null, isFinal: true },
-    ]);
-    expect(p.pace).toBeCloseTo(0.875);
-    expect(p.forecast?.ects).toBe("B");
-    expect(p.atRisk).toBe(false);
-  });
-
-  it("темп ниже 60% — зона риска", () => {
-    const p = disciplineProgress([
-      { maxPoints: 40, points: 19, isFinal: false },
-      { maxPoints: 60, points: null, isFinal: true },
-    ]);
-    expect(p.atRisk).toBe(true);
-  });
-
-  it("оценок ещё нет — прогноза нет и риска нет", () => {
-    const p = disciplineProgress([{ maxPoints: 100, points: null, isFinal: true }]);
-    expect(p).toMatchObject({ pace: null, forecast: null, atRisk: false });
-  });
-});
-
-describe("точки на проверке и прогноз (ревью Codex 06)", () => {
+describe("точки на проверке (ревью Codex 06)", () => {
   const now = new Date("2026-11-10T12:00:00+03:00");
   const past = new Date("2026-11-09T23:59:00+03:00");
   const future = new Date("2026-11-20T23:59:00+03:00");
@@ -89,18 +63,83 @@ describe("точки на проверке и прогноз (ревью Codex 0
       ],
       now,
     );
-    expect(p).toMatchObject({ earned: 18, graded: 20, pending: 10, remaining: 70, remainingBeforeFinal: 30 });
+    expect(p).toMatchObject({ earned: 18, pending: 10, remaining: 70, toPass: 42, passReachable: true });
   });
 
-  it("одна оценённая точка 10/10 не даёт прогноза A", () => {
+  it("баллы на проверке учитываются в достижимости порога", () => {
     const p = disciplineProgress(
       [
-        { maxPoints: 10, points: 10, isFinal: false, date: past },
-        { maxPoints: 90, points: null, isFinal: true, date: future },
+        { maxPoints: 50, points: 30, isFinal: false, date: past },
+        { maxPoints: 20, points: null, isFinal: false, date: past },
+        { maxPoints: 10, points: null, isFinal: true, date: future },
       ],
       now,
     );
-    expect(p.forecast).toBeNull();
-    expect(p.atRisk).toBe(false);
+    expect(p).toMatchObject({ toPass: 30, pending: 20, remaining: 10, passReachable: true });
+  });
+
+  it("ноль баллов — тоже оценка, а не «на проверке»", () => {
+    const p = disciplineProgress([{ maxPoints: 20, points: 0, isFinal: false, date: past }], now);
+    expect(p).toMatchObject({ earned: 0, pending: 0 });
+  });
+});
+
+describe("статус дисциплины (ревью Codex 10)", () => {
+  const now = new Date("2026-11-10T12:00:00+03:00");
+  const at = (d: string) => new Date(`${d}T23:59:00+03:00`);
+  const cp = (max: number, points: number | null, due: string, kind = "HOMEWORK") => ({
+    kind,
+    dueAt: at(due),
+    scheduledAt: null,
+    maxPoints: max,
+    results: points === null ? [] : [{ points, passed: null, grade: null }],
+  });
+
+  it("30 баллов посреди семестра — не «F», а сколько осталось до 60", () => {
+    expect(courseStatus("EXAM", [cp(40, 30, "2026-10-01"), cp(60, null, "2026-12-30", "EXAM")], now)).toEqual({
+      tone: "neutral",
+      text: "до 60 ещё 30",
+    });
+  });
+
+  it("64 балла без аттестации — порог пройден, но не «зачтено»", () => {
+    expect(courseStatus("CREDIT", [cp(80, 64, "2026-10-01"), cp(20, null, "2026-12-30", "CREDIT")], now).text).toBe(
+      "порог 60 пройден",
+    );
+  });
+
+  it("даже максимум за оставшееся не даёт 60 — честный сигнал", () => {
+    expect(courseStatus("EXAM", [cp(80, 10, "2026-10-01"), cp(20, null, "2026-12-30", "EXAM")], now)).toMatchObject({
+      tone: "bad",
+    });
+  });
+
+  it("«зачтено» — только из результата аттестации", () => {
+    const final = { ...cp(100, 55, "2026-06-15", "CREDIT"), results: [{ points: 55, passed: true, grade: null }] };
+    expect(courseStatus("CREDIT", [final], now).text).toBe("зачтено");
+  });
+
+  it("итог — по выставленной оценке, а не по шкале баллов", () => {
+    const final = (r: { points: number | null; passed: boolean | null; grade: number | null }) => ({
+      ...cp(100, null, "2026-06-15", "EXAM"),
+      results: [r],
+    });
+    expect(courseStatus("EXAM", [final({ points: 95, passed: null, grade: 2 })], now)).toEqual({
+      tone: "bad",
+      text: "неудовлетворительно",
+    });
+    expect(courseStatus("EXAM", [final({ points: null, passed: null, grade: 4 })], now)).toEqual({ tone: "ok", text: "хорошо" });
+    // Баллы за аттестацию без оценки и без «зачтено» — ещё не итог.
+    expect(courseStatus("CREDIT", [{ ...cp(100, 70, "2026-06-15", "CREDIT") }], now).text).toBe("порог 60 пройден");
+  });
+
+  it("ближайшая точка — по дате: работа раньше экзамена", () => {
+    const hw = cp(20, null, "2026-11-20");
+    expect(nextAssessment([cp(60, null, "2026-12-30", "EXAM"), hw, cp(20, 15, "2026-10-01")], now)).toBe(hw);
+  });
+
+  it("ближайшая точка — по дате: экзамен раньше работы", () => {
+    const exam = cp(60, null, "2026-11-11", "EXAM");
+    expect(nextAssessment([cp(20, null, "2026-11-20"), exam], now)).toBe(exam);
   });
 });

@@ -11,7 +11,8 @@ const isoDayFmt = fmt({ year: "numeric", month: "2-digit", day: "2-digit" });
 
 export const formatTime = (d: Date) => timeFmt.format(d);
 export const formatDay = (d: Date) => dayFmt.format(d);
-export const formatDate = (d: Date) => dateFmt.format(d);
+// Без «г.»: после даты часто идёт точка или запятая, и выходило «2026 г..».
+export const formatDate = (d: Date) => dateFmt.format(d).replace(/\s?г\.$/, "");
 export const formatDateTime = (d: Date) => dateTimeFmt.format(d);
 
 /** Московская дата в виде YYYY-MM-DD. */

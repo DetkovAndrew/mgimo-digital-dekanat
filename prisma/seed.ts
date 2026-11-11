@@ -371,6 +371,7 @@ async function main() {
 
   await seedAnnouncements();
   await seedSport(term.id);
+  await seedClassmate(STUDENTS[0].group.code);
 
   const counts = {
     users: await prisma.user.count(),
@@ -542,6 +543,42 @@ async function seedStudent(
   }
 
   await seedRequests(s, student.id, userId, staffUserId);
+}
+
+// Одногруппник первого студента без учётной записи (войти нельзя). Нужен тестам доступа:
+// у студентов одной группы общие пары и дисциплины, но свои баллы и записи на физкультуру.
+async function seedClassmate(groupCode: string) {
+  const group = await prisma.studyGroup.findUniqueOrThrow({ where: { code: groupCode } });
+  const user = await prisma.user.create({
+    data: {
+      id: randomUUID(),
+      name: "Одногруппник (демо, без входа)",
+      email: "classmate@demo.university.example",
+      username: "demo.classmate",
+      role: "student",
+    },
+  });
+  const student = await prisma.studentProfile.create({
+    data: { userId: user.id, groupId: group.id, recordBookNumber: "DEMO0001", funding: "бюджет", enrolledAt: day("2024-09-01") },
+  });
+  const graded = await prisma.assessment.findMany({
+    where: { offering: { groupId: group.id }, results: { some: {} } },
+    select: { id: true, maxPoints: true },
+  });
+  await prisma.gradeResult.createMany({
+    data: graded.map((a, i) => ({
+      studentId: student.id,
+      assessmentId: a.id,
+      points: roundHalf((a.maxPoints ?? 0) * (0.35 + (i % 3) * 0.1)),
+      gradedAt: NOW,
+    })),
+  });
+  const slot = await prisma.sportSlot.findFirst({ where: { startsAt: { gt: NOW } }, orderBy: { startsAt: "asc" } });
+  if (slot) {
+    await prisma.sportBooking.create({
+      data: { studentId: student.id, slotId: slot.id, weekStart: slot.weekStart, status: "CONFIRMED", rank: 1 },
+    });
+  }
 }
 
 // Переносы: одно изменение в неделю, с октября по декабрь, чтобы в любой день показа

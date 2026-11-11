@@ -21,7 +21,7 @@ export async function getMyGrades() {
           controlForm: true,
           credits: true,
           discipline: { select: { title: true } },
-          leadTeacher: { select: { fullName: true } },
+          leadTeacher: { select: { id: true, fullName: true } },
           assessments: {
             orderBy: [{ scheduledAt: "asc" }, { dueAt: "asc" }],
             select: {
@@ -66,7 +66,7 @@ export async function getMyUpcomingDeadlines(range: { from: Date; to: Date }) {
       dueAt: true,
       scheduledAt: true,
       maxPoints: true,
-      offering: { select: { discipline: { select: { title: true, shortTitle: true } } } },
+      offering: { select: { id: true, discipline: { select: { title: true, shortTitle: true } } } },
     },
   });
   return rows
@@ -76,6 +76,7 @@ export async function getMyUpcomingDeadlines(range: { from: Date; to: Date }) {
       title: a.title,
       at: (a.dueAt ?? a.scheduledAt)!,
       maxPoints: a.maxPoints,
+      offeringId: a.offering.id,
       discipline: a.offering.discipline.shortTitle ?? a.offering.discipline.title,
     }))
     .sort((x, y) => x.at.getTime() - y.at.getTime());

@@ -1,10 +1,10 @@
+import type { Tone } from "./format";
+
 // Шкала University по мотивам БаРС: 100 основных баллов (+ до 3 дополнительных).
 // Пороги — демонстрационное правило University, не официальный документ вуза.
 
 export const PASS_POINTS = 60;
 export const MAX_POINTS = 100;
-/** Прогноз показываем, только когда оценено достаточно точек, иначе он случаен. */
-export const MIN_GRADED_FOR_FORECAST = 20;
 
 export type Ects = "A" | "B" | "C" | "D" | "E" | "FX";
 export type ScaleBand = { ects: Ects; grade: 2 | 3 | 4 | 5; from: number; label: string };
@@ -33,51 +33,84 @@ export type Checkpoint = {
 
 export type DisciplineProgress = {
   earned: number; // набрано
-  graded: number; // максимум за оценённые точки
   pending: number; // срок прошёл, оценки ещё нет (на проверке)
   remaining: number; // будущие точки, включая аттестацию
-  remainingBeforeFinal: number; // будущие точки до аттестации
-  band: ScaleBand; // по набранному сейчас
+  band: ScaleBand; // по набранному сейчас — не путать с итоговой оценкой аттестации
   toPass: number; // сколько не хватает до 60 (0 — уже есть)
-  passReachable: boolean; // можно ли ещё добрать до 60 (с учётом точек на проверке)
-  pace: number | null; // доля от максимума оценённых точек (null — оценок ещё нет)
-  forecast: ScaleBand | null; // итог при том же темпе (null — мало оценок)
-  atRisk: boolean; // темп ниже порога зачёта или добрать уже невозможно
+  passReachable: boolean; // хватит ли до 60 даже максимума за оставшиеся и проверяемые точки
 };
 
+/** Только арифметика по уже известным баллам, без прогнозов «при том же темпе». */
 export function disciplineProgress(points: Checkpoint[], now = new Date()): DisciplineProgress {
   let earned = 0;
-  let graded = 0;
   let pending = 0;
   let remaining = 0;
-  let remainingBeforeFinal = 0;
   for (const p of points) {
-    if (p.points !== null) {
-      earned += p.points;
-      graded += p.maxPoints;
-    } else if (p.date && p.date < now && !p.isFinal) {
-      pending += p.maxPoints;
-    } else {
-      remaining += p.maxPoints;
-      if (!p.isFinal) remainingBeforeFinal += p.maxPoints;
-    }
+    if (p.points !== null) earned += p.points;
+    else if (p.date && p.date < now && !p.isFinal) pending += p.maxPoints;
+    else remaining += p.maxPoints;
   }
   const toPass = Math.max(0, PASS_POINTS - earned);
-  const pace = graded > 0 ? earned / graded : null;
-  const passReachable = toPass <= remaining + pending;
-  return {
-    earned,
-    graded,
-    pending,
-    remaining,
-    remainingBeforeFinal,
-    band: bandFor(earned),
-    toPass,
-    passReachable,
-    pace,
-    forecast: pace !== null && graded >= MIN_GRADED_FOR_FORECAST ? bandFor(Math.min(MAX_POINTS, pace * MAX_POINTS)) : null,
-    atRisk: toPass > 0 && (!passReachable || (pace !== null && graded >= MIN_GRADED_FOR_FORECAST && pace < PASS_POINTS / MAX_POINTS)),
-  };
+  return { earned, pending, remaining, band: bandFor(earned), toPass, passReachable: toPass <= remaining + pending };
 }
 
 export const formatPoints = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ","));
+
+/** Контрольная точка или аттестация в том виде, в каком её отдаёт DAL (результаты — только свои). */
+export type AssessmentLike = {
+  kind: string;
+  dueAt: Date | null;
+  scheduledAt: Date | null;
+  maxPoints: number | null;
+  results: { points: number | null; passed: boolean | null; grade: number | null }[];
+};
+
+/** Единое правило даты точки: срок сдачи, а если его нет — дата проведения. */
+export const assessmentDate = (a: Pick<AssessmentLike, "dueAt" | "scheduledAt">) => a.dueAt ?? a.scheduledAt ?? null;
+
+export function courseProgress(controlForm: string, assessments: AssessmentLike[], now = new Date()) {
+  return disciplineProgress(
+    assessments.map((a) => ({
+      maxPoints: a.maxPoints ?? 0,
+      points: a.results.at(-1)?.points ?? null,
+      isFinal: a.kind === controlForm,
+      date: assessmentDate(a),
+    })),
+    now,
+  );
+}
+
+const GRADE_LABEL: Record<number, string> = { 5: "отлично", 4: "хорошо", 3: "удовлетворительно", 2: "неудовлетворительно" };
+
+/** Выставленный итог аттестации: «зачтено/не зачтено» или оценка. Баллы без них — ещё не итог. */
+export function officialResult(controlForm: string, assessments: AssessmentLike[]) {
+  const last = assessments.find((a) => a.kind === controlForm)?.results.at(-1);
+  if (last?.passed != null) return { passed: last.passed, grade: null };
+  if (last?.grade != null) return { passed: last.grade >= 3, grade: last.grade };
+  return null;
+}
+
+/**
+ * Статус дисциплины. Итог берём только из результата аттестации (оценка или «зачтено»);
+ * до него — арифметика по баллам, без шкалы: 30 баллов посреди семестра — не «FX» (ревью Codex 10, 11).
+ */
+export function courseStatus(controlForm: string, assessments: AssessmentLike[], now = new Date()): { tone: Tone; text: string } {
+  const official = officialResult(controlForm, assessments);
+  if (official?.grade != null) {
+    return { tone: official.grade >= 4 ? "ok" : official.grade === 3 ? "info" : "bad", text: GRADE_LABEL[official.grade] ?? String(official.grade) };
+  }
+  if (official) return official.passed ? { tone: "ok", text: "зачтено" } : { tone: "bad", text: "не зачтено" };
+  const p = courseProgress(controlForm, assessments, now);
+  if (p.toPass === 0) return { tone: "ok", text: `порог ${PASS_POINTS} пройден` };
+  if (!p.passReachable) return { tone: "bad", text: `до ${PASS_POINTS} не добрать` };
+  return { tone: "neutral", text: `до ${PASS_POINTS} ещё ${formatPoints(p.toPass)}` };
+}
+
+/** Ближайшая по дате несданная точка (работа или аттестация); точки без даты — в конце. */
+export function nextAssessment<A extends AssessmentLike>(assessments: A[], now = new Date()): A | null {
+  return (
+    assessments
+      .filter((a) => !a.results.length && (assessmentDate(a) ?? now) >= now)
+      .sort((x, y) => (assessmentDate(x)?.getTime() ?? Infinity) - (assessmentDate(y)?.getTime() ?? Infinity))[0] ?? null
+  );
+}

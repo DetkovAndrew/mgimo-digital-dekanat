@@ -5,7 +5,8 @@ const TICKS = SCALE.filter((b) => b.from > 0).map((b) => b.from); // 91, 84, 75,
 /** Полоса 0–100: набрано (сплошная), ещё можно набрать (штриховка), пороги шкалы. */
 export function PointsBar({ earned, remaining }: { earned: number; remaining: number }) {
   const pct = (n: number) => `${Math.min(100, (n / MAX_POINTS) * 100)}%`;
-  const color = earned >= 75 ? "bg-emerald-500" : earned >= 60 ? "bg-brand" : "bg-amber-500";
+  // Цвет — только порог 60: «оранжевый» посреди семестра пугал при нормальном темпе.
+  const color = earned >= 60 ? "bg-emerald-500" : "bg-brand";
   return (
     <div
       className="relative h-2.5 w-full overflow-hidden rounded-full bg-slate-100"
