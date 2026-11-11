@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { ViewTransition } from "react";
 import { formatDateTime, formatTime, lessonKindLabel } from "@/lib/format";
 import type { ScheduleLesson } from "@/server/dal/schedule";
+import { lessonTitleName } from "@/lib/view-transitions";
+import { Chevron } from "./pending";
 import { Badge } from "./ui";
 
 /** Коротко, что поменялось: подробности и причина — на странице пары. */
@@ -23,8 +26,9 @@ export function LessonCard({ lesson }: { lesson: ScheduleLesson }) {
   return (
     <Link
       href={lesson.href}
-      className={`flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 transition hover:ring-brand/40 ${
-        cancelled ? "opacity-70 ring-red-200" : moved ? "ring-amber-300" : "ring-black/5"
+      transitionTypes={["nav-forward"]}
+      className={`group flex items-center gap-3 rounded-2xl bg-white p-3.5 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-1 transition active:scale-[0.99] md:hover:ring-brand/30 ${
+        cancelled ? "opacity-70 ring-red-200" : moved ? "ring-amber-300" : "ring-black/[0.04]"
       }`}
     >
       <span className="w-12 shrink-0 text-center">
@@ -37,16 +41,20 @@ export function LessonCard({ lesson }: { lesson: ScheduleLesson }) {
           {cancelled && <Badge tone="bad">Отменено</Badge>}
           {moved && <Badge tone="warn">Изменено</Badge>}
         </span>
-        <span className={`block font-medium leading-snug ${cancelled ? "line-through" : ""}`}>{lesson.title}</span>
+        {lesson.source === "lesson" ? (
+          <ViewTransition name={lessonTitleName(lesson.id)} share="morph" default="none">
+            <span className={`block w-fit font-medium leading-snug ${cancelled ? "line-through" : ""}`}>{lesson.title}</span>
+          </ViewTransition>
+        ) : (
+          <span className="block font-medium leading-snug">{lesson.title}</span>
+        )}
         <span className="block truncate text-sm text-slate-500">
           {place}
           {lesson.teacher && ` · ${lesson.teacher}`}
         </span>
         {summary && <span className="mt-1 block text-xs text-amber-800">{summary}</span>}
       </span>
-      <span aria-hidden className="shrink-0 text-lg text-slate-300">
-        ›
-      </span>
+      <Chevron />
     </Link>
   );
 }

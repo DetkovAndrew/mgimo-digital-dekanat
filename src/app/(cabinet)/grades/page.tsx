@@ -1,8 +1,9 @@
-import Link from "next/link";
-import { Badge, Card, Empty, PageTitle } from "@/components/ui";
-import { controlFormLabel, formatDate } from "@/lib/format";
+import { ViewTransition } from "react";
+import { Badge, Empty, List, PageTitle, RowLink, Section } from "@/components/ui";
+import { controlFormLabel, formatDate, formatShortDate } from "@/lib/format";
 import { assessmentDate, courseProgress, courseStatus, formatPoints, nextAssessment } from "@/lib/grading";
 import { getMyGrades, type MyTerm } from "@/server/dal/grades";
+import { courseTitleName } from "@/lib/view-transitions";
 
 type Offering = MyTerm["offerings"][number];
 
@@ -15,15 +16,21 @@ function OfferingRow({ o, now, past }: { o: Offering; now: Date; past?: boolean 
   const attempts = past ? (o.assessments.find((a) => a.kind === o.controlForm)?.results ?? []) : [];
 
   return (
-    <li>
-      <Link href={`/courses/${o.id}`} className="flex min-h-11 items-center gap-3 py-2.5">
+    <RowLink href={`/courses/${o.id}`}>
+      <span className="flex items-start gap-3">
         <span className="min-w-0 flex-1">
-          <span className="block font-medium leading-snug">{o.discipline.title}</span>
+          {past ? (
+            <span className="block leading-snug font-medium">{o.discipline.title}</span>
+          ) : (
+            <ViewTransition name={courseTitleName(o.id)} share="morph" default="none">
+              <span className="block w-fit leading-snug font-medium">{o.discipline.title}</span>
+            </ViewTransition>
+          )}
           <span className="block text-xs text-slate-500">
             {next ? (
               <>
-                Дальше: {next.title}
-                {nextDate && `, ${formatDate(nextDate)}`}
+                {next.title}
+                {nextDate && ` · ${formatShortDate(nextDate)}`}
               </>
             ) : (
               controlFormLabel[o.controlForm]
@@ -38,11 +45,8 @@ function OfferingRow({ o, now, past }: { o: Offering; now: Date; past?: boolean 
           </span>
           <Badge tone={status.tone}>{status.text}</Badge>
         </span>
-        <span aria-hidden className="shrink-0 text-slate-300">
-          ›
-        </span>
-      </Link>
-    </li>
+      </span>
+    </RowLink>
   );
 }
 
@@ -54,29 +58,25 @@ export default async function GradesPage() {
 
   return (
     <>
-      <PageTitle>Учёба</PageTitle>
-      <section className="mb-6">
-        <h2 className="font-semibold">{current.title}</h2>
-        <p className="mb-2 text-sm text-slate-500">
-          Сессия: {formatDate(current.sessionStartsOn)} — {formatDate(current.sessionEndsOn)}
-        </p>
-        <Card className="!py-0">
-          <ul className="divide-y divide-slate-100">
-            {current.offerings.map((o) => (
-              <OfferingRow key={o.id} o={o} now={now} />
-            ))}
-          </ul>
-        </Card>
-      </section>
+      <PageTitle sub={`Сессия ${formatDate(current.sessionStartsOn)} — ${formatDate(current.sessionEndsOn)}`}>Учёба</PageTitle>
+      <Section title={current.title}>
+        <List>
+          {current.offerings.map((o) => (
+            <OfferingRow key={o.id} o={o} now={now} />
+          ))}
+        </List>
+      </Section>
 
       {past.map((term) => (
-        <details key={term.id} className="mb-3 rounded-2xl bg-white px-4 shadow-sm ring-1 ring-black/5">
-          <summary className="min-h-11 cursor-pointer content-center font-semibold">{term.title}</summary>
-          <ul className="divide-y divide-slate-100 border-t border-slate-100">
+        <details key={term.id} className="mb-4">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center px-1 text-[13px] font-semibold tracking-wide text-slate-500 uppercase">
+            {term.title} ›
+          </summary>
+          <List>
             {term.offerings.map((o) => (
               <OfferingRow key={o.id} o={o} now={now} past />
             ))}
-          </ul>
+          </List>
         </details>
       ))}
     </>

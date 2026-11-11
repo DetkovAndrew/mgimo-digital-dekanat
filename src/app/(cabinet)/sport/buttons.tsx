@@ -1,61 +1,58 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { cancelBooking, demoDraw } from "./actions";
+import { Check, LoaderCircle } from "lucide-react";
+import { useTransition } from "react";
+import { toast } from "@/components/toast";
+import { book, cancelBooking } from "./actions";
 
-export function DemoDrawButton() {
-  const router = useRouter();
+const base = "inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold transition active:scale-95 disabled:opacity-60";
+
+/** Одна кнопка на тренировку: «Записаться» или «В очередь». Результат — сразу в списке и всплывающим сообщением. */
+export function BookButton({ slotId, queue }: { slotId: string; queue: boolean }) {
   const [pending, start] = useTransition();
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   return (
-    <div>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => {
-          if (!confirm("Демо: провести жеребьёвку ближайшей открытой недели сейчас? Повторить её будет нельзя.")) return;
-          start(async () => {
-            const r = await demoDraw();
-            setMessage(r.ok ? { ok: true, text: r.message ?? "Готово" } : { ok: false, text: r.error });
-            router.refresh();
-          });
-        }}
-        className="min-h-11 rounded-xl border border-dashed border-brand/50 px-4 text-sm font-medium text-brand disabled:opacity-50"
-      >
-        {pending ? "Проводим жеребьёвку…" : "Демо: провести жеребьёвку сейчас"}
-      </button>
-      {message && (
-        <p role="status" className={`mt-2 text-sm ${message.ok ? "text-emerald-700" : "text-red-700"}`}>
-          {message.text}
-        </p>
-      )}
-    </div>
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() =>
+        start(async () => {
+          const r = await book(slotId, queue);
+          toast(r.ok, r.ok ? r.message : r.error);
+        })
+      }
+      className={`${base} ${queue ? "bg-white text-brand ring-1 ring-brand/30" : "bg-brand text-white shadow-sm shadow-brand/30"}`}
+    >
+      {pending && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
+      {queue ? "В очередь" : "Записаться"}
+    </button>
+  );
+}
+
+export function Booked({ queued }: { queued: boolean }) {
+  return (
+    <span className={`${base} px-3 ${queued ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-700"}`}>
+      {!queued && <Check aria-hidden className="size-4" />}
+      {queued ? "В очереди" : "Вы записаны"}
+    </span>
   );
 }
 
 export function CancelBookingButton({ id, waitlist }: { id: string; waitlist: boolean }) {
-  const router = useRouter();
   const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
   return (
-    <>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => {
-          if (!confirm(waitlist ? "Выйти из листа ожидания?" : "Отменить запись? Место перейдёт следующему в очереди.")) return;
-          start(async () => {
-            const r = await cancelBooking(id);
-            setError(r.ok ? null : r.error);
-            router.refresh();
-          });
-        }}
-        className="min-h-11 shrink-0 rounded-lg px-3 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
-      >
-        {pending ? "…" : waitlist ? "Выйти" : "Отменить"}
-      </button>
-      {error && <p className="text-xs text-red-700">{error}</p>}
-    </>
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() => {
+        if (!confirm(waitlist ? "Выйти из очереди?" : "Отменить запись? Место получит следующий в очереди.")) return;
+        start(async () => {
+          const r = await cancelBooking(id);
+          toast(r.ok, r.ok ? r.message : r.error);
+        });
+      }}
+      className="min-h-11 shrink-0 rounded-full px-3 text-sm font-medium text-red-600 transition hover:bg-red-50 active:scale-95 disabled:opacity-50"
+    >
+      {pending ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : waitlist ? "Выйти" : "Отменить"}
+    </button>
   );
 }

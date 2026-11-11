@@ -1,9 +1,10 @@
+import { ChevronRight, Navigation } from "lucide-react";
 import Link from "next/link";
 import { Fragment } from "react";
 import { LessonCard } from "@/components/lesson-card";
 import { TransferNote } from "@/components/transfer-note";
-import { Badge, Card, Empty, PageTitle } from "@/components/ui";
-import { addDays, formatDate, formatDay, formatTime, mskStartOfDay, requestStatusLabel } from "@/lib/format";
+import { Badge, Empty, List, PageTitle, RowLink, Section } from "@/components/ui";
+import { addDays, formatDay, formatShortDate, formatTime, mskDayKey, mskStartOfDay, requestStatusLabel } from "@/lib/format";
 import { yandexRouteUrl } from "@/lib/geo";
 import { formatRequestNumber, isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { transfersForDay } from "@/lib/transfers";
@@ -12,11 +13,12 @@ import { getMyProfile } from "@/server/dal/profile";
 import { listMyRequests } from "@/server/dal/requests";
 import { getMySchedule } from "@/server/dal/schedule";
 
-function minutesUntil(d: Date, now: Date) {
+function startsIn(d: Date, now: Date) {
   const m = Math.round((d.getTime() - now.getTime()) / 60_000);
   if (m < 60) return `через ${m} мин`;
-  const h = Math.floor(m / 60);
-  return h < 24 ? `через ${h} ч ${m % 60} мин` : `${formatDay(d)}`;
+  if (mskDayKey(d) === mskDayKey(now)) return `через ${Math.floor(m / 60)} ч ${m % 60} мин`;
+  if (mskDayKey(d) === mskDayKey(addDays(now, 1))) return "завтра";
+  return formatDay(d);
 }
 
 export default async function TodayPage() {
@@ -33,105 +35,85 @@ export default async function TodayPage() {
   const transfers = transfersForDay(todayLessons);
   const next = upcoming.find((l) => l.status !== "CANCELLED" && l.endsAt > now);
   const ongoing = next && next.startsAt <= now;
-
   const needAction = requests.filter((r) => r.status === "NEEDS_INFO" || r.status === "READY");
   // Только предстоящие переходы: утренние предупреждения вечером уже не актуальны.
   const impossible = [...transfers.values()].filter((t) => t.verdict.kind === "impossible" && t.toStartsAt > now);
   const firstName = profile.fullName.split(" ")[1] ?? profile.fullName;
+  const attention = needAction.length + impossible.length + Math.min(3, deadlines.length);
 
   return (
     <>
-      <PageTitle>Привет, {firstName}!</PageTitle>
-      <p className="-mt-3 mb-5 text-sm text-slate-500 first-letter:uppercase">
-        {formatDay(now)} · {profile.group}
-      </p>
+      <PageTitle sub={`${formatDay(now)} · ${profile.group}`}>Привет, {firstName}!</PageTitle>
 
       {next && (
-        <Card className="mb-5 !bg-brand !text-white !ring-0">
-          <p className="text-sm opacity-80">
-            {ongoing ? "Сейчас идёт" : `Следующая пара ${minutesUntil(next.startsAt, now)}`}
+        <section className="mb-6 overflow-hidden rounded-3xl bg-gradient-to-br from-brand to-indigo-500 p-5 text-white shadow-lg shadow-brand/25">
+          <p className="text-sm text-white/80">{ongoing ? "Сейчас идёт" : `Следующая пара — ${startsIn(next.startsAt, now)}`}</p>
+          <Link href={next.href} transitionTypes={["nav-forward"]} className="group mt-1 flex min-h-11 items-center gap-1">
+            <h2 className="text-[22px] leading-snug font-bold">{next.title}</h2>
+            <ChevronRight aria-hidden className="size-5 shrink-0 opacity-70 transition group-hover:translate-x-0.5" />
+          </Link>
+          <p className="text-[15px] text-white/90">
+            {formatTime(next.startsAt)}–{formatTime(next.endsAt)} · {next.online ? "онлайн" : [next.room, next.building?.title].filter(Boolean).join(", ")}
           </p>
-          <h2 className="mt-0.5 text-xl font-semibold leading-snug">
-            <Link href={next.href} className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
-              {next.title} <span aria-hidden>›</span>
-            </Link>
-          </h2>
-          <p className="mt-1 text-sm opacity-90">
-            {formatTime(next.startsAt)}–{formatTime(next.endsAt)} ·{" "}
-            {next.online ? "онлайн" : [next.room, next.building?.title].filter(Boolean).join(", ")}
-          </p>
-          {next.status === "RESCHEDULED" && <p className="mt-1 text-sm font-medium">⚠ Изменение в расписании</p>}
+          {next.status === "RESCHEDULED" && <p className="mt-1 text-sm font-medium">Есть изменение в расписании</p>}
           {next.building && (
             <a
               href={yandexRouteUrl(next.building, "mt")}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-white px-4 text-sm font-semibold text-brand"
+              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-brand transition active:scale-95"
             >
-              Построить маршрут
+              <Navigation aria-hidden className="size-4" />
+              Маршрут
             </a>
           )}
-        </Card>
+        </section>
       )}
 
-      {(needAction.length > 0 || impossible.length > 0 || deadlines.length > 0) && (
-        <section className="mb-6" aria-labelledby="attention">
-          <h2 id="attention" className="mb-2 font-semibold">
-            Требует внимания
-          </h2>
-          <ul className="space-y-2">
+      {attention > 0 && (
+        <Section title="Требует внимания">
+          <List>
             {needAction.map((r) => (
-              <li key={r.id}>
-                <Link
-                  href={`/requests/${r.id}`}
-                  className="flex items-center justify-between gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-amber-300"
-                >
-                  <span className="text-sm">
-                    <b>{r.status === "NEEDS_INFO" ? "Деканат ждёт ответа" : "Справка готова"}</b>
-                    <span className="block text-slate-500">
+              <RowLink key={r.id} href={`/requests/${r.id}`}>
+                <span className="flex items-center justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="block font-medium">{r.status === "NEEDS_INFO" ? "Деканат ждёт ответа" : "Справка готова"}</span>
+                    <span className="block text-sm text-slate-500">
                       {isRequestType(r.type) ? requestCatalog[r.type].title : r.type} · {formatRequestNumber(r.number)}
                     </span>
                   </span>
                   <Badge tone={requestStatusLabel[r.status].tone}>{requestStatusLabel[r.status].label}</Badge>
-                </Link>
-              </li>
+                </span>
+              </RowLink>
             ))}
             {impossible.map((t) => (
-              <li key={t.afterLessonId} className="rounded-2xl bg-white p-3 text-sm shadow-sm ring-1 ring-red-200">
-                <b>Сегодня не успеть на переход → {t.toTitle}</b>
+              <li key={t.afterLessonId} className="px-4 py-3 text-sm">
+                <b className="font-medium text-red-700">Не успеть на переход → {t.toTitle}</b>
                 <span className="block text-slate-500">
-                  Перерыв {t.verdict.kind === "impossible" && `${t.verdict.gapMin} мин, дорога ≈ ${t.verdict.estimate.transitMin} мин`}.
+                  {t.verdict.kind === "impossible" && `Перерыв ${t.verdict.gapMin} мин, дорога ≈ ${t.verdict.estimate.transitMin} мин.`}
                 </span>
               </li>
             ))}
-            {deadlines.slice(0, 4).map((d) => (
-              <li key={d.id}>
-                <Link
-                  href={`/courses/${d.offeringId}`}
-                  className="flex items-center justify-between gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-black/5"
-                >
-                  <span className="text-sm">
-                    <b>{d.title}</b>
-                    <span className="block text-slate-500">
-                      {d.discipline}
-                      {d.maxPoints ? ` · до ${d.maxPoints} баллов` : ""}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-right text-xs text-slate-500">до {formatDate(d.at)}</span>
-                </Link>
-              </li>
+            {deadlines.slice(0, 3).map((d) => (
+              <RowLink key={d.id} href={`/courses/${d.offeringId}`}>
+                <span className="block font-medium">{d.title}</span>
+                <span className="block text-sm text-slate-500">
+                  {d.discipline} · до {formatShortDate(d.at)}
+                </span>
+              </RowLink>
             ))}
-          </ul>
-        </section>
+          </List>
+        </Section>
       )}
 
-      <section className="mb-6">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="font-semibold">Пары сегодня</h2>
-          <Link href="/schedule" className="text-sm text-brand">
-            Неделя
+      <Section
+        title="Сегодня"
+        aside={
+          <Link href="/schedule" transitionTypes={["nav-tab"]} className="inline-flex min-h-11 items-center text-sm text-brand">
+            Вся неделя
           </Link>
-        </div>
+        }
+      >
         {todayLessons.length ? (
           <div className="space-y-2">
             {todayLessons.map((l) => {
@@ -147,8 +129,7 @@ export default async function TodayPage() {
         ) : (
           <Empty>Сегодня пар нет — можно выдохнуть.</Empty>
         )}
-      </section>
-
+      </Section>
     </>
   );
 }

@@ -292,7 +292,6 @@ function payloadFor(type: RequestType, input: Record<string, unknown>) {
 async function wipe() {
   // Порядок важен из-за внешних ключей.
   await prisma.sportBooking.deleteMany();
-  await prisma.sportPreference.deleteMany();
   await prisma.sportExtraPoints.deleteMany();
   await prisma.sportSlot.deleteMany();
   await prisma.sportSection.deleteMany();
@@ -383,7 +382,6 @@ async function main() {
     notifications: await prisma.notification.count(),
     sportSlots: await prisma.sportSlot.count(),
     sportBookings: await prisma.sportBooking.count(),
-    sportPreferences: await prisma.sportPreference.count(),
   };
   console.log("Seed готов:", counts);
   console.log("Логины:", [...STUDENTS.map((s) => s.login), STAFF.login].join(", "), "— пароли в .env");
@@ -573,10 +571,16 @@ async function seedClassmate(groupCode: string) {
       gradedAt: NOW,
     })),
   });
-  const slot = await prisma.sportSlot.findFirst({ where: { startsAt: { gt: NOW } }, orderBy: { startsAt: "asc" } });
+  const future = await prisma.sportSlot.findMany({
+    where: { startsAt: { gt: NOW } },
+    orderBy: { startsAt: "asc" },
+    take: 30,
+    select: { id: true, weekStart: true, capacity: true, _count: { select: { bookings: { where: { status: "CONFIRMED" } } } } },
+  });
+  const slot = future.find((s) => s._count.bookings < s.capacity); // не превышать вместимость
   if (slot) {
     await prisma.sportBooking.create({
-      data: { studentId: student.id, slotId: slot.id, weekStart: slot.weekStart, status: "CONFIRMED", rank: 1 },
+      data: { studentId: student.id, slotId: slot.id, weekStart: slot.weekStart, status: "CONFIRMED" },
     });
   }
 }
@@ -848,8 +852,8 @@ const SPORT_WEEKLY: SportTemplate[] = [
   { section: "swim", weekday: 6, slot: 3, building: "sport", room: "Бассейн", coach: "Соколова Дарья Ильинична", capacity: 10 },
 ];
 
-const POPULAR = new Set(["volley-2", "fitness-1", "swim-3", "volley-4"]); // section-weekday, вокруг них конкуренция
-const SIM_STUDENTS = 36;
+const POPULAR = new Set(["volley-2", "fitness-1", "swim-3", "volley-4"]); // section-weekday: эти места разбирают первыми
+const SIM_STUDENTS = 60;
 
 /** Понедельник московской недели как @db.Date. */
 const weekStartOf = (d: Date) => {
@@ -865,21 +869,13 @@ async function seedSport(termId: string) {
     sections.set(sec.key, row.id);
   }
   const buildings = new Map(BUILDINGS.map((b) => [b.id, b]));
-  const currentWeek = weekStartOf(NOW);
 
   // Недели и тренировки на весь семестр.
   type SlotRow = { id: string; key: string; weekStart: Date; startsAt: Date; endsAt: Date; building: BuildingId; title: string };
   const allSlots: SlotRow[] = [];
   for (let ws = weekStartOf(msk(TERM.start)); ws <= msk(TERM.end); ws = addDays(ws, 7)) {
     const monday = ws.toISOString().slice(0, 10);
-    await prisma.sportWeek.create({
-      data: {
-        weekStart: ws,
-        status: ws <= currentWeek ? "DRAWN" : "OPEN",
-        deadline: msk(isoDay(addDays(msk(monday), -1)), "20:00"), // воскресенье 20:00 перед неделей
-        drawnAt: ws <= currentWeek ? msk(isoDay(addDays(msk(monday), -1)), "20:00") : null,
-      },
-    });
+    await prisma.sportWeek.create({ data: { weekStart: ws } });
     for (const t of SPORT_WEEKLY) {
       const date = isoDay(addDays(msk(monday), t.weekday - 1));
       if (HOLIDAYS.has(date) || date < TERM.start || date > TERM.end) continue;
@@ -930,7 +926,7 @@ async function seedSport(termId: string) {
     );
   };
 
-  // Посещения реальных студентов: по одной тренировке в неделю, начиная со второй недели.
+  // Посещения реальных студентов в прошлых неделях: по одной тренировке в неделю, начиная со второй.
   const real = await prisma.studentProfile.findMany({
     where: { user: { username: { in: STUDENTS.map((x) => x.login) } } },
     select: { id: true, user: { select: { username: true } } },
@@ -939,42 +935,26 @@ async function seedSport(termId: string) {
     "alina.lebedeva": { attended: 9, missed: 0, prefer: ["yoga", "swim", "fitness"] },
     "timur.orlov": { attended: 5, missed: 1, prefer: ["volley", "basket", "fitness"] },
   };
+  const busyOf = new Map<string, BusyItem[]>();
   for (const r of real) {
     const p = plan[r.user.username!];
     const busy = await busyFor(r.id);
+    busyOf.set(r.user.username!, busy);
     const weeks = [...new Set(allSlots.map((s) => +s.weekStart))].sort((a, b) => a - b);
     let attended = 0;
     let missed = 0;
     for (const w of weeks.slice(1)) {
-      const weekSlots = allSlots.filter((s) => +s.weekStart === w && availableFor(busy, s));
-      const choice = p.prefer.map((k) => weekSlots.find((s) => s.key.startsWith(k))).find(Boolean);
+      const choice = p.prefer
+        .map((k) => allSlots.find((s) => +s.weekStart === w && s.key.startsWith(k) && s.endsAt < NOW && availableFor(busy, s)))
+        .find(Boolean);
       if (!choice) continue;
-      const isPast = choice.endsAt < NOW;
-      const isCurrent = +choice.weekStart === +currentWeek;
-      if (isPast && attended < p.attended) {
-        await prisma.sportBooking.create({
-          data: { studentId: r.id, slotId: choice.id, weekStart: choice.weekStart, status: "ATTENDED", rank: 1, explanation: "1-й выбор" },
-        });
+      if (attended < p.attended) {
+        await prisma.sportBooking.create({ data: { studentId: r.id, slotId: choice.id, weekStart: choice.weekStart, status: "ATTENDED" } });
         attended++;
-      } else if (isPast && missed < p.missed) {
-        await prisma.sportBooking.create({
-          data: { studentId: r.id, slotId: choice.id, weekStart: choice.weekStart, status: "MISSED", rank: 1, explanation: "1-й выбор" },
-        });
+      } else if (missed < p.missed) {
+        await prisma.sportBooking.create({ data: { studentId: r.id, slotId: choice.id, weekStart: choice.weekStart, status: "MISSED" } });
         missed++;
-      } else if (!isPast && isCurrent) {
-        await prisma.sportBooking.create({
-          data: { studentId: r.id, slotId: choice.id, weekStart: choice.weekStart, status: "CONFIRMED", rank: 1, lotteryIndex: 0, explanation: "1-й выбор" },
-        });
       }
-    }
-    // Приоритеты на ближайшую открытую неделю — только у второго студента (первый пройдёт сценарий сам).
-    if (r.user.username === "timur.orlov") {
-      const nextWeek = addDays(currentWeek, 7);
-      const options = allSlots.filter((s) => +s.weekStart === +nextWeek && availableFor(busy, s));
-      const picks = [...options.filter((s) => s.key.startsWith("volley")), ...options.filter((s) => !s.key.startsWith("volley"))].slice(0, 3);
-      await prisma.sportPreference.createMany({
-        data: picks.map((s, i) => ({ studentId: r.id, slotId: s.id, weekStart: nextWeek, rank: i + 1 })),
-      });
     }
   }
 
@@ -985,34 +965,79 @@ async function seedSport(termId: string) {
     });
   }
 
-  // Симуляция конкуренции: участники без учётных записей (войти под ними нельзя),
-  // с приоритетами на ближайшие 4 открытые недели. Популярные слоты получают больше желающих.
+  // Занятость мест в ближайшие две недели: участники без учётных записей (войти под ними нельзя)
+  // заранее записались. Популярные тренировки заполнены, у части есть очередь; на остальные места есть.
   const simGroup = await prisma.studyGroup.create({
-    data: { code: "SIM-0000", facultyCode: "SE", program: "Симуляция конкуренции (демо)", course: 1 },
+    data: { code: "SIM-0000", facultyCode: "SE", program: "Демо-участники записи (без входа)", course: 1 },
   });
-  let rnd = 42;
-  const random = () => ((rnd = (rnd * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
-  const openWeeks = [...new Set(allSlots.filter((s) => s.weekStart > currentWeek).map((s) => +s.weekStart))].sort((a, b) => a - b).slice(0, 4);
+  const sims: { id: string; days: Set<string>; perWeek: Map<number, number> }[] = [];
   for (let i = 1; i <= SIM_STUDENTS; i++) {
     const user = await prisma.user.create({
-      data: { id: randomUUID(), name: `Участник симуляции ${i}`, email: `sim-${i}@demo.university.example`, role: "student" },
+      data: { id: randomUUID(), name: `Демо-участник ${i}`, email: `sim-${i}@demo.university.example`, role: "student" },
     });
     const sim = await prisma.studentProfile.create({
       data: { userId: user.id, groupId: simGroup.id, recordBookNumber: `SIM${String(i).padStart(4, "0")}`, funding: "бюджет", enrolledAt: day("2026-09-01") },
     });
-    for (const w of openWeeks) {
-      const weekSlots = allSlots.filter((s) => +s.weekStart === w);
-      const weighted = weekSlots.flatMap((s) => (POPULAR.has(s.key) ? [s, s, s, s] : [s]));
-      const picks: SlotRow[] = [];
-      const want = 2 + Math.floor(random() * 3);
-      while (picks.length < want) {
-        const s = weighted[Math.floor(random() * weighted.length)];
-        if (!picks.includes(s)) picks.push(s);
+    sims.push({ id: sim.id, days: new Set(), perWeek: new Map() });
+  }
+  let rnd = 42;
+  const random = () => ((rnd = (rnd * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
+  let cursor = 0;
+  /** Следующий участник, у которого в эту неделю меньше 2 тренировок и нет тренировки в этот день. */
+  const nextSim = (s: SlotRow) => {
+    for (let k = 0; k < sims.length; k++) {
+      const sim = sims[(cursor + k) % sims.length];
+      if ((sim.perWeek.get(+s.weekStart) ?? 0) < 2 && !sim.days.has(isoDay(s.startsAt))) {
+        cursor = (cursor + k + 1) % sims.length;
+        return sim;
       }
-      await prisma.sportPreference.createMany({
-        data: picks.map((s, k) => ({ studentId: sim.id, slotId: s.id, weekStart: s.weekStart, rank: k + 1 })),
+    }
+    return null;
+  };
+  const soon = allSlots.filter((s) => s.startsAt > NOW && s.startsAt < addDays(NOW, 14));
+  const fullSlots: SlotRow[] = [];
+  for (const s of [...soon].sort((a, b) => Number(POPULAR.has(b.key)) - Number(POPULAR.has(a.key)))) {
+    const capacity = SPORT_WEEKLY.find((t) => `${t.section}-${t.weekday}` === s.key)!.capacity;
+    const popular = POPULAR.has(s.key);
+    const want = popular ? capacity : Math.floor(capacity * (0.3 + random() * 0.4));
+    let placed = 0;
+    for (; placed < want; placed++) {
+      const sim = nextSim(s);
+      if (!sim) break;
+      sim.perWeek.set(+s.weekStart, (sim.perWeek.get(+s.weekStart) ?? 0) + 1);
+      sim.days.add(isoDay(s.startsAt));
+      await prisma.sportBooking.create({
+        data: { studentId: sim.id, slotId: s.id, weekStart: s.weekStart, status: "CONFIRMED", statusAt: addDays(NOW, -2) },
       });
     }
+    if (popular && placed === capacity) fullSlots.push(s);
+  }
+  // Очередь на заполненные популярные тренировки: ожидание не занимает место и квоту.
+  for (const [n, s] of fullSlots.entries()) {
+    const booked = new Set((await prisma.sportBooking.findMany({ where: { slotId: s.id }, select: { studentId: true } })).map((b) => b.studentId));
+    const waiting = sims.filter((x) => !booked.has(x.id)).slice(n, n + 1 + (n % 2));
+    for (const [k, sim] of waiting.entries()) {
+      await prisma.sportBooking.create({
+        data: { studentId: sim.id, slotId: s.id, weekStart: s.weekStart, status: "WAITLIST", statusAt: addDays(NOW, -1 + k / 24) },
+      });
+    }
+  }
+
+  // Тимур стоит в очереди на заполненную тренировку (вторым), у Алины одна запись на ближайшие дни.
+  const timur = real.find((r) => r.user.username === "timur.orlov");
+  const queueFor = timur && fullSlots.find((s) => s.startsAt > addDays(NOW, 1) && availableFor(busyOf.get("timur.orlov")!, s));
+  if (timur && queueFor) {
+    await prisma.sportBooking.create({
+      data: { studentId: timur.id, slotId: queueFor.id, weekStart: queueFor.weekStart, status: "WAITLIST", statusAt: NOW },
+    });
+  }
+  const alinaSlot =
+    alina &&
+    soon.find((s) => !POPULAR.has(s.key) && s.startsAt < addDays(NOW, 7) && plan["alina.lebedeva"].prefer.some((k) => s.key.startsWith(k)) && availableFor(busyOf.get("alina.lebedeva")!, s));
+  if (alina && alinaSlot) {
+    await prisma.sportBooking.create({
+      data: { studentId: alina.id, slotId: alinaSlot.id, weekStart: alinaSlot.weekStart, status: "CONFIRMED", statusAt: addDays(NOW, -1) },
+    });
   }
 }
 

@@ -1,183 +1,161 @@
-import { Badge, Card, PageTitle } from "@/components/ui";
-import { formatDate, formatDateTime, formatDay, formatTime } from "@/lib/format";
+import { MapPin } from "lucide-react";
+import Link from "next/link";
+import { ViewTransition } from "react";
+import { Badge, Card, Empty, List, PageTitle, Section } from "@/components/ui";
+import { formatDate, formatDay, formatTime } from "@/lib/format";
 import { getMySport } from "@/server/dal/sport";
-import { CancelBookingButton, DemoDrawButton } from "./buttons";
-import { PreferencesEditor, type SlotView } from "./preferences-editor";
+import { Booked, BookButton, CancelBookingButton } from "./buttons";
 
-function Bar({ value, max, mark }: { value: number; max: number; mark?: number }) {
-  return (
-    <div className="relative h-2.5 overflow-hidden rounded-full bg-slate-100" role="img" aria-label={`${value} из ${max}`}>
-      <div
-        className={`absolute inset-y-0 left-0 rounded-full ${value >= (mark ?? max) ? "bg-emerald-500" : "bg-brand"}`}
-        style={{ width: `${Math.min(100, (value / max) * 100)}%` }}
-      />
-      {mark && <span className="absolute inset-y-0 w-px bg-slate-500" style={{ left: `${(mark / max) * 100}%` }} />}
-    </div>
-  );
-}
+const weekday = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", weekday: "short" });
+const dayNum = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "numeric" });
+const noon = (key: string) => new Date(`${key}T12:00:00+03:00`);
 
-export default async function SportPage() {
-  const s = await getMySport();
+export default async function SportPage({ searchParams }: PageProps<"/sport">) {
+  const { day } = await searchParams;
+  const s = await getMySport(typeof day === "string" ? day : undefined);
   const p = s.progress;
-  const perWeek = p.weeksLeft ? Math.ceil(p.trainingsNeeded / p.weeksLeft) : p.trainingsNeeded;
-
-  const slots: SlotView[] =
-    s.open?.slots.map((x) => ({
-      id: x.id,
-      title: x.section.title,
-      day: formatDay(x.startsAt),
-      time: `${formatTime(x.startsAt)}–${formatTime(x.endsAt)}`,
-      place: `${x.building.title}, ${x.room}`,
-      coach: x.coach,
-      capacity: x.capacity,
-      demand: x.demand,
-      unavailable: x.unavailable,
-    })) ?? [];
+  const pct = (n: number) => `${Math.min(100, (n / s.rules.total) * 100)}%`;
 
   return (
     <>
-      <PageTitle>Физкультура</PageTitle>
+      <PageTitle sub={s.term}>Физкультура</PageTitle>
 
-      <Card className="mb-5">
+      <Card className="mb-6">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="font-semibold">{s.term ?? "Семестр"}</h2>
-          <p className="text-2xl font-semibold tabular-nums">
+          <p className="text-3xl font-bold tabular-nums">
             {p.total}
-            <span className="text-sm font-normal text-slate-400"> / {s.rules.total}</span>
+            <span className="text-base font-normal text-slate-400"> / {s.rules.total}</span>
           </p>
-        </div>
-        <div className="mt-3 space-y-3">
-          <div>
-            <div className="mb-1 flex justify-between text-sm">
-              <span>Тренировки</span>
-              <span className="tabular-nums text-slate-600">
-                {p.trainingPoints} / {s.rules.trainingMin} обязательных
-              </span>
-            </div>
-            <Bar value={p.trainingPoints} max={s.rules.trainingMin} />
-          </div>
-          <div>
-            <div className="mb-1 flex justify-between text-sm">
-              <span>Дополнительные баллы</span>
-              <span className="tabular-nums text-slate-600">{p.extraPoints} / 40</span>
-            </div>
-            <Bar value={p.extraPoints} max={40} />
-          </div>
-        </div>
-        <p className="mt-3 text-sm text-slate-600">
-          Посещено {p.attended} {p.missed ? `(пропусков без отмены: ${p.missed}) ` : ""}·{" "}
           {p.trainingsNeeded === 0 ? (
-            <b className="text-emerald-700">обязательные тренировки закрыты</b>
+            <Badge tone="ok">тренировки закрыты</Badge>
           ) : (
-            <>
-              нужно ещё <b>{p.trainingsNeeded}</b> — осталось недель: {p.weeksLeft}, это ≈ {perWeek} в неделю
-            </>
+            <span className="text-sm text-slate-500">ещё {p.trainingsNeeded} трен.</span>
           )}
-          .
+        </div>
+        <div className="relative mt-3 h-2 overflow-hidden rounded-full bg-slate-100" role="img" aria-label={`${p.total} из ${s.rules.total}`}>
+          <div className="absolute inset-y-0 left-0 rounded-full bg-brand" style={{ width: pct(p.trainingPoints) }} />
+          <div className="absolute inset-y-0 rounded-full bg-sky-400" style={{ left: pct(p.trainingPoints), width: pct(p.extraPoints) }} />
+          <span className="absolute inset-y-0 w-px bg-white" style={{ left: pct(s.rules.trainingMin) }} />
+        </div>
+        <p className="mt-2 text-sm text-slate-500">
+          <span className="text-brand">●</span> {p.trainingPoints} из {s.rules.trainingMin} за тренировки ·{" "}
+          <span className="text-sky-500">●</span> {p.extraPoints} доп.
         </p>
-        {p.extra.length > 0 && (
-          <p className="mt-1 text-xs text-slate-500">
-            {p.extra.map((e) => `${e.title}: +${e.points} (${formatDate(e.awardedAt)})`).join(" · ")}
-          </p>
-        )}
+        <details className="group mt-1 text-sm">
+          <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-brand">
+            <span className="group-open:hidden">Подробнее и правила</span>
+            <span className="hidden group-open:inline">Скрыть</span>
+          </summary>
+          <ul className="list-disc space-y-1 pl-5 text-slate-600">
+            <li>
+              Посещено {p.attended}
+              {p.missed > 0 && `, пропусков без отмены ${p.missed}`}.
+              {p.extra.map((e) => ` ${e.title}: +${e.points} (${formatDate(e.awardedAt)}).`).join("")}
+            </li>
+            <li>
+              Запись открывается за {s.rules.windowDays} дней: есть место — вы записаны сразу. Не больше{" "}
+              {s.rules.weeklyQuota} тренировок в неделю и одной в день.
+            </li>
+            <li>Тренировки, которые пересекаются с парами или до которых не успеть дойти, система не даст выбрать и объяснит почему.</li>
+            <li>
+              Мест нет — можно встать в очередь: освободится место, запишем первого подходящего и пришлём уведомление. За{" "}
+              {s.rules.queueFreezeHours} часов до начала очередь замирает, чтобы накануне было ясно, ехать или нет.
+            </li>
+            <li>Тренировка — {s.rules.pointsPerTraining} баллов; для зачёта — 60 за тренировки и 100 всего (правила University, демо).</li>
+          </ul>
+        </details>
       </Card>
 
-      <section className="mb-6">
-        <h2 className="mb-2 font-semibold">Мои ближайшие тренировки</h2>
-        {s.upcoming.length ? (
-          <ul className="space-y-2">
-            {s.upcoming.map((b) => (
-              <li key={b.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-black/5">
-                <span className="min-w-0 flex-1 text-sm">
+      {s.bookings.length > 0 && (
+        <Section title="Мои записи">
+          <List>
+            {s.bookings.map((b) => (
+              <li key={b.id} className="flex items-center gap-3 px-4 py-3">
+                <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-1.5">
-                    <b>{b.slot.section.title}</b>
+                    <b className="font-semibold">{b.slot.section.title}</b>
                     {b.status === "WAITLIST" ? (
-                      <Badge tone="warn">лист ожидания{b.position ? ` · вы ${b.position}-й` : ""}</Badge>
+                      <Badge tone="warn">{b.frozen ? "очередь закрыта" : `в очереди · ${b.position}-й`}</Badge>
                     ) : b.conflict ? (
-                      <Badge tone="bad">конфликт с расписанием</Badge>
+                      <Badge tone="bad">конфликт</Badge>
                     ) : (
-                      <Badge tone="ok">место есть</Badge>
+                      <Badge tone="ok">записаны</Badge>
                     )}
                   </span>
-                  <span className="block text-slate-600 first-letter:uppercase">
+                  <span className="block text-sm text-slate-600 first-letter:uppercase">
                     {formatDay(b.slot.startsAt)}, {formatTime(b.slot.startsAt)}–{formatTime(b.slot.endsAt)}
                   </span>
                   <span className="block text-xs text-slate-500">
-                    {b.slot.building.title}, {b.slot.room} · {b.slot.coach}
+                    {b.slot.building.title} · {b.slot.room}
                   </span>
-                  {b.conflict && (
-                    <span className="block text-xs text-red-700">
-                      После изменения расписания: {b.conflict}. Отмените запись, чтобы место получил другой.
-                    </span>
+                  {b.status === "WAITLIST" && !b.frozen && (
+                    <span className="block text-xs text-amber-800">Место пока не подтверждено</span>
                   )}
-                  {b.explanation && <span className="block text-xs text-slate-500">Почему: {b.explanation}</span>}
+                  {b.conflict && <span className="block text-xs text-red-700">Расписание изменилось: {b.conflict}</span>}
                 </span>
                 <CancelBookingButton id={b.id} waitlist={b.status === "WAITLIST"} />
               </li>
             ))}
-          </ul>
-        ) : (
-          <p className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">
-            Записей пока нет. Выберите тренировки на следующую неделю ниже.
-          </p>
-        )}
-      </section>
-
-      {s.open ? (
-        <section className="mb-6">
-          <h2 className="font-semibold">
-            Запись на неделю с {formatDate(new Date(`${s.open.weekStart.toISOString().slice(0, 10)}T12:00:00+03:00`))}
-          </h2>
-          <p className="mb-3 text-sm text-slate-500">
-            Приоритеты принимаются до {formatDateTime(s.open.deadline)}. Потом — жеребьёвка: сначала каждому по одному
-            занятию, затем вторые. Кто подал раньше, не получает преимущества.
-          </p>
-          <Card>
-            <PreferencesEditor
-              key={s.open.weekStart.toISOString()}
-              weekStart={s.open.weekStart.toISOString().slice(0, 10)}
-              slots={slots}
-              initial={s.open.myPreferenceSlotIds}
-              max={s.rules.maxPreferences}
-            />
-          </Card>
-          {s.demoDrawEnabled && (
-            <div className="mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-900">
-              <p className="mb-2">
-                <b>Демо для жюри.</b> В реальности жеребьёвка проходит автоматически после дедлайна. Здесь можно «ускорить
-                время»: провести её для ближайшей открытой недели. Конкуренцию создают 36 симулированных участников.
-              </p>
-              <DemoDrawButton />
-            </div>
-          )}
-        </section>
-      ) : (
-        <p className="mb-6 text-sm text-slate-500">Открытых для записи недель в этом семестре больше нет.</p>
+          </List>
+        </Section>
       )}
 
-      <details className="rounded-2xl bg-white p-4 text-sm ring-1 ring-black/5">
-        <summary className="cursor-pointer font-semibold">Как устроена честная запись</summary>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-slate-600">
-          <li>
-            Вы заранее отмечаете до {s.rules.maxPreferences} подходящих тренировок в порядке желания. Гонки за местами в
-            момент открытия нет.
-          </li>
-          <li>
-            Тренировки, которые пересекаются с вашими парами или до которых не успеть дойти (с учётом 10 минут на
-            переодевание), система не предлагает и объясняет почему.
-          </li>
-          <li>
-            После дедлайна — жеребьёвка: случайный порядок студентов, сначала каждому по одному занятию, затем вторые
-            (максимум {s.rules.weeklyQuota} в неделю и не больше одной в день).
-          </li>
-          <li>
-            Не хватило мест — вы в листе ожидания. Кто-то отменил запись — место автоматически получает следующий, причём
-            сначала тот, у кого ещё нет занятий на неделе.
-          </li>
-          <li>Отмена до начала возвращает место и квоту. Неявка без отмены тратит квоту.</li>
-          <li>Тренировка — {s.rules.pointsPerTraining} баллов, для зачёта нужно 60 за тренировки и 100 всего (правила University, демо).</li>
-        </ul>
-      </details>
+      <Section title="Записаться">
+        <nav aria-label="День" className="-mx-4 mb-3 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+          {s.days.map((d) => {
+            const on = d === s.day;
+            return (
+              <Link
+                key={d}
+                href={`/sport?day=${d}`}
+                scroll={false}
+                replace
+                aria-current={on ? "date" : undefined}
+                className={`flex min-h-14 w-12 shrink-0 snap-start flex-col items-center justify-center rounded-2xl text-sm transition-colors ${
+                  on ? "bg-brand text-white shadow-sm shadow-brand/30" : "bg-white text-slate-700 ring-1 ring-black/[0.04]"
+                }`}
+              >
+                <span className={`text-[11px] ${on ? "text-white/80" : "text-slate-400"}`}>{weekday.format(noon(d))}</span>
+                <span className="font-semibold">{dayNum.format(noon(d))}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <ViewTransition key={s.day} enter="fade-in" exit="fade-out" default="none">
+          <div>
+            {s.slots.length ? (
+              <List>
+                {s.slots.map((x) => (
+                  <li key={x.id} className="flex items-center gap-3 px-4 py-3">
+                    <span className="w-11 shrink-0 text-sm font-semibold tabular-nums">{formatTime(x.startsAt)}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block leading-snug font-medium">{x.section.title}</span>
+                      <span className="flex items-center gap-1 text-xs text-slate-500">
+                        <MapPin aria-hidden className="size-3 shrink-0" />
+                        <span className="truncate">
+                          {x.building.title} · {x.room}
+                        </span>
+                      </span>
+                      <span className={`block text-xs ${x.free ? "text-slate-500" : "text-amber-700"}`}>
+                        {x.free ? `свободно ${x.free} из ${x.capacity}` : `мест нет${x.queue ? ` · в очереди ${x.queue}` : ""}`}
+                      </span>
+                      {x.note && <span className="block text-xs text-slate-600">{x.note}</span>}
+                    </span>
+                    {x.action === "booked" || x.action === "queued" ? (
+                      <Booked queued={x.action === "queued"} />
+                    ) : x.action === "book" || x.action === "queue" ? (
+                      <BookButton slotId={x.id} queue={x.action === "queue"} />
+                    ) : null}
+                  </li>
+                ))}
+              </List>
+            ) : (
+              <Empty>В этот день тренировок нет.</Empty>
+            )}
+          </div>
+        </ViewTransition>
+      </Section>
     </>
   );
 }

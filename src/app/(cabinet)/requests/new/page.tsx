@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { Card, PageTitle } from "@/components/ui";
+import { BackLink } from "@/components/back-link";
+import { Card, List, PageTitle, RowLink, Section } from "@/components/ui";
 import { isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { RequestForm } from "./request-form";
 
@@ -16,13 +16,8 @@ export default async function NewRequestPage({ searchParams }: PageProps<"/reque
     const spec = requestCatalog[type];
     return (
       <>
-        <Link href="/requests/new" className="mb-3 inline-block text-sm text-brand">
-          ← Все виды заявок
-        </Link>
-        <PageTitle>{spec.title}</PageTitle>
-        <p className="-mt-2 mb-4 text-sm text-slate-500">
-          {spec.description} Обычно готово за {spec.slaDays} раб. дн. (демо-срок).
-        </p>
+        <BackLink href="/requests/new">Виды заявок</BackLink>
+        <PageTitle sub={`${spec.description} Обычно готово за ${spec.slaDays} раб. дн. (демо-срок).`}>{spec.title}</PageTitle>
         <Card>
           {/* Описание полей сериализуемо; схема валидации остаётся на сервере. */}
           <RequestForm type={type} fields={spec.fields.map((f) => ({ ...f }))} />
@@ -33,28 +28,22 @@ export default async function NewRequestPage({ searchParams }: PageProps<"/reque
 
   return (
     <>
+      <BackLink href="/requests">Заявки</BackLink>
       <PageTitle>Новая заявка</PageTitle>
-      <div className="space-y-6">
-        {groups.map((g) => (
-          <section key={g.category}>
-            <h2 className="mb-2 font-semibold">{g.title}</h2>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {Object.entries(requestCatalog)
-                .filter(([, s]) => s.category === g.category)
-                .map(([key, s]) => (
-                  <Link
-                    key={key}
-                    href={`/requests/new?type=${key}`}
-                    className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-black/5 hover:ring-brand/40"
-                  >
-                    <span className="block font-medium">{s.title}</span>
-                    <span className="text-sm text-slate-500">{s.description}</span>
-                  </Link>
-                ))}
-            </div>
-          </section>
-        ))}
-      </div>
+      {groups.map((g) => (
+        <Section key={g.category} title={g.title}>
+          <List>
+            {Object.entries(requestCatalog)
+              .filter(([, s]) => s.category === g.category)
+              .map(([key, s]) => (
+                <RowLink key={key} href={`/requests/new?type=${key}`}>
+                  <span className="block font-medium">{s.title}</span>
+                  <span className="block text-sm text-slate-500">{s.description}</span>
+                </RowLink>
+              ))}
+          </List>
+        </Section>
+      ))}
     </>
   );
 }

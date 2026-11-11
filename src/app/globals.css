@@ -1,9 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f7fb;
+  --background: #f5f6fa;
   --foreground: #14161f;
   --brand: #3b4cca;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @theme inline {
@@ -16,4 +17,93 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ─── Переходы между страницами (React <ViewTransition>, см. src/app/(cabinet)/template.tsx) ───
+   Вглубь (пара → преподаватель) — сдвиг влево, назад — вправо, между вкладками — мягкая смена.
+   Шапка и нижнее меню не двигаются: это точка опоры для глаза. */
+
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-old(.slide-out-left),
+::view-transition-old(.slide-out-right),
+::view-transition-old(.fade-out) {
+  animation: 140ms ease-in both vt-fade reverse;
+}
+::view-transition-old(.slide-out-left) {
+  --vt-offset: -40px;
+  animation: 140ms ease-in both vt-fade reverse, 320ms var(--ease-out) both vt-slide reverse;
+}
+::view-transition-old(.slide-out-right) {
+  --vt-offset: 40px;
+  animation: 140ms ease-in both vt-fade reverse, 320ms var(--ease-out) both vt-slide reverse;
+}
+::view-transition-new(.slide-in-right) {
+  --vt-offset: 40px;
+  animation: 220ms ease-out 80ms both vt-fade, 320ms var(--ease-out) both vt-slide;
+}
+::view-transition-new(.slide-in-left) {
+  --vt-offset: -40px;
+  animation: 220ms ease-out 80ms both vt-fade, 320ms var(--ease-out) both vt-slide;
+}
+::view-transition-new(.fade-in) {
+  --vt-offset-y: 6px;
+  animation: 220ms ease-out 60ms both vt-fade, 280ms var(--ease-out) both vt-rise;
+}
+::view-transition-group(.morph) {
+  animation-duration: 320ms;
+  animation-timing-function: var(--ease-out);
+}
+
+::view-transition-group(app-header),
+::view-transition-group(app-nav) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(app-header),
+::view-transition-old(app-nav) {
+  display: none;
+}
+::view-transition-new(app-header),
+::view-transition-new(app-nav) {
+  animation: none;
+}
+::view-transition-group(tab-pill) {
+  animation-duration: 280ms;
+  animation-timing-function: var(--ease-out);
+}
+
+@keyframes vt-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-slide {
+  from {
+    translate: var(--vt-offset) 0;
+  }
+}
+@keyframes vt-rise {
+  from {
+    translate: 0 var(--vt-offset-y);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+    scale: 0.98;
+  }
 }

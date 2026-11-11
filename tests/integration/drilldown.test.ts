@@ -137,7 +137,7 @@ describe("корпус", () => {
     const aBooking = await prisma.sportBooking.upsert({
       where: { studentId_slotId: { studentId: A.studentId, slotId: aSlot.id } },
       update: { status: "CONFIRMED" },
-      create: { studentId: A.studentId, slotId: aSlot.id, weekStart: aSlot.weekStart, status: "CONFIRMED", rank: 1 },
+      create: { studentId: A.studentId, slotId: aSlot.id, weekStart: aSlot.weekStart, status: "CONFIRMED" },
     });
     await actAs("alina.lebedeva");
     const b = await getBuilding(cBooking.slot.buildingId);

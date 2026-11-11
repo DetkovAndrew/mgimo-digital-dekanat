@@ -6,6 +6,7 @@ const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("ru-RU
 const timeFmt = fmt({ hour: "2-digit", minute: "2-digit" });
 const dayFmt = fmt({ weekday: "long", day: "numeric", month: "long" });
 const dateFmt = fmt({ day: "numeric", month: "long", year: "numeric" });
+const shortDateFmt = fmt({ day: "numeric", month: "long" });
 const dateTimeFmt = fmt({ day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const isoDayFmt = fmt({ year: "numeric", month: "2-digit", day: "2-digit" });
 
@@ -14,6 +15,8 @@ export const formatDay = (d: Date) => dayFmt.format(d);
 // Без «г.»: после даты часто идёт точка или запятая, и выходило «2026 г..».
 export const formatDate = (d: Date) => dateFmt.format(d).replace(/\s?г\.$/, "");
 export const formatDateTime = (d: Date) => dateTimeFmt.format(d);
+/** «17 ноября» — для списков текущего семестра, где год очевиден. */
+export const formatShortDate = (d: Date) => shortDateFmt.format(d);
 
 /** Московская дата в виде YYYY-MM-DD. */
 export function mskDayKey(d: Date): string {

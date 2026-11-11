@@ -111,11 +111,10 @@ model StudentProfile {
   funding          String // «бюджет» | «договор»
   enrolledAt       DateTime   @db.Date
 
-  grades           GradeResult[]
-  requests         Request[]
-  sportPreferences SportPreference[]
-  sportBookings    SportBooking[]
-  sportExtra       SportExtraPoints[]
+  grades        GradeResult[]
+  requests      Request[]
+  sportBookings SportBooking[]
+  sportExtra    SportExtraPoints[]
 
   @@index([groupId])
   @@map("student_profile")
@@ -442,22 +441,13 @@ model NotificationRecipient {
 // Все изменения одной недели (приоритеты, жеребьёвка, отмена, продвижение очереди)
 // выполняются в транзакции с блокировкой строки SportWeek (SELECT … FOR UPDATE).
 
-enum SportWeekStatus {
-  OPEN // принимаются приоритеты
-  DRAWN // жеребьёвка проведена, результат зафиксирован
-}
-
+// Неделя физкультуры: строка нужна для блокировки (SELECT … FOR UPDATE) —
+// запись, отмена и продвижение очереди внутри недели выполняются по одной.
 model SportWeek {
-  weekStart    DateTime        @id @db.Date // понедельник (московская дата)
-  status       SportWeekStatus @default(OPEN)
-  deadline     DateTime        @db.Timestamptz(6) // приём приоритетов до
-  seed         String? // для воспроизводимости жеребьёвки
-  lotteryOrder Json? // порядок участников (studentId[]) — снимок на момент жеребьёвки
-  drawnAt      DateTime?       @db.Timestamptz(6)
+  weekStart DateTime @id @db.Date // понедельник (московская дата)
 
-  slots       SportSlot[]
-  preferences SportPreference[]
-  bookings    SportBooking[]
+  slots    SportSlot[]
+  bookings SportBooking[]
 
   @@map("sport_week")
 }
@@ -486,52 +476,32 @@ model SportSlot {
   coach      String // вымышленное ФИО тренера
   capacity   Int
 
-  preferences SportPreference[]
-  bookings    SportBooking[]
+  bookings SportBooking[]
 
   @@index([weekStart, startsAt])
   @@map("sport_slot")
 }
 
-model SportPreference {
-  id        String         @id @default(cuid())
-  studentId String
-  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  slotId    String
-  slot      SportSlot      @relation(fields: [slotId], references: [id], onDelete: Cascade)
-  weekStart DateTime       @db.Date
-  week      SportWeek      @relation(fields: [weekStart], references: [weekStart])
-  rank      Int // 1 — самый желанный
-  createdAt DateTime       @default(now()) @db.Timestamptz(6)
-
-  @@unique([studentId, slotId])
-  @@unique([studentId, weekStart, rank])
-  @@index([weekStart])
-  @@map("sport_preference")
-}
-
 enum SportBookingStatus {
-  CONFIRMED // место есть
-  WAITLIST // в листе ожидания
+  CONFIRMED // записан, место есть
+  WAITLIST // в очереди, место не подтверждено
   CANCELLED // отменено студентом до начала (место и квота вернулись)
   ATTENDED // посетил (+5 баллов)
   MISSED // не пришёл без отмены (квота потрачена)
 }
 
 model SportBooking {
-  id           String             @id @default(cuid())
-  studentId    String
-  student      StudentProfile     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  slotId       String
-  slot         SportSlot          @relation(fields: [slotId], references: [id], onDelete: Cascade)
-  weekStart    DateTime           @db.Date
-  week         SportWeek          @relation(fields: [weekStart], references: [weekStart])
-  status       SportBookingStatus
-  rank         Int? // какой это был выбор
-  lotteryIndex Int? // место студента в порядке жеребьёвки недели (для очереди)
-  explanation  String? // «2-й выбор (1-й: пересечение с парой)»
-  createdAt    DateTime           @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime           @updatedAt @db.Timestamptz(6)
+  id        String             @id @default(cuid())
+  studentId String
+  student   StudentProfile     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  slotId    String
+  slot      SportSlot          @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  weekStart DateTime           @db.Date
+  week      SportWeek          @relation(fields: [weekStart], references: [weekStart])
+  status    SportBookingStatus
+  statusAt  DateTime           @default(now()) @db.Timestamptz(6) // смена статуса; порядок очереди — FIFO по нему
+  createdAt DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime           @updatedAt @db.Timestamptz(6)
 
   @@unique([studentId, slotId])
   @@index([slotId, status])

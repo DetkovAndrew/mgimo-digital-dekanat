@@ -1,18 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cancelMyBooking, runDemoDraw, saveMyPreferences, type SportActionResult } from "@/server/dal/sport";
+import { bookSlot, cancelMyBooking, type SportActionResult } from "@/server/dal/sport";
 
-export async function savePreferences(weekStart: string, slotIds: string[]): Promise<SportActionResult> {
-  if (!Array.isArray(slotIds) || slotIds.some((id) => typeof id !== "string")) return { ok: false, error: "Неверные данные" };
-  const r = await saveMyPreferences(String(weekStart), slotIds);
-  revalidatePath("/sport");
-  return r;
-}
-
-export async function demoDraw(): Promise<SportActionResult> {
-  const r = await runDemoDraw();
-  revalidatePath("/", "layout");
+export async function book(slotId: string, queue: boolean): Promise<SportActionResult> {
+  const r = await bookSlot(String(slotId), { queue: queue === true });
+  revalidatePath("/", "layout"); // тренировка появляется в расписании и на «Сегодня»
   return r;
 }
 

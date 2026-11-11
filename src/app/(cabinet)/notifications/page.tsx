@@ -1,6 +1,7 @@
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { Badge, Empty, PageTitle } from "@/components/ui";
+import { Badge, Empty, List, PageTitle } from "@/components/ui";
 import { formatDateTime } from "@/lib/format";
 import { listMyNotifications, markAllMyNotificationsRead } from "@/server/dal/notifications";
 
@@ -24,10 +25,13 @@ export default async function NotificationsPage() {
   return (
     <>
       <PageTitle
+        sub={unread ? `Новых: ${unread}` : "Всё прочитано"}
         aside={
           unread > 0 && (
             <form action={markAll}>
-              <button className="rounded-lg px-3 py-2 text-sm text-brand hover:bg-brand/10">Прочитать все</button>
+              <button className="min-h-11 rounded-full px-3 text-sm font-medium text-brand transition hover:bg-brand/10 active:scale-95">
+                Прочитать все
+              </button>
             </form>
           )
         }
@@ -35,32 +39,28 @@ export default async function NotificationsPage() {
         Уведомления
       </PageTitle>
       {items.length ? (
-        <ul className="space-y-2">
-          {items.map((n) => (
-            <li
-              key={n.id}
-              className={`rounded-2xl bg-white p-3 shadow-sm ring-1 ${n.readAt ? "ring-black/5" : "ring-brand/40"}`}
-            >
-              <div className="mb-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-                {!n.readAt && <span className="size-2 rounded-full bg-brand" aria-label="Новое" />}
-                <Badge tone={n.important ? "warn" : "neutral"}>{kindLabel[n.kind]}</Badge>
-                {formatDateTime(n.publishedAt)}
-              </div>
-              <h2 className="font-medium">{n.title}</h2>
-              <p className="mt-0.5 text-sm text-slate-600">{n.body}</p>
-              {n.requestId && (
-                <Link href={`/requests/${n.requestId}`} className="mt-1 inline-block text-sm text-brand">
-                  Открыть заявку →
-                </Link>
-              )}
-              {n.kind === "SCHEDULE_CHANGE" && (
-                <Link href="/schedule" className="mt-1 inline-block text-sm text-brand">
-                  К расписанию →
-                </Link>
-              )}
-            </li>
-          ))}
-        </ul>
+        <List>
+          {items.map((n) => {
+            const link = n.requestId ? `/requests/${n.requestId}` : n.kind === "SCHEDULE_CHANGE" ? "/schedule" : null;
+            return (
+              <li key={n.id} className="relative px-4 py-3">
+                {!n.readAt && <span aria-label="Новое" className="absolute top-[18px] left-1.5 size-2 rounded-full bg-brand" />}
+                <div className="mb-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                  <Badge tone={n.important ? "warn" : "neutral"}>{kindLabel[n.kind]}</Badge>
+                  {formatDateTime(n.publishedAt)}
+                </div>
+                <h2 className={`leading-snug ${n.readAt ? "font-medium" : "font-semibold"}`}>{n.title}</h2>
+                <p className="mt-0.5 text-sm text-slate-600">{n.body}</p>
+                {link && (
+                  <Link href={link} transitionTypes={["nav-forward"]} className="mt-1 inline-flex min-h-11 items-center gap-0.5 text-sm font-medium text-brand">
+                    {n.requestId ? "Открыть заявку" : "К расписанию"}
+                    <ChevronRight aria-hidden className="size-4" />
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+        </List>
       ) : (
         <Empty>Уведомлений пока нет.</Empty>
       )}

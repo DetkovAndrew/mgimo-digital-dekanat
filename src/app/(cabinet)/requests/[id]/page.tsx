@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { BackLink } from "@/components/back-link";
 import { Badge, Card, PageTitle } from "@/components/ui";
 import { formatDateTime, requestStatusLabel } from "@/lib/format";
 import { formatRequestNumber, isRequestType, requestCatalog, type RequestTypeSpec } from "@/lib/requests/catalog";
@@ -24,9 +24,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
 
   return (
     <>
-      <Link href="/requests" className="mb-3 inline-block text-sm text-brand">
-        ← Все заявки
-      </Link>
+      <BackLink href="/requests">Заявки</BackLink>
       {created && (
         <p role="status" className="mb-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
           Заявка отправлена. Статус будет обновляться здесь и в уведомлениях.

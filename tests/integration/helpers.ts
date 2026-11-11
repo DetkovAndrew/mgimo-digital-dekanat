@@ -23,3 +23,15 @@ export async function expect404(promise: Promise<unknown>) {
   }
   throw new Error("Ожидался 404, но запрос выполнился");
 }
+
+/** Новый студент без пар и записей (группа демо-участников) — для чистых проверок очереди. */
+export async function makeStudent(username: string) {
+  const group = await prisma.studyGroup.findFirstOrThrow({ where: { code: "SIM-0000" } });
+  const user = await prisma.user.create({
+    data: { id: crypto.randomUUID(), name: username, email: `${username}@test.example`, username, role: "student" },
+  });
+  await prisma.studentProfile.create({
+    data: { userId: user.id, groupId: group.id, recordBookNumber: `T-${username}`, funding: "бюджет", enrolledAt: new Date("2026-09-01") },
+  });
+  return actAs(username);
+}

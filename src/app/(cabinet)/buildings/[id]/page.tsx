@@ -1,9 +1,11 @@
-import Link from "next/link";
+import { Map as MapIcon, Navigation } from "lucide-react";
 import { BackLink } from "@/components/back-link";
-import { Card, Empty } from "@/components/ui";
+import { Empty, List, PageTitle, RowLink, Section } from "@/components/ui";
 import { formatDay, formatTime, lessonKindLabel } from "@/lib/format";
 import { yandexPointUrl, yandexRouteUrl } from "@/lib/geo";
 import { BUILDING_SCHEDULE_DAYS, getBuilding } from "@/server/dal/buildings";
+
+const button = "flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl text-[15px] font-semibold transition active:scale-[0.98]";
 
 export default async function BuildingPage({ params }: PageProps<"/buildings/[id]">) {
   const { id } = await params;
@@ -12,51 +14,38 @@ export default async function BuildingPage({ params }: PageProps<"/buildings/[id
   return (
     <>
       <BackLink href="/schedule">Расписание</BackLink>
-      <h1 className="text-2xl font-semibold leading-tight tracking-tight">{b.title}</h1>
-      <p className="mt-1 text-slate-700">{b.address}</p>
-      {b.metro && <p className="text-sm text-slate-500">м. {b.metro}</p>}
-      <div className="mt-3 mb-6 flex flex-wrap gap-2">
-        <a
-          href={yandexRouteUrl(b, "mt")}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex min-h-11 items-center rounded-xl bg-brand px-4 text-sm font-semibold text-white"
-        >
+      <PageTitle sub={`${b.address}${b.metro ? ` · м. ${b.metro}` : ""}`}>{b.title}</PageTitle>
+      <div className="mb-6 flex gap-2">
+        <a href={yandexRouteUrl(b, "mt")} target="_blank" rel="noopener noreferrer" className={`${button} bg-brand text-white shadow-sm shadow-brand/30`}>
+          <Navigation aria-hidden className="size-4" />
           Маршрут
         </a>
-        <a
-          href={yandexPointUrl(b)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-medium text-brand ring-1 ring-brand/30"
-        >
+        <a href={yandexPointUrl(b)} target="_blank" rel="noopener noreferrer" className={`${button} bg-white text-brand ring-1 ring-black/[0.06]`}>
+          <MapIcon aria-hidden className="size-4" />
           На карте
         </a>
       </div>
 
-      <h2 className="mb-2 font-semibold">Ваши занятия здесь на {BUILDING_SCHEDULE_DAYS} дней</h2>
-      {b.visits.length ? (
-        <Card className="!py-1">
-          <ul className="divide-y divide-slate-100">
+      <Section title={`Ваши занятия здесь · ${BUILDING_SCHEDULE_DAYS} дней`}>
+        {b.visits.length ? (
+          <List>
             {b.visits.map((v) => (
-              <li key={v.key}>
-                <Link href={v.href} className="flex min-h-11 items-center justify-between gap-3 py-2 text-sm">
-                  <span className={v.cancelled ? "line-through opacity-70" : ""}>
-                    <span className="block font-medium">{v.title}</span>
-                    <span className="block text-xs text-slate-500">
-                      {formatDay(v.startsAt)}, {formatTime(v.startsAt)}–{formatTime(v.endsAt)}
-                      {v.room && ` · ${v.room}`} · {lessonKindLabel[v.kind]}
-                    </span>
+              <RowLink key={v.key} href={v.href}>
+                <span className={v.cancelled ? "line-through opacity-60" : ""}>
+                  <span className="block font-medium">{v.title}</span>
+                  <span className="block text-sm text-slate-500 first-letter:uppercase">
+                    {formatDay(v.startsAt)}, {formatTime(v.startsAt)}–{formatTime(v.endsAt)}
+                    {v.room && ` · ${v.room}`}
                   </span>
-                  <span className="text-slate-300">›</span>
-                </Link>
-              </li>
+                  <span className="block text-xs text-slate-400">{lessonKindLabel[v.kind]}</span>
+                </span>
+              </RowLink>
             ))}
-          </ul>
-        </Card>
-      ) : (
-        <Empty>В ближайшие дни у вас здесь занятий нет.</Empty>
-      )}
+          </List>
+        ) : (
+          <Empty>В ближайшие дни у вас здесь занятий нет.</Empty>
+        )}
+      </Section>
     </>
   );
 }

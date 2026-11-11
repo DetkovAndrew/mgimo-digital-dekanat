@@ -1,16 +1,17 @@
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { Fragment } from "react";
+import { Fragment, ViewTransition } from "react";
 import { LessonCard } from "@/components/lesson-card";
 import { TransferNote } from "@/components/transfer-note";
-import { Empty, PageTitle } from "@/components/ui";
-import { addDays, formatDay, mskDayKey, mskWeekStart } from "@/lib/format";
+import { Empty, PageTitle, Section } from "@/components/ui";
+import { addDays, formatDay, formatShortDate, mskDayKey, mskWeekStart } from "@/lib/format";
 import { transfersForDay } from "@/lib/transfers";
 import { getMySchedule } from "@/server/dal/schedule";
 
 function weekLabel(offset: number) {
   if (offset === 0) return "Эта неделя";
-  if (offset === 1) return "Следующая неделя";
-  if (offset === -1) return "Прошлая неделя";
+  if (offset === 1) return "Следующая";
+  if (offset === -1) return "Прошлая";
   return `${offset > 0 ? "+" : ""}${offset} нед.`;
 }
 
@@ -21,56 +22,63 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
   const lessons = await getMySchedule({ from: start, to: addDays(start, 7) });
   const todayKey = mskDayKey(new Date());
 
-  const days = Array.from({ length: 6 }, (_, i) => addDays(start, i)).map((d) => ({
-    date: d,
-    key: mskDayKey(d),
-    lessons: lessons.filter((l) => mskDayKey(l.startsAt) === mskDayKey(d)),
-  })).map((d) => ({ ...d, transfers: transfersForDay(d.lessons) }));
+  const days = Array.from({ length: 6 }, (_, i) => addDays(start, i))
+    .map((d) => ({ date: d, key: mskDayKey(d), lessons: lessons.filter((l) => mskDayKey(l.startsAt) === mskDayKey(d)) }))
+    .map((d) => ({ ...d, transfers: transfersForDay(d.lessons) }));
 
-  const nav = (n: number, label: string) => (
-    <Link href={`/schedule?week=${n}`} className="rounded-lg px-3 py-2 text-sm text-brand hover:bg-brand/10">
-      {label}
+  const step = (n: number, label: string, Icon: typeof ChevronLeft) => (
+    <Link
+      href={`/schedule?week=${n}`}
+      scroll={false}
+      transitionTypes={[n > offset ? "nav-forward" : "nav-back"]}
+      aria-label={label}
+      className="grid size-11 place-items-center rounded-full text-brand transition hover:bg-brand/10 active:scale-90"
+    >
+      <Icon aria-hidden className="size-5" />
     </Link>
   );
 
   return (
     <>
       <PageTitle>Расписание</PageTitle>
-      <div className="mb-4 flex items-center justify-between rounded-xl bg-white p-1 ring-1 ring-black/5">
-        {nav(offset - 1, "← Пред.")}
-        <span className="text-sm font-medium">{weekLabel(offset)}</span>
-        {nav(offset + 1, "След. →")}
+      <div className="mb-5 flex items-center justify-between rounded-full bg-white p-1 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ring-1 ring-black/[0.04]">
+        {step(offset - 1, "Предыдущая неделя", ChevronLeft)}
+        <span className="text-center">
+          <span className="block text-sm font-semibold">{weekLabel(offset)}</span>
+          <span className="block text-xs text-slate-500">
+            {formatShortDate(start)} — {formatShortDate(addDays(start, 5))}
+          </span>
+        </span>
+        {step(offset + 1, "Следующая неделя", ChevronRight)}
       </div>
-      {lessons.length ? (
-        <div className="space-y-5">
-          {days.map((d) => (
-            <section key={d.key}>
-              <h2
-                className={`mb-2 text-sm font-semibold first-letter:uppercase ${d.key === todayKey ? "text-brand" : ""}`}
-              >
-                {formatDay(d.date)} {d.key === todayKey && "· сегодня"}
-              </h2>
-              {d.lessons.length ? (
-                <div className="space-y-2">
-                  {d.lessons.map((l) => {
-                    const t = d.transfers.get(l.id);
-                    return (
-                      <Fragment key={l.id}>
-                        <LessonCard lesson={l} />
-                        {t && <TransferNote transfer={t} />}
-                      </Fragment>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-400">Нет занятий</p>
-              )}
-            </section>
-          ))}
+
+      <ViewTransition key={offset} enter="fade-in" exit="fade-out" default="none">
+        <div>
+          {lessons.length ? (
+            days.map((d) => (
+              <Section key={d.key} title={<span className={d.key === todayKey ? "text-brand" : ""}>{formatDay(d.date)}{d.key === todayKey && " · сегодня"}</span>}>
+                {d.lessons.length ? (
+                  <div className="space-y-2">
+                    {d.lessons.map((l) => {
+                      const t = d.transfers.get(l.id);
+                      return (
+                        <Fragment key={l.id}>
+                          <LessonCard lesson={l} />
+                          {t && <TransferNote transfer={t} />}
+                        </Fragment>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="px-1 text-sm text-slate-400">Нет занятий</p>
+                )}
+              </Section>
+            ))
+          ) : (
+            <Empty>На этой неделе занятий нет.</Empty>
+          )}
         </div>
-      ) : (
-        <Empty>На этой неделе занятий нет.</Empty>
-      )}
+      </ViewTransition>
     </>
   );
 }

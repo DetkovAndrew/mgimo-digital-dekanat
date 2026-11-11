@@ -1,9 +1,10 @@
-import Link from "next/link";
+import { ViewTransition } from "react";
 import { BackLink } from "@/components/back-link";
 import { PointsBar } from "@/components/points-bar";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card, List, RowLink, Section } from "@/components/ui";
 import { controlFormLabel, formatDate, formatDay, formatTime, lessonKindLabel } from "@/lib/format";
 import { assessmentDate, courseProgress, courseStatus, formatPoints, officialResult, PASS_POINTS } from "@/lib/grading";
+import { courseTitleName } from "@/lib/view-transitions";
 import { getMyCourse } from "@/server/dal/courses";
 
 export default async function CoursePage({ params }: PageProps<"/courses/[id]">) {
@@ -24,22 +25,24 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
   return (
     <>
       <BackLink href="/grades">Учёба</BackLink>
-      <h1 className="text-2xl font-semibold leading-tight tracking-tight">{c.discipline.title}</h1>
-      <p className="mt-1 mb-4 text-sm text-slate-500">
-        {c.term.title} · {controlFormLabel[c.controlForm]}
-        {final?.scheduledAt && ` ${formatDate(final.scheduledAt)}`} · {c.credits} з.е.
+      <ViewTransition name={courseTitleName(c.id)} share="morph" default="none">
+        <h1 className="w-fit text-[28px] leading-tight font-bold tracking-tight">{c.discipline.title}</h1>
+      </ViewTransition>
+      <p className="mt-1 mb-5 text-sm text-slate-500">
+        {controlFormLabel[c.controlForm]}
+        {final?.scheduledAt && ` ${formatDate(final.scheduledAt)}`} · {c.credits} з.е. · {c.term.title}
       </p>
 
-      <Card className="mb-3">
+      <Card className="mb-6">
         <div className="mb-3 flex items-baseline justify-between gap-3">
-          <p className="text-3xl font-semibold tabular-nums">
+          <p className="text-4xl font-bold tabular-nums">
             {formatPoints(p.earned)}
             <span className="text-base font-normal text-slate-400"> / 100</span>
           </p>
           <Badge tone={status.tone}>{status.text}</Badge>
         </div>
         <PointsBar earned={p.earned} remaining={p.remaining + p.pending} />
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-3 text-sm text-slate-600">
           {official
             ? official.passed
               ? "Итог аттестации выставлен."
@@ -50,17 +53,16 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
         </p>
       </Card>
 
-      <Card className="mb-3 !py-2">
-        <h2 className="pt-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">Контрольные</h2>
-        <ul className="divide-y divide-slate-100 text-sm">
+      <Section title="Контрольные">
+        <List>
           {ordered.map((a) => {
             const r = a.results.at(-1);
             const date = assessmentDate(a);
             const waiting = !r && date && date < now && a.kind !== c.controlForm;
             return (
-              <li key={a.id} className="flex items-center justify-between gap-3 py-2">
+              <li key={a.id} className="flex min-h-14 items-center justify-between gap-3 px-4 py-2.5 text-sm">
                 <span className="min-w-0">
-                  {a.title}
+                  <span className="block font-medium">{a.title}</span>
                   {date && (
                     <span className="block text-xs text-slate-500">
                       {formatDate(date)}
@@ -71,57 +73,48 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
                   )}
                   {r?.comment && <span className="block text-xs text-slate-500">{r.comment}</span>}
                 </span>
-                <span className={`shrink-0 tabular-nums ${r ? "font-medium" : "text-slate-400"}`}>
-                  {r?.points != null ? formatPoints(r.points) : "—"} / {a.maxPoints}
+                <span className={`shrink-0 tabular-nums ${r ? "font-semibold" : "text-slate-400"}`}>
+                  {r?.points != null ? formatPoints(r.points) : "—"}
+                  <span className="font-normal text-slate-400"> / {a.maxPoints}</span>
                 </span>
               </li>
             );
           })}
-        </ul>
-      </Card>
+        </List>
+      </Section>
 
       {c.upcoming.length > 0 && (
-        <Card className="mb-3 !py-2">
-          <h2 className="pt-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">Ближайшие пары</h2>
-          <ul className="divide-y divide-slate-100">
+        <Section title="Ближайшие пары">
+          <List>
             {c.upcoming.map((l) => (
-              <li key={l.id}>
-                <Link href={`/lessons/${l.id}`} className="flex min-h-11 items-center justify-between gap-3 py-1.5 text-sm">
-                  <span className={l.status === "CANCELLED" ? "line-through opacity-70" : ""}>
-                    {lessonKindLabel[l.kind]}: {formatDay(l.startsAt)}, {formatTime(l.startsAt)}
-                    <span className="block text-xs text-slate-500">
-                      {l.online ? "онлайн" : [l.room, l.building?.title].filter(Boolean).join(", ")}
-                    </span>
-                  </span>
-                  <span className="text-slate-300">›</span>
-                </Link>
-              </li>
+              <RowLink key={l.id} href={`/lessons/${l.id}`}>
+                <span className={`block font-medium first-letter:uppercase ${l.status === "CANCELLED" ? "line-through opacity-70" : ""}`}>
+                  {formatDay(l.startsAt)}, {formatTime(l.startsAt)}
+                </span>
+                <span className="block text-sm text-slate-500">
+                  {lessonKindLabel[l.kind]} · {l.online ? "онлайн" : [l.room, l.building?.title].filter(Boolean).join(", ")}
+                </span>
+              </RowLink>
             ))}
-          </ul>
-        </Card>
+          </List>
+        </Section>
       )}
 
-      <Card className="mb-3 !py-2">
-        <h2 className="pt-1 text-xs font-semibold tracking-wide text-slate-500 uppercase">Преподаватели</h2>
-        <ul className="divide-y divide-slate-100">
+      <Section title="Преподаватели">
+        <List>
           {c.teachers.map((t, i) => (
-            <li key={t.id}>
-              <Link href={`/teachers/${t.id}`} className="flex min-h-11 items-center justify-between gap-3 py-1.5 text-sm">
-                <span>
-                  {t.fullName}
-                  <span className="block text-xs text-slate-500">
-                    {i === 0 ? "ведущий преподаватель" : "ведёт часть занятий"}
-                    {t.position && ` · ${t.position}`}
-                  </span>
-                </span>
-                <span className="text-slate-300">›</span>
-              </Link>
-            </li>
+            <RowLink key={t.id} href={`/teachers/${t.id}`}>
+              <span className="block font-medium">{t.fullName}</span>
+              <span className="block text-sm text-slate-500">
+                {i === 0 ? "ведущий" : "ведёт часть занятий"}
+                {t.position && ` · ${t.position}`}
+              </span>
+            </RowLink>
           ))}
-        </ul>
-      </Card>
+        </List>
+      </Section>
 
-      <p className="text-xs text-slate-500">
+      <p className="px-1 text-xs text-slate-400">
         Шкала University (демо): 60 — E, 68 — D, 75 — C, 84 — B, 91 — A. Итоговая оценка выставляется на аттестации.
       </p>
     </>
