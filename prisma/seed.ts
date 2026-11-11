@@ -89,7 +89,7 @@ const TEACHERS = {
   sadykov: ["Садыков Ренат Ильдарович", "доцент"],
   vetrova: ["Ветрова Анна Константиновна", "доцент"],
   gromov: ["Громов Павел Алексеевич", "профессор"],
-  shults: ["Шульц Ирина Викторовна", "старший преподаватель"],
+  shults: ["Деморина Ирина Викторовна", "старший преподаватель"],
   nazarov: ["Назаров Денис Олегович", "доцент"],
   frolova: ["Фролова Яна Михайловна", "доцент"],
   osipov: ["Осипов Глеб Андреевич", "ассистент"],
@@ -676,7 +676,7 @@ async function seedRequests(s: StudentSeed, studentId: string, userId: string, s
           submittedAt: "2026-10-20T11:15:00+03:00",
           steps: [
             { status: "IN_PROGRESS", at: "2026-10-20T15:00:00+03:00" },
-            { status: "READY", at: "2026-10-21T12:30:00+03:00", comment: "Справка подписана электронной подписью, PDF доступен" },
+            { status: "READY", at: "2026-10-21T12:30:00+03:00", comment: "Демонстрационная справка подготовлена. Файл и электронная подпись в прототипе не выдаются." },
             { status: "DONE", at: "2026-10-21T12:31:00+03:00" },
           ],
         },
@@ -701,7 +701,7 @@ async function seedRequests(s: StudentSeed, studentId: string, userId: string, s
             {
               status: "NEEDS_INFO",
               at: "2026-11-03T13:10:00+03:00",
-              comment: "Уточните, в какие дни сможете посещать практики по дискретной математике.",
+              comment: "Уточните, в какие дни сможете посещать практические занятия по дискретной математике.",
             },
           ],
         },
@@ -774,7 +774,7 @@ async function seedAnnouncements() {
     {
       faculty: null,
       title: "Расписание сессии",
-      body: "Расписание экзаменов опубликуют 10 декабря — даты появятся в разделе «Учёба». Сессия: 28 декабря — 31 января.",
+      body: "Демонстрационные даты экзаменов уже доступны в разделе «Учёба». Сессия: 28 декабря — 31 января. Перед экзаменом проверьте дату ещё раз.",
       at: "2026-11-02T10:00:00+03:00",
     },
     {
@@ -799,7 +799,7 @@ async function seedAnnouncements() {
     {
       faculty: null,
       title: "Продление проездных",
-      body: "Если срок действия социальной карты истекает в декабре — подайте заявление до 15 декабря.",
+      body: "Демонстрационное напоминание: если срок действия проездного истекает в декабре, уточните порядок продления через «Вопрос в деканат» в разделе «Заявки».",
       at: "2026-11-20T10:00:00+03:00",
     },
   ];
@@ -840,12 +840,12 @@ type SportTemplate = {
 const SPORT_WEEKLY: SportTemplate[] = [
   { section: "fitness", weekday: 1, slot: 5, building: "kronv", room: "Спортзал 1", coach: "Тарасов Илья Олегович", capacity: 14 },
   { section: "tennis", weekday: 1, slot: 4, building: "lom-b", room: "Спортзал", coach: "Ким Виктор Сергеевич", capacity: 8 },
-  { section: "volley", weekday: 2, slot: 6, building: "sport", room: "Игровой зал", coach: "Гусева Олеся Андреевна", capacity: 12 },
+  { section: "volley", weekday: 2, slot: 6, building: "sport", room: "Игровой зал", coach: "Слотвина Олеся Андреевна", capacity: 12 },
   { section: "yoga", weekday: 2, slot: 4, building: "lom-m", room: "Зал 0103", coach: "Лаптева Нина Игоревна", capacity: 12 },
   { section: "fitness", weekday: 3, slot: 4, building: "kronv", room: "Спортзал 1", coach: "Тарасов Илья Олегович", capacity: 14 },
   { section: "basket", weekday: 3, slot: 6, building: "kronv", room: "Спортзал 2", coach: "Ершов Максим Павлович", capacity: 14 },
   { section: "swim", weekday: 3, slot: 7, building: "sport", room: "Бассейн", coach: "Соколова Дарья Ильинична", capacity: 10 },
-  { section: "volley", weekday: 4, slot: 6, building: "sport", room: "Игровой зал", coach: "Гусева Олеся Андреевна", capacity: 12 },
+  { section: "volley", weekday: 4, slot: 6, building: "sport", room: "Игровой зал", coach: "Слотвина Олеся Андреевна", capacity: 12 },
   { section: "tennis", weekday: 4, slot: 5, building: "lom-b", room: "Спортзал", coach: "Ким Виктор Сергеевич", capacity: 8 },
   { section: "fitness", weekday: 5, slot: 5, building: "kronv", room: "Спортзал 1", coach: "Тарасов Илья Олегович", capacity: 14 },
   { section: "yoga", weekday: 5, slot: 6, building: "lom-m", room: "Зал 0103", coach: "Лаптева Нина Игоревна", capacity: 12 },

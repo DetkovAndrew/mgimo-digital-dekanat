@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ViewTransition } from "react";
 import { authClient } from "@/lib/auth-client";
+import { UniversityMark } from "./university-mark";
 
 // Нижнее меню телефона — 5 главных разделов; уведомления и профиль — в шапке.
 const items: { href: string; label: string; icon: LucideIcon }[] = [
@@ -108,9 +109,7 @@ export function Nav({ unread }: { unread: number }) {
 /** Собственный знак University — без символики реальных вузов. */
 export function Logo() {
   return (
-    <span aria-hidden className="grid size-9 place-items-center rounded-xl bg-brand-fill text-[15px] font-bold text-on-brand">
-      U
-    </span>
+    <UniversityMark />
   );
 }
 

@@ -36,7 +36,8 @@ const pg = new EmbeddedPostgres({
   password: decodeURIComponent(password),
   authMethod: "scram-sha-256",
   persistent: true,
-  initdbFlags: ["--encoding=UTF8", "--locale=C.UTF-8"],
+  // Windows PostgreSQL не принимает Unix-имя локали C.UTF-8; кодировка остаётся UTF-8.
+  initdbFlags: ["--encoding=UTF8", `--locale=${process.platform === "win32" ? "C" : "C.UTF-8"}`],
   postgresFlags: ["-c", "listen_addresses=127.0.0.1", "-c", "timezone=UTC"],
   onLog: () => {},
 });

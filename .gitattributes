@@ -1,0 +1,7 @@
+*.pdf binary
+*.ttf binary
+*.ico binary
+*.png binary
+*.jpg binary
+
+deploy/nginx/*.conf text eol=lf
