@@ -1,3 +1,4 @@
+import { ArrowDown, Timer, TriangleAlert } from "lucide-react";
 import type { Transfer } from "@/lib/transfers";
 
 /** Плашка между парами: успеет ли студент дойти до следующего корпуса. */
@@ -21,9 +22,12 @@ export function TransferNote({ transfer }: { transfer: Transfer }) {
 
   return (
     <p className={`ml-4 flex items-start gap-2 rounded-xl border border-dashed px-3 py-2 text-xs ${tone}`}>
-      <span aria-hidden>{v.kind === "impossible" ? "⚠" : v.kind === "tight" ? "⏱" : "↓"}</span>
+      {(() => {
+        const Icon = v.kind === "impossible" ? TriangleAlert : v.kind === "tight" ? Timer : ArrowDown;
+        return <Icon aria-hidden className="mt-px size-3.5 shrink-0" />;
+      })()}
       <span>
-        <b>Переход → {transfer.toTitle}.</b> {text} <span className="opacity-70">Оценка примерная.</span>
+        <b>Переход → {transfer.toTitle}.</b> {text} Оценка примерная.
       </span>
     </p>
   );

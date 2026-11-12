@@ -8,6 +8,13 @@ import { addDays, formatDay, formatShortDate, mskDayKey, mskWeekStart } from "@/
 import { transfersForDay } from "@/lib/transfers";
 import { getMySchedule } from "@/server/dal/schedule";
 
+const weekdayShort = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", weekday: "short" });
+const weekdayLong = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", weekday: "long" });
+const dayMonth = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "numeric", month: "long" });
+const dayNum = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "numeric" });
+
+const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
+
 function weekLabel(offset: number) {
   if (offset === 0) return "Эта неделя";
   if (offset === 1) return "Следующая";
@@ -46,17 +53,58 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
         <span className="text-center">
           <span className="block text-sm font-semibold">{weekLabel(offset)}</span>
           <span className="block text-xs text-ink-2">
-            {formatShortDate(start)} — {formatShortDate(addDays(start, 5))}
+            {formatShortDate(start)} – {formatShortDate(addDays(start, 5))}
           </span>
         </span>
         {step(offset + 1, "Следующая неделя", ChevronRight)}
       </div>
 
+      {/* Полоса дней: число пар точками, нажатие прокручивает к дню. На пустой неделе не нужна. */}
+      {lessons.length > 0 && (
+        <nav aria-label="Дни недели" className="mb-6 grid grid-cols-6 gap-1.5">
+          {days.map((d) => {
+            const on = d.key === todayKey;
+            const count = d.lessons.filter((l) => l.status !== "CANCELLED").length;
+            return (
+              <a
+                key={d.key}
+                href={`#d-${d.key}`}
+                aria-label={`${formatDay(d.date)}: ${count ? `занятий ${count}` : "нет занятий"}`}
+                className={`flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl transition-colors ${
+                  on ? "bg-brand-fill text-on-brand" : "bg-surface text-ink ring-1 ring-hairline md:hover:bg-fill"
+                }`}
+              >
+                <span className={`text-micro ${on ? "text-on-brand" : "text-ink-3"}`}>{weekdayShort.format(d.date)}</span>
+                <span className="text-lead leading-none font-semibold tabular-nums">{dayNum.format(d.date)}</span>
+                <span aria-hidden className="flex h-1.5 gap-0.5">
+                  {Array.from({ length: Math.min(count, 4) }, (_, i) => (
+                    <span key={i} className={`size-1 rounded-full ${on ? "bg-on-brand" : "bg-brand"}`} />
+                  ))}
+                </span>
+              </a>
+            );
+          })}
+        </nav>
+      )}
+
       <ViewTransition key={offset} enter="fade-in" exit="fade-out" default="none">
         <div>
           {lessons.length ? (
             days.map((d) => (
-              <Section key={d.key} title={<span className={d.key === todayKey ? "text-brand" : ""}>{formatDay(d.date)}{d.key === todayKey && " · сегодня"}</span>}>
+              <Section
+                key={d.key}
+                id={`d-${d.key}`}
+                className="scroll-mt-20 md:scroll-mt-6"
+                title={
+                  <span className="flex items-baseline gap-2">
+                    <span className={d.key === todayKey ? "text-brand" : ""}>{cap(weekdayLong.format(d.date))}</span>
+                    <span className="text-sm font-normal text-ink-2">
+                      {dayMonth.format(d.date)}
+                      {d.key === todayKey && " · сегодня"}
+                    </span>
+                  </span>
+                }
+              >
                 {d.lessons.length ? (
                   <div className="space-y-2">
                     {d.lessons.map((l) => {

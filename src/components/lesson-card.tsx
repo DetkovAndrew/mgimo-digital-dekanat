@@ -29,7 +29,7 @@ export function LessonCard({ lesson }: { lesson: ScheduleLesson }) {
       href={lesson.href}
       transitionTypes={["nav-forward"]}
       className={`group flex items-center gap-3 rounded-2xl bg-surface p-2.5 pr-3.5 ring-1 transition active:scale-[0.99] md:hover:ring-brand/30 ${
-        cancelled ? "opacity-70 ring-bad/30" : moved ? "ring-warn/40" : "ring-hairline"
+        cancelled ? "ring-bad/30" : moved ? "ring-warn/40" : "ring-hairline"
       }`}
     >
       <KindTime kind={lesson.kind} start={formatTime(lesson.startsAt)} end={formatTime(lesson.endsAt)} struck={cancelled} />
@@ -41,7 +41,7 @@ export function LessonCard({ lesson }: { lesson: ScheduleLesson }) {
         </span>
         {lesson.source === "lesson" ? (
           <ViewTransition name={lessonTitleName(lesson.id)} share="morph" default="none">
-            <span className={`block w-fit leading-snug font-semibold ${cancelled ? "line-through" : ""}`}>{lesson.title}</span>
+            <span className={`block w-fit leading-snug font-semibold ${cancelled ? "text-ink-2 line-through" : ""}`}>{lesson.title}</span>
           </ViewTransition>
         ) : (
           <span className="block leading-snug font-semibold">{lesson.title}</span>

@@ -47,7 +47,12 @@ export default async function NotificationsPage() {
                 <IconTile icon={KIND[n.kind as keyof typeof KIND].icon} tone={n.important ? "warn" : KIND[n.kind as keyof typeof KIND].tone} />
                 <div className="min-w-0 flex-1">
                   <div className="mb-0.5 flex items-center gap-1.5 text-xs text-ink-3">
-                    {!n.readAt && <span aria-label="Новое" className="size-2 shrink-0 rounded-full bg-brand-fill" />}
+                    {!n.readAt && (
+                      <>
+                        <span aria-hidden className="size-2 shrink-0 rounded-full bg-brand-fill" />
+                        <span className="sr-only">Новое.</span>
+                      </>
+                    )}
                     {KIND[n.kind as keyof typeof KIND].label} · {formatDateTime(n.publishedAt)}
                   </div>
                   <h2 className={`leading-snug ${n.readAt ? "font-medium" : "font-semibold"}`}>{n.title}</h2>

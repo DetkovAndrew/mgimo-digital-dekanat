@@ -10,23 +10,35 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 
 export function PageTitle({ children, aside, sub }: { children: ReactNode; aside?: ReactNode; sub?: ReactNode }) {
   return (
-    <div className="mb-5">
+    <div className="mb-6">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <h1 className="text-[32px] leading-[1.1] font-bold tracking-tight">{children}</h1>
+        <h1 className="text-h1 font-bold tracking-[-0.02em] md:text-h1-lg">{children}</h1>
         {aside}
       </div>
-      {sub && <p className="mt-0.5 text-sm text-ink-2 first-letter:uppercase">{sub}</p>}
+      {sub && <p className="mt-1.5 text-body text-ink-2 first-letter:uppercase">{sub}</p>}
     </div>
   );
 }
 
 /** Подпись раздела: мелко и спокойно, чтобы не спорить с содержимым. */
-export function Section({ title, aside, children, className = "" }: { title?: ReactNode; aside?: ReactNode; children: ReactNode; className?: string }) {
+export function Section({
+  title,
+  aside,
+  children,
+  className = "",
+  id,
+}: {
+  title?: ReactNode;
+  aside?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  id?: string;
+}) {
   return (
-    <section className={`mb-6 ${className}`}>
+    <section id={id} className={`mb-7 ${className}`}>
       {(title || aside) && (
         <div className="mb-2 flex min-h-6 items-center justify-between gap-3 px-1">
-          {title && <h2 className="text-[17px] font-semibold text-ink first-letter:uppercase">{title}</h2>}
+          {title && <h2 className="text-lead font-semibold text-ink first-letter:uppercase">{title}</h2>}
           {aside}
         </div>
       )}
@@ -39,7 +51,7 @@ export function Section({ title, aside, children, className = "" }: { title?: Re
 export function Disclosure({ title, children, open, className = "mb-6" }: { title: ReactNode; children: ReactNode; open?: boolean; className?: string }) {
   return (
     <details open={open} className={`group ${className}`}>
-      <summary className="mb-2 flex min-h-11 cursor-pointer list-none items-center gap-1.5 px-1 text-[17px] font-semibold text-ink [&::-webkit-details-marker]:hidden">
+      <summary className="mb-2 flex min-h-11 cursor-pointer list-none items-center gap-1.5 px-1 text-lead font-semibold text-ink [&::-webkit-details-marker]:hidden">
         {title}
         <ChevronDown aria-hidden className="size-4 text-ink-3 transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none" />
       </summary>

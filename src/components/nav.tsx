@@ -45,7 +45,7 @@ export function Nav({ unread }: { unread: number }) {
                   href={href}
                   transitionTypes={["nav-tab"]}
                   aria-current={on ? "page" : undefined}
-                  className={`relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors ${
+                  className={`relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-micro transition-colors ${
                     on ? "font-semibold text-brand" : "text-ink-2"
                   }`}
                 >
@@ -54,7 +54,7 @@ export function Nav({ unread }: { unread: number }) {
                       <span aria-hidden className="absolute top-1.5 h-7 w-12 rounded-full bg-brand-soft" />
                     </ViewTransition>
                   )}
-                  <Icon aria-hidden className="relative size-[22px]" strokeWidth={on ? 2.3 : 1.8} />
+                  <Icon aria-hidden className="relative size-5.5" strokeWidth={on ? 2.3 : 1.8} />
                   {label}
                 </Link>
               </li>
@@ -68,12 +68,11 @@ export function Nav({ unread }: { unread: number }) {
         style={{ viewTransitionName: "app-nav" }}
         className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-hairline bg-surface p-4 md:flex"
       >
-        <Link href="/today" transitionTypes={["nav-tab"]} className="mb-6 flex items-center gap-2.5 px-2">
-          <Logo />
-          <span className="leading-tight font-semibold">
-            Деканат
-            <br />
-            <span className="text-sm font-normal text-ink-2">University</span>
+        <Link href="/today" transitionTypes={["nav-tab"]} className="mb-7 flex items-center gap-3 px-2 pt-1">
+          <Logo size={40} />
+          <span className="leading-tight">
+            <span className="block text-lead font-bold tracking-tight">University</span>
+            <span className="block text-sm text-ink-2">Цифровой деканат</span>
           </span>
         </Link>
         <ul className="space-y-0.5">
@@ -89,7 +88,7 @@ export function Nav({ unread }: { unread: number }) {
                     on ? "bg-brand-soft font-semibold text-brand" : "text-ink-2 hover:bg-fill"
                   }`}
                 >
-                  <Icon aria-hidden className="size-[18px]" />
+                  <Icon aria-hidden className="size-4.5" />
                   <span className="flex-1">{label}</span>
                   {href === "/notifications" && unread > 0 && (
                     <span className="rounded-full bg-bad-fill px-1.5 text-xs leading-5 text-on-brand">{unread}</span>
@@ -105,12 +104,14 @@ export function Nav({ unread }: { unread: number }) {
   );
 }
 
-/** Собственный знак University — без символики реальных вузов. */
-export function Logo() {
+/** Собственный знак University: буква U на «фундаменте» — без символики реальных вузов. */
+export function Logo({ size = 36 }: { size?: number }) {
   return (
-    <span aria-hidden className="grid size-9 place-items-center rounded-xl bg-brand-fill text-[15px] font-bold text-on-brand">
-      U
-    </span>
+    <svg aria-hidden width={size} height={size} viewBox="0 0 36 36" className="shrink-0">
+      <rect width="36" height="36" rx="11" className="fill-brand-fill" />
+      <path d="M12 9.5v8.25a6 6 0 0 0 12 0V9.5" fill="none" strokeWidth="3.4" strokeLinecap="round" className="stroke-on-brand" />
+      <path d="M10.5 27h15" strokeWidth="3.4" strokeLinecap="round" className="stroke-on-brand" />
+    </svg>
   );
 }
 
@@ -125,7 +126,7 @@ export function SignOut({ className }: { className?: string }) {
         router.refresh();
       }}
     >
-      <LogOut aria-hidden className="size-[18px]" />
+      <LogOut aria-hidden className="size-4.5" />
       Выйти
     </button>
   );
@@ -140,9 +141,9 @@ export function Bell({ unread }: { unread: number }) {
       aria-label={unread ? `Уведомления: ${unread} новых` : "Уведомления"}
       className="relative grid size-11 place-items-center rounded-full text-ink-2 transition-colors hover:bg-fill"
     >
-      <BellIcon aria-hidden className="size-[22px]" />
+      <BellIcon aria-hidden className="size-5.5" />
       {unread > 0 && (
-        <span className="absolute top-1.5 right-1.5 min-w-4 rounded-full bg-bad-fill px-1 text-center text-[10px] leading-4 font-semibold text-on-brand ring-2 ring-surface">
+        <span className="absolute top-1.5 right-1.5 min-w-4 rounded-full bg-bad-fill px-1 text-center text-micro leading-4 font-semibold text-on-brand ring-2 ring-surface">
           {unread}
         </span>
       )}
@@ -158,7 +159,7 @@ export function ProfileLink() {
       aria-label="Профиль"
       className="grid size-11 place-items-center rounded-full text-ink-2 transition-colors hover:bg-fill"
     >
-      <CircleUserRound aria-hidden className="size-[22px]" />
+      <CircleUserRound aria-hidden className="size-5.5" />
     </Link>
   );
 }

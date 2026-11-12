@@ -93,7 +93,7 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
                 <span className="flex items-center gap-3">
                   <KindTile kind={l.kind} />
                   <span className="min-w-0">
-                    <span className={`block font-medium first-letter:uppercase ${l.status === "CANCELLED" ? "line-through opacity-70" : ""}`}>
+                    <span className={`block font-medium first-letter:uppercase ${l.status === "CANCELLED" ? "text-ink-2 line-through" : ""}`}>
                       {formatDay(l.startsAt)}, {formatTime(l.startsAt)}
                     </span>
                     <span className="block text-sm text-ink-2">

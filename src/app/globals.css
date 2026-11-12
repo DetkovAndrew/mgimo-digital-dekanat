@@ -85,6 +85,24 @@
   }
 }
 
+/* Шкала шрифта: отображение крупнее основного текста минимум в 2,5 раза (методика ux-ui-agent-skills). */
+@theme {
+  --text-micro: 11px;
+  --text-micro--line-height: 1.35;
+  --text-body: 15px;
+  --text-body--line-height: 1.45;
+  --text-lead: 17px;
+  --text-lead--line-height: 1.35;
+  --text-title: 22px;
+  --text-title--line-height: 1.25;
+  --text-h1: 34px;
+  --text-h1--line-height: 1.05;
+  --text-h1-lg: 40px;
+  --text-h1-lg--line-height: 1.05;
+  --text-display: 52px;
+  --text-display--line-height: 1;
+}
+
 @theme inline {
   --color-page: var(--page);
   --color-surface: var(--surface);
@@ -120,20 +138,30 @@
   --color-k-sport-soft: var(--k-sport-soft);
   --color-focus: var(--focus);
   --color-focus-on-brand: var(--focus-on-brand);
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-onest);
+}
+
+/* Плавная прокрутка к якорям (дни недели); при reduced-motion выключена. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 body {
   background: var(--page);
   color: var(--ink);
+  text-rendering: optimizeLegibility;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Единое кольцо фокуса с клавиатуры для всех интерактивных элементов. */
-:where(a, button, summary, input, select, textarea):focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
-  border-radius: 12px;
+/* Единое кольцо фокуса с клавиатуры. В base-слое, чтобы классы focus-visible:* в разметке могли его уточнить. */
+@layer base {
+  :where(a, button, summary, input, select, textarea):focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 12px;
+  }
 }
 
 /* ─── Переходы между страницами (React <ViewTransition>, см. src/app/(cabinet)/template.tsx) ───

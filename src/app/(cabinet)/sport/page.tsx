@@ -21,11 +21,11 @@ export default async function SportPage({ searchParams }: PageProps<"/sport">) {
     <>
       <PageTitle sub={s.term}>Физкультура</PageTitle>
 
-      <Card className="mb-6">
+      <Card className="mb-8 rounded-3xl p-5">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-3xl font-bold tabular-nums">
+          <p className="text-h1 font-bold tracking-tight tabular-nums">
             {p.total}
-            <span className="text-base font-normal text-ink-3"> / {s.rules.total}</span>
+            <span className="ml-1 text-body font-medium text-ink-2">из {s.rules.total} баллов</span>
           </p>
           {p.trainingsNeeded === 0 ? (
             <Badge tone="ok">тренировки закрыты</Badge>
@@ -33,14 +33,20 @@ export default async function SportPage({ searchParams }: PageProps<"/sport">) {
             <span className="text-sm text-ink-2">ещё {p.trainingsNeeded} трен.</span>
           )}
         </div>
-        <div className="relative mt-3 h-2 overflow-hidden rounded-full bg-fill" role="img" aria-label={`${p.total} из ${s.rules.total}`}>
+        <div className="relative mt-4 h-2.5 overflow-hidden rounded-full bg-fill" role="img" aria-label={`${p.total} из ${s.rules.total}`}>
           <div className="absolute inset-y-0 left-0 rounded-full bg-brand-fill" style={{ width: pct(p.trainingPoints) }} />
           <div className="absolute inset-y-0 rounded-full bg-accent" style={{ left: pct(p.trainingPoints), width: pct(p.extraPoints) }} />
           <span className="absolute inset-y-0 w-px bg-surface" style={{ left: pct(s.rules.trainingMin) }} />
         </div>
-        <p className="mt-2 text-sm text-ink-2">
-          <span className="text-brand">●</span> {p.trainingPoints} из {s.rules.trainingMin} за тренировки ·{" "}
-          <span className="text-accent">●</span> {p.extraPoints} доп.
+        <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-2">
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden className="size-2 rounded-full bg-brand-fill" />
+            {p.trainingPoints} из {s.rules.trainingMin} за тренировки
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden className="size-2 rounded-full bg-accent" />
+            {p.extraPoints} дополнительно
+          </span>
         </p>
         <details className="group mt-1 text-sm">
           <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-brand">
@@ -117,7 +123,7 @@ export default async function SportPage({ searchParams }: PageProps<"/sport">) {
                   on ? "bg-brand-fill text-on-brand" : "bg-surface text-ink ring-1 ring-hairline"
                 }`}
               >
-                <span className={`text-[11px] ${on ? "text-on-brand" : "text-ink-3"}`}>{weekday.format(noon(d))}</span>
+                <span className={`text-micro ${on ? "text-on-brand" : "text-ink-3"}`}>{weekday.format(noon(d))}</span>
                 <span className="font-semibold">{dayNum.format(noon(d))}</span>
               </Link>
             );
