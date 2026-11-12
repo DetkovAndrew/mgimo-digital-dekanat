@@ -52,8 +52,11 @@ const pairs = [
   ["field", "surface", 3],
   ["field", "page", 3],
   ...["lecture", "practice", "language", "consult", "sport"].flatMap((k) => [[`k-${k}`, `k-${k}-soft`, 4.5], [`k-${k}`, "surface", 4.5]]),
-  // Схемы корпусов: номер аудитории (ink) и подписи (ink-2) на пастели.
-  ...["hall", "class", "pc", "lab", "cowork", "meet", "wing-1", "wing-2", "wing-3", "service", "quiet"].flatMap((m) => [["ink", `m-${m}`, 4.5], ["ink-2", `m-${m}`, 4.5]]),
+  // Схемы корпусов: номер аудитории (ink) и подписи (ink-2) на заливках помещений; белый знак на значках — как графика.
+  ...["floor", "room", "hall", "cowork", "meet", "food", "wc", "quiet", "yard"].flatMap((m) => [["ink", `m-${m}`, 4.5], ["ink-2", `m-${m}`, 4.5]]),
+  ...["stairs", "wc", "food", "coat", "exit", "sport", "book"].map((i) => ["m-ic-glyph", `m-ic-${i}`, 3]),
+  // Стены передают границы помещений: как графика, не ниже 3:1 к полу и к каждой заливке.
+  ...["floor", "room", "hall", "cowork", "meet", "food", "wc", "quiet"].map((m) => ["m-wall", `m-${m}`, 3]),
 ];
 
 let failed = 0;
