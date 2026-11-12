@@ -332,6 +332,7 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
         type="button"
         ref={fab}
         onClick={() => void show()}
+        data-assistant-fab
         aria-label="Спросить помощника"
         aria-haspopup="dialog"
         aria-expanded={open}

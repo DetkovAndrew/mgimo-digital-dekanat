@@ -1,7 +1,8 @@
-import { BookOpen, createLucideIcon, DoorOpen, Dumbbell, type LucideIcon, Shirt, Toilet, Utensils } from "lucide-react";
+import { BookOpen, DoorOpen, Dumbbell, type LucideIcon, Shirt, Toilet, Utensils } from "lucide-react";
 import Link from "next/link";
+import { type ReactNode } from "react";
 import { roomKindLabel, type DecorIcon, type Door, type PlanBuilding, type Pt, type RoomKind, type Side } from "@/lib/campus/plans";
-import type { RouteLeg, RouteTransfer } from "@/lib/campus/route";
+import { Stairs } from "./stairs-icon";
 
 // Схема этажа в стиле поэтажного плана. Подложка серая, коридоры белые, наружные стены толще. Аудитории почти белые,
 // у них тонкие общие стены и проём двери в коридор. Тон есть только у особых помещений, значки (цветные квадраты)
@@ -17,7 +18,6 @@ export const ROOM_KIND_STYLE: Record<RoomKind, { fill: string; soft: string }> =
   MEETING: { fill: "fill-m-meet", soft: "bg-m-meet ring-1 ring-inset ring-m-wall" },
 };
 
-export const Stairs = createLucideIcon("Stairs", [["path", { d: "M3 20h5v-5h5v-5h5V5h3", key: "stairs" }]]);
 const ICON: Record<DecorIcon, LucideIcon> = { toilet: Toilet, stairs: Stairs, food: Utensils, sport: Dumbbell, book: BookOpen, coat: Shirt, entrance: DoorOpen };
 const ICON_LABEL: Record<DecorIcon, string> = { toilet: "Туалет", stairs: "Лестница", food: "Столовая", sport: "Спортзал", book: "Библиотека", coat: "Гардероб", entrance: "Вход" };
 const BADGE: Record<DecorIcon, string> = {
@@ -90,7 +90,8 @@ export function CampusMap({
   mine,
   selected,
   href,
-  route = null,
+  overlay = null,
+  wide = false,
 }: {
   plan: PlanBuilding;
   floor: number;
@@ -98,22 +99,26 @@ export function CampusMap({
   mine: string[];
   selected: string | null;
   href: (number: string) => string;
-  route?: { legs: RouteLeg[]; transfers: RouteTransfer[] } | null;
+  /** Слой поверх схемы (маршрут по шагам, клиентский компонент). */
+  overlay?: ReactNode;
+  /** Кадр 4:3 вместо пропорций этажа: в режиме маршрута камера приближает участок, а схема не занимает весь экран. */
+  wide?: boolean;
 }) {
   const geo = plan.floor(floor);
   const busy = new Set(busyNow);
   const my = new Set(mine);
   const { w } = plan.view;
   const h = geo.h ?? plan.view.h;
+  const hatch = `busy-hatch-${plan.buildingId}-${floor}`; // своя штриховка у каждого этажа: в режиме маршрута их несколько
   const yards = geo.decor.filter((d) => d.tone === "yard");
   const open = geo.decor.filter((d) => d.tone === "hall" || d.tone === "void");
   const spaces = geo.decor.filter((d) => d.tone === "room");
 
   return (
     <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:thin]">
-      <svg viewBox={`0 0 ${w} ${h}`} role="group" aria-label={`Схема: ${plan.title}, ${floor} этаж`} className="w-full min-w-80 rounded-2xl bg-m-ground md:max-h-[min(72dvh,42rem)]">
+      <svg viewBox={`0 0 ${w} ${h}`} role="group" aria-label={`Схема: ${plan.title}, ${floor} этаж`} className={`w-full min-w-80 rounded-2xl bg-m-ground ${wide ? "aspect-[4/3]" : "md:max-h-[min(72dvh,42rem)]"}`}>
         <defs>
-          <pattern id="busy-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <pattern id={hatch} width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="2.5" height="7" className="fill-ink-3" opacity="0.25" />
           </pattern>
         </defs>
@@ -195,7 +200,7 @@ export function CampusMap({
           return (
             <Link key={room.id} href={href(room.number)} aria-label={label} aria-current={isSel ? "true" : undefined} className="group outline-none">
               <path d={rectPath(b)} className={`transition-[fill] duration-200 group-hover:brightness-95 ${isSel ? "fill-brand-fill" : s.fill}`} />
-              {isBusy && !isSel && <path d={rectPath(b)} fill="url(#busy-hatch)" />}
+              {isBusy && !isSel && <path d={rectPath(b)} fill={`url(#${hatch})`} />}
               <path d={walls(p, door)} strokeWidth={1} className="fill-none stroke-m-wall" />
               {isMine && !isSel && <path d={rectPath(inset)} strokeWidth={2.5} className="fill-none stroke-brand" />}
               {/* Кольцо фокуса с клавиатуры: тёмный контур, заметен и на выбранной аудитории. */}
@@ -220,7 +225,7 @@ export function CampusMap({
           );
         })}
 
-        {route && <RouteOverlay route={route} floor={floor} w={w} />}
+        {overlay}
 
         {/* Номера крыльев и лестницы в торцах коридоров. */}
         {plan.wingCount > 1 &&
@@ -240,95 +245,6 @@ export function CampusMap({
       </svg>
     </div>
   );
-}
-
-/**
- * Маршрут на схеме: пунктир по проходам (анимация «бегущих» штрихов только без prefers-reduced-motion), старт, финиш и
- * переходы по лестнице с подписью этажа. Декоративный слой: текстовая версия — шаги под схемой, клики проходят насквозь.
- */
-function RouteOverlay({ route, floor, w }: { route: { legs: RouteLeg[] }; floor: number; w: number }) {
-  const legs = route.legs.map((l, i) => ({ ...l, i })).filter((l) => l.floor === floor);
-  const pill = (at: Pt, text: string, key: string) => {
-    const width = text.length * 6.2 + 12;
-    const x = Math.min(Math.max(at[0] + 10, 4), w - width - 4);
-    return (
-      <g key={key}>
-        <rect x={x} y={at[1] - 20} width={width} height={16} rx={8} className="fill-brand-fill" />
-        <text x={x + width / 2} y={at[1] - 8.5} textAnchor="middle" fontSize={10} className="fill-on-brand font-semibold">
-          {text}
-        </text>
-      </g>
-    );
-  };
-  return (
-    <g aria-hidden pointerEvents="none">
-      {legs.map(({ points, i }) =>
-        points.length > 1 ? (
-          <g key={`r${i}`}>
-            <polyline points={points.map((p) => `${f(p[0])},${f(p[1])}`).join(" ")} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" className="fill-none stroke-brand-soft" />
-            <polyline
-              points={points.map((p) => `${f(p[0])},${f(p[1])}`).join(" ")}
-              strokeWidth={3}
-              strokeDasharray="6 5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="route-flow fill-none stroke-brand"
-            />
-          </g>
-        ) : null,
-      )}
-      {legs.map(({ points, i }) => (
-        <g key={`e${i}`}>
-          {i === 0 && <circle cx={points[0][0]} cy={points[0][1]} r={5.5} strokeWidth={2} className="fill-brand stroke-m-floor" />}
-          {i === route.legs.length - 1 && (
-            <circle cx={points.at(-1)![0]} cy={points.at(-1)![1]} r={4} strokeWidth={2} className="fill-m-floor stroke-brand" />
-          )}
-        </g>
-      ))}
-      {legs.map(({ points, i }) => {
-        // Пролёты подряд без остановки — одна подпись: откуда пришли и куда идём дальше.
-        const pass = points.length <= 1 && i > 0 && i < route.legs.length - 1;
-        const out = i < route.legs.length - 1 && !pass ? climbEnd(route.legs, i + 1) : null;
-        const into = i > 0 ? climbStart(route.legs, i - 1) : null;
-        return (
-          <g key={`s${i}`}>
-            {pass ? (
-              <>
-                <circle cx={points[0][0]} cy={points[0][1]} r={4} strokeWidth={2} className="fill-brand stroke-m-floor" />
-                {pill(points[0], `дальше на ${climbEnd(route.legs, i + 1)} эт.`, "pass")}
-              </>
-            ) : (
-              <>
-                {into !== null && (
-                  <>
-                    <circle cx={points[0][0]} cy={points[0][1]} r={4} strokeWidth={2} className="fill-brand stroke-m-floor" />
-                    {pill(points[0], `с ${into} эт.`, "in")}
-                  </>
-                )}
-                {out !== null && (
-                  <>
-                    <circle cx={points.at(-1)![0]} cy={points.at(-1)![1]} r={4} strokeWidth={2} className="fill-brand stroke-m-floor" />
-                    {pill(points.at(-1)!, `на ${out} эт.`, "out")}
-                  </>
-                )}
-              </>
-            )}
-          </g>
-        );
-      })}
-    </g>
-  );
-}
-
-/** Этаж, где закончится подъём или спуск, начатый на участке i (пролёты подряд без остановок). */
-function climbEnd(legs: RouteLeg[], i: number) {
-  while (legs[i + 1] && legs[i].points.length <= 1) i++;
-  return legs[i].floor;
-}
-/** Этаж, где начался подъём или спуск, который закончился сразу после участка i. */
-function climbStart(legs: RouteLeg[], i: number) {
-  while (i > 0 && legs[i].points.length <= 1) i--;
-  return legs[i].floor;
 }
 
 export function MapLegend() {
@@ -353,7 +269,12 @@ export function MapLegend() {
       </li>
       <li className="flex items-center gap-1.5">
         <svg aria-hidden width="12" height="12" className="rounded-sm ring-1 ring-m-wall">
-          <rect width="12" height="12" fill="url(#busy-hatch)" />
+          <defs>
+            <pattern id="legend-hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="2.5" height="7" className="fill-ink-3" opacity="0.25" />
+            </pattern>
+          </defs>
+          <rect width="12" height="12" fill="url(#legend-hatch)" />
         </svg>
         занято сейчас
       </li>

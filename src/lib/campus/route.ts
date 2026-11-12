@@ -6,7 +6,8 @@ export type RouteEnd = { kind: "entrance" } | { kind: "room"; number: string };
 export type RouteLeg = { floor: number; points: Pt[] };
 export type RouteTransfer = { floor: number; at: Pt; toFloor: number };
 export type StepKind = "start" | "straight" | "left" | "right" | "back" | "up" | "down" | "arrive";
-export type RouteStep = { floor: number; kind: StepKind; text: string; meters?: number };
+/** Шаг: текст и его кусок пути на этаже floor (для подсветки на схеме; у старта, лестницы и финиша — точка или подход). */
+export type RouteStep = { floor: number; kind: StepKind; text: string; meters?: number; path: Pt[] };
 export type Route = { legs: RouteLeg[]; transfers: RouteTransfer[]; steps: RouteStep[]; meters: number; startFloor: number };
 
 const CELL = 2; // шаг сетки в единицах схемы
@@ -334,8 +335,8 @@ function firstDir(g: Group): Pt {
 function stepsFor(plan: PlanBuilding, from: Anchor, to: Anchor, legs: RouteLeg[]): RouteStep[] {
   const steps: RouteStep[] = [
     from.door
-      ? { floor: from.floor, kind: "start", text: `Выйдите из ${from.label.replace("аудитория", "аудитории")}` }
-      : { floor: from.floor, kind: "start", text: "Войдите через главный вход" },
+      ? { floor: from.floor, kind: "start", text: `Выйдите из ${from.label.replace("аудитория", "аудитории")}`, path: [from.wall, from.out] }
+      : { floor: from.floor, kind: "start", text: "Войдите через главный вход", path: [from.wall, from.out] },
   ];
   // Начальное направление — от двери (или входа) внутрь: «выйдите и поверните налево» понятнее, чем просто «идите».
   let heading: Pt | null = unit(from.wall, from.out);
@@ -349,7 +350,7 @@ function stepsFor(plan: PlanBuilding, from: Anchor, to: Anchor, legs: RouteLeg[]
       const verb = { straight: turnsIn(g.zone) ? "Идите" : "Пройдите", left: "Поверните налево и идите", right: "Поверните направо и идите", back: "Развернитесь и идите" }[
         kind as "straight" | "left" | "right" | "back"
       ];
-      steps.push({ floor: leg.floor, kind, text: `${verb} ${along(g.zone)}`, meters: metersOf(g.len) });
+      steps.push({ floor: leg.floor, kind, text: `${verb} ${along(g.zone)}`, meters: metersOf(g.len), path: g.pts });
       heading = unit(g.pts.at(-2)!, g.pts.at(-1)!);
     }
     const next = legs[li + 1];
@@ -361,7 +362,12 @@ function stepsFor(plan: PlanBuilding, from: Anchor, to: Anchor, legs: RouteLeg[]
       if (prevStep.kind !== "up" && prevStep.kind !== "down") {
         const up = legs[target].floor > leg.floor;
         const shaft = stairAt(plan, leg.floor, leg.points.at(-1)!);
-        steps.push({ floor: leg.floor, kind: up ? "up" : "down", text: `${up ? "Поднимитесь" : "Спуститесь"} по лестнице${shaft ? ` ${shaft}` : ""} на ${legs[target].floor} этаж` });
+        steps.push({
+          floor: leg.floor,
+          kind: up ? "up" : "down",
+          text: `${up ? "Поднимитесь" : "Спуститесь"} по лестнице${shaft ? ` ${shaft}` : ""} на ${legs[target].floor} этаж`,
+          path: [leg.points.at(-1)!],
+        });
       }
       heading = null;
     }
@@ -376,7 +382,7 @@ function stepsFor(plan: PlanBuilding, from: Anchor, to: Anchor, legs: RouteLeg[]
   // Направление ненадёжно (сразу после лестницы или дверь рядом): не гадаем со стороной.
   const side = !heading || segLen([0, 0], toDoor) < 1 ? "рядом" : Math.abs(cross) < Math.abs(ahead) * 0.5 ? "прямо по ходу" : cross > 0 ? "справа" : "слева";
   const name = `${to.label[0].toUpperCase()}${to.label.slice(1)}`;
-  steps.push({ floor: to.floor, kind: "arrive", text: to.door ? `${name} ${side}` : name });
+  steps.push({ floor: to.floor, kind: "arrive", text: to.door ? `${name} ${side}` : name, path: [end, to.wall] });
   return steps;
 }
 
@@ -430,4 +436,15 @@ export function findRoute(buildingId: string, from: RouteEnd, to: RouteEnd): Rou
   legs.at(-1)!.points.push(b.wall);
   const meters = metersOf(legs.reduce((s, l) => s + l.points.slice(1).reduce((t, p, i) => t + segLen(l.points[i], p), 0), 0));
   return { legs, transfers, steps: stepsFor(plan, a, b, legs), meters, startFloor: a.floor };
+}
+
+/** Этаж, где закончится подъём или спуск, начатый на участке i (пролёты подряд без остановок). */
+export function climbEnd(legs: RouteLeg[], i: number) {
+  while (legs[i + 1] && legs[i].points.length <= 1) i++;
+  return legs[i].floor;
+}
+/** Этаж, где начался подъём или спуск, который закончился сразу после участка i. */
+export function climbStart(legs: RouteLeg[], i: number) {
+  while (i > 0 && legs[i].points.length <= 1) i--;
+  return legs[i].floor;
 }
