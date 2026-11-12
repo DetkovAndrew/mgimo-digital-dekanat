@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell as BellIcon, CalendarDays, CircleUserRound, DoorOpen, Dumbbell, FileText, GraduationCap, House, LogOut, type LucideIcon, Sparkles } from "lucide-react";
+import { Bell as BellIcon, CalendarDays, CircleUserRound, DoorOpen, Dumbbell, FileText, GraduationCap, House, LogOut, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ViewTransition } from "react";
@@ -18,7 +18,6 @@ const items: { href: string; label: string; icon: LucideIcon }[] = [
 const desktopItems = [
   ...items,
   { href: "/rooms", label: "Аудитории", icon: DoorOpen },
-  { href: "/assistant", label: "Спросить", icon: Sparkles },
   { href: "/notifications", label: "Уведомления", icon: BellIcon },
   { href: "/profile", label: "Профиль", icon: CircleUserRound },
 ];
@@ -151,20 +150,6 @@ export function Bell({ unread }: { unread: number }) {
           {unread}
         </span>
       )}
-    </Link>
-  );
-}
-
-/** Вход в помощника «Спросить по кабинету» из шапки телефона. */
-export function AskLink() {
-  return (
-    <Link
-      href="/assistant"
-      transitionTypes={["nav-forward"]}
-      aria-label="Спросить по кабинету"
-      className="grid size-11 place-items-center rounded-full text-brand transition-colors hover:bg-fill"
-    >
-      <Sparkles aria-hidden className="size-5.5" />
     </Link>
   );
 }

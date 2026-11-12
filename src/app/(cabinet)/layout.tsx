@@ -1,12 +1,14 @@
 import { Disclaimer } from "@/components/disclaimer";
-import { AskLink, Bell, Logo, Nav, ProfileLink } from "@/components/nav";
+import { Assistant } from "@/components/assistant";
+import { Bell, Logo, Nav, ProfileLink } from "@/components/nav";
 import { RouteMotion } from "@/components/route-motion";
 import { Toaster } from "@/components/toast";
+import { isAssistantConfigured } from "@/server/ai/gigachat";
 import { countMyUnread } from "@/server/dal/notifications";
 import { requireStudent } from "@/server/session";
 
 export default async function CabinetLayout({ children }: LayoutProps<"/">) {
-  await requireStudent();
+  const { userId } = await requireStudent();
   const unread = await countMyUnread();
   return (
     <div className="flex min-h-dvh">
@@ -21,17 +23,17 @@ export default async function CabinetLayout({ children }: LayoutProps<"/">) {
               University
             </span>
             <span className="flex items-center">
-              <AskLink />
               <Bell unread={unread} />
               <ProfileLink />
             </span>
           </header>
         </div>
         <Toaster />
-        <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-5 pb-28 md:pt-8 md:pb-12">
+        <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-5 pb-44 md:pt-8 md:pb-28">
           <RouteMotion>{children}</RouteMotion>
         </main>
       </div>
+      <Assistant owner={userId} configured={isAssistantConfigured()} />
     </div>
   );
 }
