@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { MAX_ANSWER_CHARS, sanitizeAnswer } from "@/lib/assistant/answer";
+import { canonicalLink } from "@/lib/assistant/links";
 import { buildMyContext } from "@/server/ai/context";
-import { AssistantError, gigachatComplete } from "@/server/ai/gigachat";
+import { FIND_FREE_ROOMS, formatFreeRooms } from "@/server/ai/functions";
+import { AssistantError, gigachatComplete, type ChatMessage } from "@/server/ai/gigachat";
+import { findFreeRooms } from "@/server/dal/rooms";
 import { takeStudentSlot, withProviderSlot } from "@/server/ai/limits";
 import { systemPrompt } from "@/server/ai/prompt";
 import { studentForApi } from "@/server/session";
@@ -97,11 +100,15 @@ export async function POST(req: Request) {
   try {
     const ctx = await buildMyContext();
     if (abort.signal.aborted) throw new AssistantError("unavailable", "aborted");
-    const raw = await withProviderSlot(
-      () => gigachatComplete([{ role: "system", content: systemPrompt(ctx) }, ...parsed.data.messages], { maxTokens: 600, signal: abort.signal }),
-      abort.signal,
-    );
-    const answer = sanitizeAnswer(raw, ctx.links);
+    const raw = await withProviderSlot(async () => {
+      const messages: ChatMessage[] = [{ role: "system", content: systemPrompt(ctx) }, ...parsed.data.messages];
+      const opts = { maxTokens: 600, signal: abort.signal, functions: [FIND_FREE_ROOMS] };
+      const reply = await gigachatComplete(messages, opts);
+      // Функция только читает свободное время. Ответ по ней собирает сервер: модель путала интервалы при пересказе.
+      if (reply.functionCall?.name === FIND_FREE_ROOMS.name) return formatFreeRooms(await findFreeRooms(reply.functionCall.arguments, ctx.asOf));
+      return reply.content;
+    }, abort.signal);
+    const answer = sanitizeAnswer(raw, (href) => canonicalLink(href, ctx.links, ctx.asOf));
     console.info(`[assistant] ok ${Date.now() - started}ms`);
     return json(200, { answer: answer || "Не получилось сформулировать ответ. Попробуйте спросить иначе." });
   } catch (e) {

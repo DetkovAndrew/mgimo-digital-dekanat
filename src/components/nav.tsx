@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell as BellIcon, CalendarDays, CircleUserRound, Dumbbell, FileText, GraduationCap, House, LogOut, type LucideIcon, Sparkles } from "lucide-react";
+import { Bell as BellIcon, CalendarDays, CircleUserRound, DoorOpen, Dumbbell, FileText, GraduationCap, House, LogOut, type LucideIcon, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ViewTransition } from "react";
@@ -17,18 +17,21 @@ const items: { href: string; label: string; icon: LucideIcon }[] = [
 
 const desktopItems = [
   ...items,
+  { href: "/rooms", label: "Аудитории", icon: DoorOpen },
   { href: "/assistant", label: "Спросить", icon: Sparkles },
   { href: "/notifications", label: "Уведомления", icon: BellIcon },
   { href: "/profile", label: "Профиль", icon: CircleUserRound },
 ];
 
 // Разделы, открытые изнутри вкладки (пара, дисциплина…), подсвечивают свою вкладку.
-const owner: Record<string, string> = { lessons: "/schedule", teachers: "/schedule", buildings: "/schedule", courses: "/grades" };
+const owner: Record<string, string> = { lessons: "/schedule", teachers: "/schedule", buildings: "/schedule", courses: "/grades", rooms: "/requests" };
 
 export function Nav({ unread }: { unread: number }) {
   const pathname = usePathname();
   const section = owner[pathname.split("/")[1]] ?? pathname;
   const active = (href: string) => section === href || section.startsWith(`${href}/`);
+  // На десктопе у «Аудиторий» свой пункт меню, на телефоне они открываются из «Заявок».
+  const deskActive = (href: string) => (pathname.startsWith("/rooms") ? href === "/rooms" : active(href));
 
   return (
     <>
@@ -78,7 +81,7 @@ export function Nav({ unread }: { unread: number }) {
         </Link>
         <ul className="space-y-0.5">
           {desktopItems.map(({ href, label, icon: Icon }) => {
-            const on = active(href);
+            const on = deskActive(href);
             return (
               <li key={href}>
                 <Link

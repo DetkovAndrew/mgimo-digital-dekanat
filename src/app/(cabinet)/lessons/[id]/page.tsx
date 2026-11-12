@@ -4,7 +4,8 @@ import { ViewTransition } from "react";
 import { BackLink } from "@/components/back-link";
 import { KindTile, kindStyle } from "@/components/kind";
 import { Badge, Card, Disclosure, IconTile, List, RowLink, Section } from "@/components/ui";
-import { formatDate, formatDateTime, formatDay, formatTime, lessonKindLabel } from "@/lib/format";
+import { planFor, roomNumberFrom } from "@/lib/campus/plans";
+import { formatDate, formatDateTime, formatDay, formatTime, lessonKindLabel, mskDayKey } from "@/lib/format";
 import { yandexRouteUrl } from "@/lib/geo";
 import { lessonTitleName } from "@/lib/view-transitions";
 import { getMyLesson, type MyLesson } from "@/server/dal/lessons";
@@ -37,6 +38,10 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
   const l = await getMyLesson(id);
   const cancelled = l.status === "CANCELLED";
   const latest = l.changes[0];
+  // Аудитория со схемы корпуса: ссылка на её расписание и бронь в день пары.
+  const roomNo = roomNumberFrom(l.room);
+  const onPlan = !l.online && l.building && roomNo && planFor(l.building.id)?.rooms.some((r) => r.number === roomNo);
+  const roomHref = onPlan && l.building ? `/rooms/${l.building.id}?${new URLSearchParams({ room: roomNo!, d: mskDayKey(l.startsAt) })}#room` : null;
 
   return (
     <>
@@ -48,9 +53,9 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
         {statusText[l.status] && <Badge tone={cancelled ? "bad" : "warn"}>{statusText[l.status]}</Badge>}
       </p>
       <ViewTransition name={lessonTitleName(l.id)} share="morph" default="none">
-        <h1 className={`mt-1 w-fit text-[28px] leading-tight font-bold tracking-tight ${cancelled ? "line-through" : ""}`}>{l.title}</h1>
+        <h1 className={`mt-1 w-fit text-h1 font-bold tracking-tight ${cancelled ? "line-through" : ""}`}>{l.title}</h1>
       </ViewTransition>
-      <p className="mt-1 mb-5 text-[17px] text-ink first-letter:uppercase">
+      <p className="mt-1 mb-5 text-lead text-ink first-letter:uppercase">
         {formatDay(l.startsAt)} · {formatTime(l.startsAt)}–{formatTime(l.endsAt)}
       </p>
 
@@ -69,7 +74,13 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
             <div className="flex items-start gap-3">
               <MapPin aria-hidden className="mt-0.5 size-5 shrink-0 text-brand" />
               <div className="min-w-0">
-                <p className="font-semibold">{l.room ?? "Аудитория не указана"}</p>
+                {roomHref ? (
+                  <Link href={roomHref} transitionTypes={["nav-forward"]} className="inline-flex min-h-11 items-center font-semibold text-brand">
+                    {l.room} · на схеме
+                  </Link>
+                ) : (
+                  <p className="font-semibold">{l.room ?? "Аудитория не указана"}</p>
+                )}
                 <Link href={`/buildings/${l.building.id}`} transitionTypes={["nav-forward"]} className="inline-flex min-h-11 items-center text-brand">
                   {l.building.title}
                 </Link>
@@ -81,7 +92,7 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
                 href={yandexRouteUrl(l.building, "mt")}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand-fill text-[15px] font-semibold text-on-brand transition active:scale-[0.98]"
+                className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand-fill text-body font-semibold text-on-brand transition active:scale-[0.98]"
               >
                 <Navigation aria-hidden className="size-4" />
                 Маршрут

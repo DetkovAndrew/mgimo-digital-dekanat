@@ -16,6 +16,13 @@ describe("sanitizeAnswer: только ссылки из снимка", () => {
     }
   });
 
+  it("вложенные скобки не склеивают запрещённую ссылку (ревью Codex 19)", () => {
+    for (const md of ["[outer [go](/forbidden)](/requests/not-mine)", "[[x](/grades)](/courses/zzz)", "[a [b [c](/x)](/y)](/z)"]) {
+      const out = sanitizeAnswer(md, allowed);
+      expect(parseInline(out).filter((x) => x.kind === "link").every((x) => x.kind === "link" && allowed.has(x.href))).toBe(true);
+    }
+  });
+
   it("длинная метка или путь не проходят мимо проверки (ревью Codex 17)", () => {
     for (const md of [`[${"м".repeat(200)}](/requests/not-mine)`, `[x](/courses/${"a".repeat(300)})`]) {
       expect(parseInline(sanitizeAnswer(md, allowed)).some((x) => x.kind === "link")).toBe(false);

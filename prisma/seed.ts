@@ -13,6 +13,7 @@ import { requestCatalog, type RequestType } from "../src/lib/requests/catalog";
 import { checkSlot, type BusyItem } from "../src/lib/sport/availability";
 import { baseAuthOptions } from "../src/server/auth-options";
 import { prisma } from "../src/server/db";
+import { seedRoomBookings, syncRooms } from "../scripts/sync-rooms";
 
 if (existsSync(".env")) process.loadEnvFile(".env");
 
@@ -291,6 +292,7 @@ function payloadFor(type: RequestType, input: Record<string, unknown>) {
 
 async function wipe() {
   // Порядок важен из-за внешних ключей.
+  await prisma.roomBooking.deleteMany();
   await prisma.sportBooking.deleteMany();
   await prisma.sportExtraPoints.deleteMany();
   await prisma.sportSlot.deleteMany();
@@ -307,6 +309,7 @@ async function wipe() {
   await prisma.courseOffering.deleteMany();
   await prisma.discipline.deleteMany();
   await prisma.teacher.deleteMany();
+  await prisma.room.deleteMany();
   await prisma.building.deleteMany();
   await prisma.academicTerm.deleteMany();
   await prisma.studentProfile.deleteMany();
@@ -371,6 +374,9 @@ async function main() {
   await seedAnnouncements();
   await seedSport(term.id);
   await seedClassmate(STUDENTS[0].group.code);
+  const roomsSynced = await syncRooms();
+  if (roomsSynced.unmatched) throw new Error(`Занятия без аудитории на схеме: ${roomsSynced.unmatched}`);
+  await seedRoomBookings(STUDENTS[0].login);
 
   const counts = {
     users: await prisma.user.count(),
@@ -382,6 +388,8 @@ async function main() {
     notifications: await prisma.notification.count(),
     sportSlots: await prisma.sportSlot.count(),
     sportBookings: await prisma.sportBooking.count(),
+    rooms: await prisma.room.count(),
+    roomBookings: await prisma.roomBooking.count(),
   };
   console.log("Seed готов:", counts);
   console.log("Логины:", [...STUDENTS.map((s) => s.login), STAFF.login].join(", "), "— пароли в .env");

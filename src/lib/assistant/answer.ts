@@ -4,21 +4,40 @@
 
 export const MAX_ANSWER_CHARS = 2000;
 
-const isLocalPath = (href: string) => /^\/(?!\/)[\w\-/?=&.%]*$/.test(href);
+const isLocalPath = (href: string) => /^\/(?!\/)[\w\-/?=&.%+#]*$/.test(href);
 
 // Один и тот же разбор ссылок на сервере и в браузере: всё, что клиент сделает ссылкой, сервер уже проверил.
-const LINK = /\[([^\]\n]+)\]\(([^)\s]+)\)/g;
+const LINK = /\[([^[\]\n]+)\]\(([^)\s]+)\)/g;
 
-/** Сервер: оставить только ссылки из снимка; голые пути из снимка превратить в ссылки «открыть». */
-export function sanitizeAnswer(text: string, allowed: ReadonlySet<string>): string {
-  const ok = (href: string) => allowed.has(href) && isLocalPath(href);
+/** Сервер: оставить только разрешённые ссылки (в каноническом виде); голые пути превратить в ссылки «открыть». */
+export function sanitizeAnswer(text: string, allowed: ReadonlySet<string> | ((href: string) => string | null)): string {
+  const check = typeof allowed === "function" ? allowed : (h: string) => (allowed.has(h) ? h : null);
+  const canon = (href: string) => {
+    const c = check(href);
+    return c && isLocalPath(c) ? c : null;
+  };
   let s = text.replace(/\r/g, "").trim();
   // 1. Голый путь в тексте («здесь: /requests/new?type=…»). Скобку «(» не считаем началом: это уже ссылка.
-  s = s.replace(/(^|[\s:«])(\/[\w\-/?=&%]{1,200}?)(?=[.,;:!?)»]?(?:\s|$))/gm, (m, pre: string, href: string) => (ok(href) ? `${pre}[открыть](${href})` : m));
+  s = s.replace(/(^|[\s:«])(\/[\w\-/?=&%+]{1,200}?)(?=[.,;:!?)»]?(?:\s|$))/gm, (m, pre: string, href: string) => {
+    const c = canon(href);
+    return c ? `${pre}[открыть](${c})` : m;
+  });
   // 2. Путь в квадратных скобках, как в снимке: [/lessons/…].
-  s = s.replace(/\[(\/[^\]\s]{1,200})\](?!\()/g, (_, href: string) => (ok(href) ? `[открыть](${href})` : ""));
+  s = s.replace(/\[(\/[^\]\s]{1,200})\](?!\()/g, (_, href: string) => {
+    const c = canon(href);
+    return c ? `[открыть](${c})` : "";
+  });
   // 3. Ссылки [текст](путь): чужие и выдуманные превращаются в обычный текст.
-  s = s.replace(LINK, (_, label: string, href: string) => (ok(href) ? `[${label}](${href})` : label));
+  s = s.replace(LINK, (_, label: string, href: string) => {
+    const c = canon(href);
+    return c ? `[${label}](${c})` : label;
+  });
+  // 4. Замена могла склеить новую ссылку из вложенных скобок («[a [b](/x)](/y)» → «[a b](/y)»): проверяем ещё раз,
+  //    пока текст не перестанет меняться. Остаются только ссылки, уже приведённые к каноническому виду.
+  for (let i = 0, prev = ""; i < 5 && prev !== s; i++) {
+    prev = s;
+    s = s.replace(LINK, (m, label: string, href: string) => (canon(href) === href ? m : label));
+  }
   return s.length > MAX_ANSWER_CHARS ? `${s.slice(0, MAX_ANSWER_CHARS - 1)}…` : s;
 }
 

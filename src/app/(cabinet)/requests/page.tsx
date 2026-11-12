@@ -1,4 +1,4 @@
-import { FileCheck2, FilePen, MessageCircleQuestion, Plus } from "lucide-react";
+import { DoorOpen, FileCheck2, FilePen, MessageCircleQuestion, Plus } from "lucide-react";
 import Link from "next/link";
 import { Badge, Disclosure, Empty, IconTile, List, PageTitle, RowLink, Section } from "@/components/ui";
 import { formatDateTime, requestStatusLabel } from "@/lib/format";
@@ -52,6 +52,19 @@ export default async function RequestsPage() {
       >
         Заявки
       </PageTitle>
+      <div className="mb-7">
+        <List>
+          <RowLink href="/rooms">
+            <span className="flex items-center gap-3">
+              <IconTile icon={DoorOpen} tone="ok" />
+              <span className="min-w-0">
+                <span className="block font-medium">Забронировать аудиторию</span>
+                <span className="block text-xs text-ink-2">Коворкинги и переговорные: схема корпуса и свободное время</span>
+              </span>
+            </span>
+          </RowLink>
+        </List>
+      </div>
       {requests.length ? (
         <>
           {active.length > 0 && (

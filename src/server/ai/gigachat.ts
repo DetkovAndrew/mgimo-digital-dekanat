@@ -9,7 +9,13 @@ import tls from "node:tls";
 // Серверы GigaChat подписаны «Russian Trusted Root CA» Минцифры: доверие к нему добавляется
 // только этому агенту, проверка сертификатов и имени сервера не отключается.
 
-export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
+export type FunctionCall = { name: string; arguments: Record<string, unknown> };
+export type ChatMessage =
+  | { role: "system" | "user"; content: string }
+  | { role: "assistant"; content: string; function_call?: FunctionCall; functions_state_id?: string }
+  | { role: "function"; name: string; content: string };
+export type ChatFunction = { name: string; description: string; parameters: Record<string, unknown> };
+export type ChatReply = { content: string; functionCall?: FunctionCall; stateId?: string };
 
 export class AssistantError extends Error {
   constructor(
@@ -97,10 +103,20 @@ async function getToken(signal: AbortSignal, force = false): Promise<string> {
   return refreshing;
 }
 
-/** Один ответ модели. 401 → один повтор с новым токеном. */
-export async function gigachatComplete(messages: ChatMessage[], { maxTokens, signal }: { maxTokens: number; signal: AbortSignal }) {
+/** Один ответ модели (текст или вызов функции). 401 → один повтор с новым токеном. */
+export async function gigachatComplete(
+  messages: ChatMessage[],
+  { maxTokens, signal, functions }: { maxTokens: number; signal: AbortSignal; functions?: ChatFunction[] },
+): Promise<ChatReply> {
   const { apiUrl, model } = cfg();
-  const body = JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.2, stream: false });
+  const body = JSON.stringify({
+    model,
+    messages,
+    max_tokens: maxTokens,
+    temperature: 0.2,
+    stream: false,
+    ...(functions?.length ? { functions, function_call: "auto" } : {}),
+  });
   for (let attempt = 0; attempt < 2; attempt++) {
     const access = await getToken(signal, attempt > 0);
     const res = await post(`${apiUrl}/chat/completions`, { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${access}` }, body, signal);
@@ -110,10 +126,11 @@ export async function gigachatComplete(messages: ChatMessage[], { maxTokens, sig
     }
     if (res.status === 429) throw new AssistantError("busy", "rate limited");
     if (res.status === 402) throw new AssistantError("quota", "payment required");
-    const j = res.json as { choices?: { message?: { content?: string } }[] } | null;
-    const content = j?.choices?.[0]?.message?.content;
-    if (res.status !== 200 || typeof content !== "string") throw new AssistantError("unavailable", `chat ${res.status}`);
-    return content;
+    const j = res.json as { choices?: { message?: { content?: string; function_call?: FunctionCall; functions_state_id?: string } }[] } | null;
+    const m = j?.choices?.[0]?.message;
+    if (res.status !== 200 || !m || typeof m.content !== "string") throw new AssistantError("unavailable", `chat ${res.status}`);
+    const fc = m.function_call && typeof m.function_call.name === "string" && typeof m.function_call.arguments === "object" ? m.function_call : undefined;
+    return { content: m.content, functionCall: fc, stateId: m.functions_state_id };
   }
   throw new AssistantError("unavailable", "auth");
 }

@@ -1,12 +1,14 @@
-import { Map as MapIcon, Navigation } from "lucide-react";
+import { DoorOpen, Map as MapIcon, Navigation } from "lucide-react";
+import Link from "next/link";
 import { BackLink } from "@/components/back-link";
+import { planFor } from "@/lib/campus/plans";
 import { KindTile } from "@/components/kind";
 import { Empty, List, PageTitle, RowLink, Section } from "@/components/ui";
 import { formatDay, formatTime, lessonKindLabel } from "@/lib/format";
 import { yandexPointUrl, yandexRouteUrl } from "@/lib/geo";
 import { BUILDING_SCHEDULE_DAYS, getBuilding } from "@/server/dal/buildings";
 
-const button = "flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl text-[15px] font-semibold transition active:scale-[0.98]";
+const button = "flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl text-body font-semibold transition active:scale-[0.98]";
 
 export default async function BuildingPage({ params }: PageProps<"/buildings/[id]">) {
   const { id } = await params;
@@ -25,6 +27,12 @@ export default async function BuildingPage({ params }: PageProps<"/buildings/[id
           <MapIcon aria-hidden className="size-4" />
           На карте
         </a>
+        {planFor(b.id) && (
+          <Link href={`/rooms/${b.id}`} transitionTypes={["nav-forward"]} className={`${button} bg-surface text-brand ring-1 ring-hairline`}>
+            <DoorOpen aria-hidden className="size-4" />
+            План
+          </Link>
+        )}
       </div>
 
       <Section title={`Ваши занятия здесь · ${BUILDING_SCHEDULE_DAYS} дней`}>

@@ -115,6 +115,7 @@ model StudentProfile {
   requests      Request[]
   sportBookings SportBooking[]
   sportExtra    SportExtraPoints[]
+  roomBookings  RoomBooking[]
 
   @@index([groupId])
   @@map("student_profile")
@@ -196,6 +197,7 @@ model Building {
 
   lessons    Lesson[]
   sportSlots SportSlot[]
+  rooms      Room[]
 
   @@map("building")
 }
@@ -264,6 +266,8 @@ model Lesson {
   buildingId String?
   building   Building?      @relation(fields: [buildingId], references: [id])
   room       String?
+  roomId     String? // аудитория со схемы корпуса (src/lib/campus/plans.ts); заполняет scripts/sync-rooms.ts
+  roomRef    Room?          @relation(fields: [roomId], references: [id], onDelete: SetNull)
   online     Boolean        @default(false)
   teacherId  String? // переопределение; по умолчанию — offering.leadTeacher
   teacher    Teacher?       @relation(fields: [teacherId], references: [id])
@@ -274,6 +278,7 @@ model Lesson {
 
   @@index([offeringId, startsAt])
   @@index([startsAt])
+  @@index([roomId, startsAt])
   @@map("lesson")
 }
 
@@ -523,3 +528,58 @@ model SportExtraPoints {
   @@index([studentId, termId])
   @@map("sport_extra_points")
 }
+
+// ─── Аудитории и бронирование (docs/plans/rooms.md) ──────────────────────────
+// Раскладка схем — в коде (src/lib/campus/plans.ts); здесь — аудитории и брони.
+
+enum RoomKind {
+  LECTURE_HALL
+  CLASSROOM
+  COMPUTER_LAB
+  LAB
+  COWORKING
+  MEETING
+}
+
+model Room {
+  id         String   @id // «kronv-2337»
+  buildingId String
+  building   Building @relation(fields: [buildingId], references: [id])
+  number     String // «2337»: крыло, этаж, номер
+  wing       Int
+  floor      Int
+  kind       RoomKind
+  capacity   Int
+  bookable   Boolean  @default(false)
+  title      String? // «Коворкинг „Атриум“»
+
+  lessons  Lesson[]
+  bookings RoomBooking[]
+
+  @@unique([buildingId, number])
+  @@map("room")
+}
+
+enum RoomBookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+model RoomBooking {
+  id          String            @id @default(cuid())
+  roomId      String
+  room        Room              @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     StudentProfile    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  startsAt    DateTime          @db.Timestamptz(6)
+  endsAt      DateTime          @db.Timestamptz(6)
+  purpose     String
+  status      RoomBookingStatus @default(CONFIRMED)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(6)
+  cancelledAt DateTime?         @db.Timestamptz(6)
+
+  @@index([roomId, startsAt])
+  @@index([studentId, startsAt])
+  @@map("room_booking")
+}
+

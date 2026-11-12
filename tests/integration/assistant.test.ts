@@ -6,6 +6,7 @@ import { formatRequestNumber } from "@/lib/requests/catalog";
 import { buildMyContext } from "@/server/ai/context";
 import { gigachatComplete, type ChatMessage } from "@/server/ai/gigachat";
 import { resetAssistantLimits } from "@/server/ai/limits";
+import { findFreeRooms } from "@/server/dal/rooms";
 import { prisma } from "@/server/db";
 import * as session from "@/server/session";
 import { actAs } from "./helpers";
@@ -43,7 +44,7 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   resetAssistantLimits();
-  vi.mocked(gigachatComplete).mockReset().mockResolvedValue("Ответ.");
+  vi.mocked(gigachatComplete).mockReset().mockResolvedValue({ content: "Ответ." });
 });
 afterAll(() => prisma.$disconnect());
 
@@ -108,10 +109,44 @@ describe("POST /api/assistant", () => {
 
   it("ответ модели: чужие и внешние ссылки вырезаются, кеширование запрещено", async () => {
     await as("alina.lebedeva");
-    vi.mocked(gigachatComplete).mockResolvedValue("См. [баллы](/grades), [фишинг](https://evil.example) и [чужое](/requests/not-mine).");
+    vi.mocked(gigachatComplete).mockResolvedValue({ content: "См. [баллы](/grades), [фишинг](https://evil.example) и [чужое](/requests/not-mine)." });
     const res = await ask(question());
     expect(res.headers.get("cache-control")).toBe("private, no-store");
     expect((await res.json()).answer).toBe("См. [баллы](/grades), фишинг и чужое.");
+  });
+
+  it("функция find_free_rooms: ответ собирает сервер из точных интервалов, без чужих студентов и целей броней", async () => {
+    const day = new Date(Date.now() + 86_400_000 + 3 * 3_600_000).toISOString().slice(0, 10);
+    await as("alina.lebedeva");
+    vi.mocked(gigachatComplete).mockResolvedValueOnce({ content: "", functionCall: { name: "find_free_rooms", arguments: { day, after: "15:00", building: "kronv" } } });
+    const res = await ask(question("Где свободно завтра после 15?"));
+    expect(res.status).toBe(200);
+    const { answer } = (await res.json()) as { answer: string };
+    expect(vi.mocked(gigachatComplete)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(gigachatComplete).mock.calls[0][1].functions?.[0].name).toBe("find_free_rooms");
+    expect(answer).toMatch(/^Свободно /);
+    // Каждая строка — аудитория главного корпуса со ссылкой и интервалами не раньше 15:00.
+    const rows = answer.split("\n").filter((l) => l.startsWith("- "));
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row).toMatch(/\]\(\/rooms\/kronv\?room=\d{4}&d=\d{4}-\d{2}-\d{2}#room\)/);
+      for (const [, t] of row.matchAll(/(\d{2}:\d{2})–/g)) expect(t >= "15:00").toBe(true);
+    }
+    for (const b of await prisma.roomBooking.findMany({ select: { purpose: true }, distinct: ["purpose"] })) expect(answer).not.toContain(b.purpose);
+  });
+
+  it("find_free_rooms: интервалы только по сетке брони (ревью Codex 19)", async () => {
+    const day = new Date(Date.now() + 2 * 86_400_000 + 3 * 3_600_000).toISOString().slice(0, 10);
+    await as("alina.lebedeva");
+    const r = await findFreeRooms({ day, after: "09:15", before: "10:15", minMinutes: 60 });
+    expect("rooms" in r ? r.rooms?.flatMap((x) => x.free) : null).toEqual([]);
+    expect(await findFreeRooms({ day, after: "99:99" })).toEqual({ error: "Неверные параметры поиска" });
+  });
+
+  it("find_free_rooms с датой вне окна брони — отказ без вычислений", async () => {
+    await as("alina.lebedeva");
+    vi.mocked(gigachatComplete).mockResolvedValueOnce({ content: "", functionCall: { name: "find_free_rooms", arguments: { day: "2030-01-01" } } });
+    expect((await (await ask(question("Где свободно в 2030?"))).json()).answer).toContain("только на 7 дней");
   });
 
   it("без Origin, с чужим или null Origin — 403, модель не вызывается", async () => {

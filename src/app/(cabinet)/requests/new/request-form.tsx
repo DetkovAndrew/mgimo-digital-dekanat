@@ -7,7 +7,7 @@ import { submitRequest, type FormState } from "../actions";
 const inputClass =
   "w-full rounded-xl border border-field bg-surface px-3 py-2.5 outline-none focus:border-brand focus:ring-2 focus:ring-brand/20";
 
-export function RequestForm({ type, fields }: { type: string; fields: FieldSpec[] }) {
+export function RequestForm({ type, fields, defaults = {} }: { type: string; fields: FieldSpec[]; defaults?: Record<string, string> }) {
   const [state, action, pending] = useActionState<FormState, FormData>(submitRequest.bind(null, type), {});
 
   return (
@@ -29,9 +29,9 @@ export function RequestForm({ type, fields }: { type: string; fields: FieldSpec[
               {f.optional && <span className="font-normal text-ink-3"> (необязательно)</span>}
             </label>
             {f.kind === "textarea" ? (
-              <textarea rows={4} {...common} />
+              <textarea rows={4} defaultValue={defaults[f.name]} {...common} />
             ) : f.kind === "select" ? (
-              <select {...common} defaultValue="">
+              <select {...common} defaultValue={defaults[f.name] ?? ""}>
                 <option value="" disabled>
                   Выберите…
                 </option>
@@ -42,7 +42,7 @@ export function RequestForm({ type, fields }: { type: string; fields: FieldSpec[
                 ))}
               </select>
             ) : (
-              <input type={f.kind === "text" ? "text" : f.kind} min={f.kind === "number" ? 1 : undefined} {...common} />
+              <input type={f.kind === "text" ? "text" : f.kind} min={f.kind === "number" ? 1 : undefined} defaultValue={defaults[f.name]} {...common} />
             )}
             {f.hint && !error && <p className="mt-1 text-xs text-ink-2">{f.hint}</p>}
             {error && (
