@@ -2,9 +2,11 @@
 
 import { ArrowLeft, ArrowRight, ArrowUp, CornerUpLeft, CornerUpRight, DoorOpen, Flag, LogIn, type LucideIcon, RotateCcw, Undo2, X } from "lucide-react";
 import Link from "next/link";
-import { createContext, type KeyboardEvent, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { createContext, type KeyboardEvent, type ReactNode, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Pt } from "@/lib/campus/plans";
 import { climbEnd, climbStart, type RouteLeg, type RouteStep, type StepKind } from "@/lib/campus/route";
+import type { Achievements } from "@/server/dal/achievements";
+import { MASCOTS, MascotFigure, MascotIcon, type MascotId } from "./mascots";
 import { Stairs } from "./stairs-icon";
 
 // Маршрут по шагам (docs/plans/indoor-route.md): «Дальше» листает шаги, схема сама переключает этаж и плавно
@@ -12,7 +14,54 @@ import { Stairs } from "./stairs-icon";
 
 export type RouteData = { legs: RouteLeg[]; steps: RouteStep[]; meters: number };
 type View = { w: number; h: number };
-type Ctx = { route: RouteData; views: Record<number, View>; step: number; setStep: (i: number) => void; shown: number; showFloor: (f: number | null) => void; calm: boolean };
+type Ctx = {
+  route: RouteData;
+  views: Record<number, View>;
+  step: number;
+  setStep: (i: number) => void;
+  shown: number;
+  showFloor: (f: number | null) => void;
+  calm: boolean;
+  mascot: MascotId;
+  openPicker: () => void;
+};
+
+// Попутчик и счётчик пройденных маршрутов: удобство одного браузера (localStorage). Без хранилища (приватный режим)
+// значения живут в памяти вкладки. На сервере и при гидрации — значения по умолчанию (useSyncExternalStore).
+const MASCOT_KEY = "campus-mascot";
+const DONE_KEY = "campus-routes-done";
+const memory = new Map<string, string>();
+const listeners = new Set<() => void>();
+const readLocal = (key: string) => {
+  try {
+    return window.localStorage.getItem(key) ?? memory.get(key) ?? null;
+  } catch {
+    return memory.get(key) ?? null;
+  }
+};
+const writeLocal = (key: string, value: string) => {
+  memory.set(key, value);
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // хранилище недоступно: остаётся значение в памяти
+  }
+  listeners.forEach((l) => l());
+};
+const subscribe = (cb: () => void) => {
+  listeners.add(cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    listeners.delete(cb);
+    window.removeEventListener("storage", cb);
+  };
+};
+const useLocal = (key: string, fallback: string) =>
+  useSyncExternalStore(
+    subscribe,
+    () => readLocal(key) ?? fallback,
+    () => fallback,
+  );
 
 const RouteCtx = createContext<Ctx | null>(null);
 const useRoute = () => useContext(RouteCtx);
@@ -30,23 +79,125 @@ function useReducedMotion() {
 }
 
 /** Состояние плеера для схемы и шагов. Без маршрута (route = null) просто отдаёт содержимое. */
-export function RouteProvider({ route, views, children }: { route: RouteData | null; views: Record<number, View>; children: ReactNode }) {
+export function RouteProvider({ route, views, achievements, children }: { route: RouteData | null; views: Record<number, View>; achievements: Achievements; children: ReactNode }) {
   const [step, setStepRaw] = useState(0);
   const [manual, setManual] = useState<number | null>(null);
+  const saved = useLocal(MASCOT_KEY, "claude");
+  const mascot: MascotId = MASCOTS.some((m) => m.id === saved) ? (saved as MascotId) : "claude";
+  const done = Number(useLocal(DONE_KEY, "0")) || 0;
+  const [picking, setPicking] = useState(false);
+  const counted = useRef(false);
   const calm = useReducedMotion();
-  if (!route) return children;
-  const setStep = (i: number) => {
-    setStepRaw(Math.max(0, Math.min(route.steps.length - 1, i)));
-    setManual(null); // у шага свой этаж
+  const unlocked = (id: MascotId) => {
+    const m = MASCOTS.find((x) => x.id === id)!;
+    return !m.unlock || (m.unlock === "navigator" ? done >= 3 : achievements[m.unlock]);
   };
-  const shown = manual ?? route.steps[Math.min(step, route.steps.length - 1)].floor;
-  return <RouteCtx value={{ route, views, step: Math.min(step, route.steps.length - 1), setStep, shown, showFloor: setManual, calm }}>{children}</RouteCtx>;
+  if (!route) return children;
+  const last = route.steps.length - 1;
+  const setStep = (i: number) => {
+    const next = Math.max(0, Math.min(last, i));
+    setStepRaw(next);
+    setManual(null); // у шага свой этаж
+    // Дошли до конца — маршрут засчитан (один раз за открытый маршрут) для ачивки «Навигатор».
+    if (next === last && !counted.current) {
+      counted.current = true;
+      writeLocal(DONE_KEY, String(done + 1));
+    }
+  };
+  const current = Math.min(step, last);
+  const shown = manual ?? route.steps[current].floor;
+  const choose = (id: MascotId) => {
+    if (!unlocked(id)) return;
+    writeLocal(MASCOT_KEY, id);
+  };
+  return (
+    <RouteCtx value={{ route, views, step: current, setStep, shown, showFloor: setManual, calm, mascot: unlocked(mascot) ? mascot : "claude", openPicker: () => setPicking(true) }}>
+      {children}
+      {picking && <MascotPicker current={mascot} unlocked={unlocked} done={done} onChoose={choose} onClose={() => setPicking(false)} />}
+    </RouteCtx>
+  );
+}
+
+/** Окно выбора попутчика (правая кнопка мыши по схеме, долгое нажатие или кнопка «Попутчик» в плеере). */
+function MascotPicker({ current, unlocked, done, onChoose, onClose }: { current: MascotId; unlocked: (id: MascotId) => boolean; done: number; onChoose: (id: MascotId) => void; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (d && !d.open) d.showModal();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      aria-labelledby="mascot-title"
+      onClose={onClose}
+      onClick={(e) => e.target === e.currentTarget && ref.current?.close()}
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(26rem,calc(100%-2rem))] overflow-y-auto rounded-3xl bg-surface p-0 text-ink ring-1 ring-hairline backdrop:bg-ink/30"
+    >
+      <div className="p-4 md:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 id="mascot-title" className="text-lead font-semibold">
+              Кто пойдёт с вами
+            </h2>
+            <p className="text-sm text-ink-2">Попутчик шагает по маршруту. Некоторых открывают ачивки.</p>
+          </div>
+          <button type="button" onClick={() => ref.current?.close()} aria-label="Закрыть" className="-mt-1 -mr-1 grid size-11 shrink-0 place-items-center rounded-full text-ink-2 hover:bg-fill">
+            <X aria-hidden className="size-5" />
+          </button>
+        </div>
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+          {MASCOTS.map((m) => {
+            const open = unlocked(m.id);
+            const on = m.id === current;
+            return (
+              <li key={m.id}>
+                <button
+                  type="button"
+                  disabled={!open}
+                  aria-pressed={on}
+                  onClick={() => {
+                    onChoose(m.id);
+                    ref.current?.close();
+                  }}
+                  className={`flex min-h-16 w-full items-center gap-2 rounded-2xl p-2 text-left ring-1 transition ${
+                    on ? "bg-brand-soft ring-brand" : open ? "bg-page ring-hairline hover:bg-fill" : "bg-page ring-hairline"
+                  }`}
+                >
+                  <span className={open ? "" : "grayscale"}>
+                    <MascotIcon id={m.id} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">{m.name}</span>
+                    <span className="block text-xs text-ink-2">
+                      {open ? m.about : `Откроется: ${m.hint}${m.unlock === "navigator" ? ` (${Math.min(done, 3)} из 3)` : ""}`}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </dialog>
+  );
 }
 
 /** Схема этажа видна, только когда на нём шаг (или этаж выбран вручную). Схемы всех этажей отрисованы сервером. */
 export function RouteFloor({ floor, children }: { floor: number; children: ReactNode }) {
   const ctx = useRoute();
-  return <div hidden={!!ctx && ctx.shown !== floor}>{children}</div>;
+  // Пасхалка: правая кнопка мыши (или долгое нажатие) по схеме открывает выбор попутчика.
+  return (
+    <div
+      hidden={!!ctx && ctx.shown !== floor}
+      onContextMenu={(e) => {
+        if (!ctx) return;
+        e.preventDefault();
+        ctx.openPicker();
+      }}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function RouteFloorTabs({ floors }: { floors: number[] }) {
@@ -79,8 +230,25 @@ export function RouteFloorTabs({ floors }: { floors: number[] }) {
 
 // ─── Слой на схеме ─────────────────────────────────────────────────────────────────────────────────────────
 const f1 = (n: number) => n.toFixed(1);
-const line = (pts: Pt[]) => pts.map((p) => `${f1(p[0])},${f1(p[1])}`).join(" ");
-const pathD = (pts: Pt[]) => `M${pts.map((p) => `${f1(p[0])},${f1(p[1])}`).join("L")}`;
+/**
+ * Линия маршрута со скруглёнными поворотами: на каждом изломе — дуга радиусом до 14 (не больше половины соседних
+ * отрезков). По этой же линии идёт попутчик.
+ */
+function curve(pts: Pt[], r = 14) {
+  if (pts.length < 3) return `M${pts.map((p) => `${f1(p[0])},${f1(p[1])}`).join("L")}`;
+  let d = `M${f1(pts[0][0])},${f1(pts[0][1])}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [a, v, b] = [pts[i - 1], pts[i], pts[i + 1]];
+    const la = Math.hypot(v[0] - a[0], v[1] - a[1]);
+    const lb = Math.hypot(b[0] - v[0], b[1] - v[1]);
+    const k = Math.min(r, la / 2, lb / 2);
+    const p1: Pt = [v[0] - ((v[0] - a[0]) * k) / la, v[1] - ((v[1] - a[1]) * k) / la];
+    const p2: Pt = [v[0] + ((b[0] - v[0]) * k) / lb, v[1] + ((b[1] - v[1]) * k) / lb];
+    d += `L${f1(p1[0])},${f1(p1[1])}Q${f1(v[0])},${f1(v[1])} ${f1(p2[0])},${f1(p2[1])}`;
+  }
+  const z = pts.at(-1)!;
+  return `${d}L${f1(z[0])},${f1(z[1])}`;
+}
 const lengthOf = (pts: Pt[]) => pts.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]), 0);
 
 const FRAME = 4 / 3; // кадр схемы в режиме маршрута (CampusMap wide)
@@ -96,6 +264,24 @@ function focusBox(pts: Pt[], v: View): [number, number, number, number] {
   const x = w >= v.w ? (v.w - w) / 2 : Math.min(Math.max(cx - w / 2, 0), v.w - w);
   const y = h >= v.h ? (v.h - h) / 2 : Math.min(Math.max(cy - h / 2, 0), v.h - h);
   return [x, y, w, h];
+}
+
+/**
+ * Попутчик на схеме: идёт по участку шага (animateMotion по той же скруглённой линии), прыгает на лестнице,
+ * радуется у двери. Стоит ступнями на линии; точка — по центру линии.
+ */
+function Walker({ mascot, at, motion, mood }: { mascot: MascotId; at?: Pt; motion?: { d: string; dur: number }; mood: "walk" | "hop" | "cheer" | "still" }) {
+  const lift = mascot === "dot" ? 0 : -8;
+  return (
+    <g transform={at ? `translate(${f1(at[0])} ${f1(at[1])})` : undefined}>
+      {motion && <animateMotion dur={`${motion.dur.toFixed(2)}s`} repeatCount="indefinite" path={motion.d} />}
+      <g transform={`translate(0 ${lift})`}>
+        <g className={mood === "still" ? "" : `mascot-${mood}`}>
+          <MascotFigure id={mascot} />
+        </g>
+      </g>
+    </g>
+  );
 }
 
 export function RouteLayer({ floor }: { floor: number }) {
@@ -151,7 +337,7 @@ export function RouteLayer({ floor }: { floor: number }) {
   }, [view]);
 
   if (!ctx || !current) return null;
-  const { route, calm } = ctx;
+  const { route, calm, mascot } = ctx;
   const steps = route.steps.map((s, i) => ({ ...s, i })).filter((s) => s.floor === floor);
   const legs = route.legs.map((l, i) => ({ ...l, i })).filter((l) => l.floor === floor);
   const pill = (at: Pt, text: string) => {
@@ -169,28 +355,33 @@ export function RouteLayer({ floor }: { floor: number }) {
 
   return (
     <g ref={ref} aria-hidden pointerEvents="none">
-      {/* Весь путь по этажу пунктиром. */}
+      {/* Весь путь по этажу пунктиром, повороты скруглены. */}
       {legs.map((l) =>
-        l.points.length > 1 ? <polyline key={`w${l.i}`} points={line(l.points)} strokeWidth={2.5} strokeDasharray="5 5" strokeLinecap="round" className="fill-none stroke-brand opacity-50" /> : null,
+        l.points.length > 1 ? <path key={`w${l.i}`} d={curve(l.points)} strokeWidth={2.5} strokeDasharray="5 5" strokeLinecap="round" className="fill-none stroke-brand opacity-50" /> : null,
       )}
       {/* Пройденные шаги сплошной линией. */}
       {steps
         .filter((s) => s.i < step && s.path.length > 1)
         .map((s) => (
-          <polyline key={`p${s.i}`} points={line(s.path)} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="fill-none stroke-brand" />
+          <path key={`p${s.i}`} d={curve(s.path)} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="fill-none stroke-brand" />
         ))}
-      {/* Текущий шаг: подложка, линия «прорисовывается», по ней бежит точка. */}
+      {/* Текущий шаг: подложка, линия «прорисовывается», по ней шагает попутчик. */}
       {current.floor === floor && current.path.length > 1 && (
         <g key={`c${step}`}>
-          <polyline points={line(current.path)} strokeWidth={10} strokeLinecap="round" strokeLinejoin="round" className="fill-none stroke-brand-soft" />
-          <polyline points={line(current.path)} pathLength={1} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" className={`fill-none stroke-brand ${calm ? "" : "route-draw"}`} />
-          <circle r={5} strokeWidth={2} cx={calm ? current.path.at(-1)![0] : 0} cy={calm ? current.path.at(-1)![1] : 0} className="fill-brand stroke-m-floor">
-            {!calm && <animateMotion dur={`${Math.max(1.2, lengthOf(current.path) / 90)}s`} repeatCount="indefinite" path={pathD(current.path)} />}
-          </circle>
+          <path d={curve(current.path)} strokeWidth={10} strokeLinecap="round" strokeLinejoin="round" className="fill-none stroke-brand-soft" />
+          <path d={curve(current.path)} pathLength={1} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" className={`fill-none stroke-brand ${calm ? "" : "route-draw"}`} />
+          {current.kind === "arrive" || calm ? (
+            <Walker mascot={mascot} at={current.path.at(-1)!} mood={current.kind === "arrive" && !calm ? "cheer" : "still"} />
+          ) : (
+            <Walker mascot={mascot} motion={{ d: curve(current.path), dur: Math.max(1.4, lengthOf(current.path) / 70) }} mood="walk" />
+          )}
         </g>
       )}
       {current.floor === floor && current.path.length === 1 && (
-        <circle key={`d${step}`} cx={current.path[0][0]} cy={current.path[0][1]} r={8} strokeWidth={3} className={`fill-brand-soft stroke-brand ${calm ? "" : "route-pulse"}`} />
+        <g key={`d${step}`}>
+          <circle cx={current.path[0][0]} cy={current.path[0][1]} r={8} strokeWidth={3} className={`fill-brand-soft stroke-brand ${calm ? "" : "route-pulse"}`} />
+          <Walker mascot={mascot} at={current.path[0]} mood={calm ? "still" : "hop"} />
+        </g>
       )}
       {/* Старт, финиш и лестницы. */}
       {legs.map(({ points, i }) => {
@@ -296,6 +487,12 @@ export function RoutePlayer({ target, fromEntrance, closeHref, origins, other }:
         <p className="text-sm text-ink-2">Около {route.meters}&nbsp;м. Маршрут и расстояния примерные.</p>
         {origins}
       </div>
+
+      {/* Попутчик: то же, что правая кнопка мыши по схеме, но доступно с клавиатуры и пальцем. */}
+      <button type="button" onClick={ctx.openPicker} className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-xl text-sm font-medium text-brand">
+        <MascotIcon id={ctx.mascot} size={28} />
+        Попутчик: {MASCOTS.find((m) => m.id === ctx.mascot)!.name}
+      </button>
 
       {/* Все шаги списком: текстовая версия маршрута и быстрый переход к любому шагу. */}
       <details className="group mt-3">

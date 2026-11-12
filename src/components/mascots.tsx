@@ -1,0 +1,133 @@
+// Пасхалка: попутчик, который идёт по маршруту внутри корпуса. Фигурки: собственные рисунки в цветах темы
+// (токены --m-*, --brand…), центр в (0, 0), ступни на y ≈ 10. Часть открывается ачивками (src/server/dal/achievements.ts).
+import type { Achievements } from "@/server/dal/achievements";
+
+export type MascotId = "claude" | "codex" | "dot" | "owl" | "runner" | "rocket" | "cat" | "compass";
+/** Чем открывается: ачивка с сервера, «навигатор» (дошёл до конца трёх маршрутов, считает браузер) или ничем. */
+export type Unlock = keyof Achievements | "navigator" | null;
+
+export const MASCOTS: { id: MascotId; name: string; about: string; unlock: Unlock; hint?: string }[] = [
+  { id: "claude", name: "Искорка", about: "Оранжевый помощник с искоркой", unlock: null },
+  { id: "codex", name: "Терминал", about: "Командная строка на ножках", unlock: null },
+  { id: "dot", name: "Точка", about: "Просто точка, без лишнего", unlock: null },
+  { id: "owl", name: "Сова", about: "Для круглых отличников", unlock: "excellent", hint: "все оценки прошлой сессии «5»" },
+  { id: "runner", name: "Бегун", about: "Набрал 60 баллов по физкультуре", unlock: "sport60", hint: "60 баллов по физкультуре за семестр" },
+  { id: "rocket", name: "Ракета", about: "Максимум по физкультуре", unlock: "sport100", hint: "все 100 баллов по физкультуре" },
+  { id: "cat", name: "Кот", about: "Любит тихие коворкинги", unlock: "booker", hint: "забронировать аудиторию" },
+  { id: "compass", name: "Компас", about: "Знает корпус наизусть", unlock: "navigator", hint: "дойти до конца трёх маршрутов" },
+];
+
+const Legs = ({ className, y = 6, xs = [-6, -2, 2, 6] }: { className: string; y?: number; xs?: number[] }) => (
+  <>
+    {xs.map((x, i) => (
+      <rect key={i} x={x - 1} y={y} width={2} height={4} rx={0.6} className={`${className} ${i % 2 ? "mascot-leg-b" : "mascot-leg-a"}`} />
+    ))}
+  </>
+);
+const Eyes = ({ y = -2, dx = 3.2, r = 1.3 }: { y?: number; dx?: number; r?: number }) => (
+  <>
+    <circle cx={-dx} cy={y} r={r} className="fill-m-ic-exit" />
+    <circle cx={dx} cy={y} r={r} className="fill-m-ic-exit" />
+  </>
+);
+
+/** Фигурка попутчика. Анимация шага в классах mascot-*, их выключает prefers-reduced-motion (globals.css). */
+export function MascotFigure({ id }: { id: MascotId }) {
+  switch (id) {
+    case "claude":
+      return (
+        <g>
+          <Legs className="fill-m-ic-food" />
+          <rect x={-11} y={-4} width={3} height={4} rx={1} className="fill-m-ic-food" />
+          <rect x={8} y={-4} width={3} height={4} rx={1} className="fill-m-ic-food" />
+          <rect x={-8.5} y={-9} width={17} height={16} rx={3.5} className="fill-m-ic-food" />
+          <rect x={-5} y={-4.5} width={2.4} height={4} rx={1} className="fill-m-ic-exit" />
+          <rect x={2.6} y={-4.5} width={2.4} height={4} rx={1} className="fill-m-ic-exit" />
+          {/* Искорка на макушке */}
+          <path d="M0 -15.5V-10.5M-2.5 -13H2.5M-1.8 -14.8L1.8 -11.2M1.8 -14.8L-1.8 -11.2" strokeWidth={1.3} strokeLinecap="round" className="mascot-spark stroke-m-ic-food" />
+        </g>
+      );
+    case "codex":
+      return (
+        <g>
+          <Legs className="fill-m-ic-exit" />
+          <rect x={-9.5} y={-10} width={19} height={16.5} rx={3} className="fill-m-ic-exit" />
+          <rect x={-7.5} y={-8} width={15} height={11} rx={1.5} className="fill-ink" />
+          <path d="M-5 -5.5L-2.5 -2.8L-5 -0.2" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" className="fill-none stroke-ok" />
+          <rect x={-1} y={-0.9} width={4.5} height={1.3} rx={0.5} className="mascot-cursor fill-ok" />
+        </g>
+      );
+    case "dot":
+      return <circle r={5.5} strokeWidth={2} className="fill-brand stroke-m-floor" />;
+    case "owl":
+      return (
+        <g>
+          <Legs className="fill-m-ic-food" xs={[-3, 3]} y={7} />
+          <ellipse rx={8.5} ry={9.5} cy={-1} className="fill-m-ic-book" />
+          <ellipse rx={5.5} ry={5} cy={3} className="fill-m-hall" />
+          <circle cx={-3.6} cy={-3.5} r={3.2} className="fill-m-ic-glyph" />
+          <circle cx={3.6} cy={-3.5} r={3.2} className="fill-m-ic-glyph" />
+          <Eyes y={-3.5} dx={3.6} r={1.5} />
+          <path d="M-1.2 -1.2L1.2 -1.2L0 1z" className="fill-m-ic-food" />
+          {/* Академическая шапочка */}
+          <path d="M-8 -11L0 -14.5L8 -11L0 -7.5z" className="fill-m-ic-exit" />
+          <path d="M6 -10.5V-7" strokeWidth={1} className="stroke-m-ic-food" />
+        </g>
+      );
+    case "runner":
+      return (
+        <g>
+          <rect x={-6} y={7} width={5} height={3} rx={1.2} className="mascot-leg-a fill-m-ic-glyph stroke-m-ic-exit" strokeWidth={0.8} />
+          <rect x={1} y={7} width={5} height={3} rx={1.2} className="mascot-leg-b fill-m-ic-glyph stroke-m-ic-exit" strokeWidth={0.8} />
+          <circle r={9} cy={-1} className="fill-brand" />
+          <rect x={-9} y={-7} width={18} height={3} className="fill-bad-fill" />
+          <circle cx={-3.2} cy={-0.5} r={1.9} className="fill-m-ic-glyph" />
+          <circle cx={3.2} cy={-0.5} r={1.9} className="fill-m-ic-glyph" />
+          <Eyes y={-0.5} r={1} />
+        </g>
+      );
+    case "rocket":
+      return (
+        <g>
+          <path d="M-3 7Q0 15 3 7z" className="mascot-flame fill-m-ic-food" />
+          <path d="M-6 3L-9 8L-4 6zM6 3L9 8L4 6z" className="fill-bad-fill" />
+          <path d="M0 -15C6 -9 6 0 4 7H-4C-6 0 -6 -9 0 -15z" strokeWidth={1} className="fill-m-ic-glyph stroke-m-ic-exit" />
+          <circle cy={-4} r={2.6} strokeWidth={1} className="fill-brand stroke-m-ic-exit" />
+        </g>
+      );
+    case "cat":
+      return (
+        <g>
+          <Legs className="fill-m-ic-stairs" xs={[-4, 4]} y={7} />
+          <path d="M8 4Q14 2 12 -5" strokeWidth={2} strokeLinecap="round" className="mascot-tail fill-none stroke-m-ic-stairs" />
+          <path d="M-8 -6L-7 -13L-2.5 -8.5zM8 -6L7 -13L2.5 -8.5z" className="fill-m-ic-stairs" />
+          <ellipse rx={8.5} ry={8} cy={-1} className="fill-m-ic-stairs" />
+          <circle cx={-3.2} cy={-2.5} r={1.9} className="fill-m-ic-glyph" />
+          <circle cx={3.2} cy={-2.5} r={1.9} className="fill-m-ic-glyph" />
+          <Eyes y={-2.5} r={1} />
+          <path d="M-1 0.6H1L0 1.8z" className="fill-m-wc stroke-m-ic-wc" strokeWidth={0.5} />
+        </g>
+      );
+    case "compass":
+      return (
+        <g>
+          <Legs className="fill-m-ic-exit" xs={[-3, 3]} y={7} />
+          <circle r={9} cy={-1} strokeWidth={2} className="fill-m-ic-glyph stroke-brand" />
+          <g className="mascot-needle">
+            <path d="M0 -8L2 -1H-2z" className="fill-bad-fill" />
+            <path d="M0 6L2 -1H-2z" className="fill-brand" />
+          </g>
+          <circle cy={-1} r={1.2} className="fill-m-ic-exit" />
+        </g>
+      );
+  }
+}
+
+/** Превью для окна выбора и кнопки: отдельный маленький SVG. */
+export function MascotIcon({ id, size = 40 }: { id: MascotId; size?: number }) {
+  return (
+    <svg aria-hidden width={size} height={size} viewBox="-16 -18 32 32" className="shrink-0 overflow-visible">
+      <MascotFigure id={id} />
+    </svg>
+  );
+}

@@ -13,7 +13,8 @@ export type Route = { legs: RouteLeg[]; transfers: RouteTransfer[]; steps: Route
 const CELL = 2; // шаг сетки в единицах схемы
 const METERS_PER_UNIT = 0.15; // коридор 16 единиц ≈ 2,4 м
 const STAIR_COST = 120; // «длина» одного пролёта лестницы для поиска
-const MAX_EXPANDED = 400_000;
+const MAX_EXPANDED = 1_600_000; // состояний (клетка × направление)
+const TURN_COST = 10; // штраф за поворот: без него в холлах путь идёт «лесенкой»
 const inRect = (r: Rect, x: number, y: number) => x > r[0] && x < r[2] && y > r[1] && y < r[3];
 const overlaps = (a: Rect, b: Rect) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
 
@@ -58,7 +59,8 @@ function buildGrid(plan: PlanBuilding, floor: number): Grid {
     }
   }
   const weight = new Float32Array(cols * rows);
-  dist.forEach((d, k) => (weight[k] = ok[k] ? 1 + 2.5 / Math.max(1, d) : Infinity));
+  // Сильнее держимся середины: у стены шаг втрое дороже, в середине коридора почти без надбавки.
+  dist.forEach((d, k) => (weight[k] = ok[k] ? 1 + 6 / Math.max(1, d) : Infinity));
   return { floor, cols, rows, ok, dist, weight, geo };
 }
 
@@ -210,52 +212,60 @@ function search(plan: PlanBuilding, from: Anchor, to: Anchor): Node[] | null {
         shift = Math.max(shift, segLen(a.at, b.at));
       }
 
+  // Ходим только вдоль осей (как по коридорам), за поворот — штраф: линия идёт по середине и не «лесенкой».
+  // Состояние — клетка и направление, с которым в неё пришли: s = клетка * 4 + направление.
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
   const h = (n: Node) => {
     const [x, y] = centerOf(gs[fi(n.floor)], n.cell);
     const floorsLeft = Math.abs(fi(n.floor) - fi(to.floor));
-    return Math.max(0, Math.hypot(x - goalPt[0], y - goalPt[1]) - floorsLeft * shift) + floorsLeft * STAIR_COST;
+    return Math.max(0, Math.abs(x - goalPt[0]) + Math.abs(y - goalPt[1]) - floorsLeft * shift * 2) + floorsLeft * STAIR_COST;
   };
-  const best = new Float64Array(total).fill(Infinity);
-  const prev = new Int32Array(total).fill(-1);
-  const start = id({ floor: from.floor, cell: startCell });
-  best[start] = 0;
+  const best = new Float32Array(total * 4).fill(Infinity);
+  const prev = new Int32Array(total * 4).fill(-1);
+  const closed = new Uint8Array(total * 4);
   const heap = new Heap();
-  heap.push(start, h(unpack(start)));
-  const closed = new Uint8Array(total);
-  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const;
+  const start = id({ floor: from.floor, cell: startCell });
+  for (let d = 0; d < 4; d++) {
+    best[start * 4 + d] = 0;
+    heap.push(start * 4 + d, h(unpack(start)));
+  }
 
   let expanded = 0;
+  let reached = -1;
   while (heap.size) {
-    const k = heap.pop();
-    if (closed[k]) continue;
-    closed[k] = 1;
+    const st = heap.pop();
+    if (closed[st]) continue;
+    closed[st] = 1;
     if (++expanded > MAX_EXPANDED) return null; // предел работы на запрос: схема маленькая, сюда не доходим
-    if (k === goal) break;
+    const k = st >> 2;
+    const dir = st & 3;
+    if (k === goal) {
+      reached = st;
+      break;
+    }
     const n = unpack(k);
     const g = gs[fi(n.floor)];
     const [i, j] = [n.cell % g.cols, Math.floor(n.cell / g.cols)];
     const relax = (to: number, cost: number) => {
-      const c = best[k] + cost;
+      const c = best[st] + cost;
       if (c < best[to]) {
         best[to] = c;
-        prev[to] = k;
-        heap.push(to, c + h(unpack(to)));
+        prev[to] = st;
+        heap.push(to, c + h(unpack(to >> 2)));
       }
     };
-    for (const [di, dj] of dirs) {
+    DIRS.forEach(([di, dj], d) => {
       const [a, b] = [i + di, j + dj];
-      if (a < 0 || b < 0 || a >= g.cols || b >= g.rows) continue;
+      if (a < 0 || b < 0 || a >= g.cols || b >= g.rows) return;
       const cell = b * g.cols + a;
-      if (!g.ok[cell]) continue;
-      // По диагонали — только если не срезаем угол стены.
-      if (di && dj && (!g.ok[j * g.cols + a] || !g.ok[b * g.cols + i])) continue;
-      relax(offset[fi(n.floor)] + cell, (di && dj ? Math.SQRT2 : 1) * CELL * ((g.weight[n.cell] + g.weight[cell]) / 2));
-    }
-    for (const l of links.get(k) ?? []) relax(l.to, STAIR_COST);
+      if (!g.ok[cell]) return;
+      relax((offset[fi(n.floor)] + cell) * 4 + d, CELL * ((g.weight[n.cell] + g.weight[cell]) / 2) + (d === dir ? 0 : TURN_COST));
+    });
+    for (const l of links.get(k) ?? []) relax(l.to * 4 + dir, STAIR_COST);
   }
-  if (prev[goal] === -1 && goal !== start) return null;
+  if (reached === -1) return null;
   const path: Node[] = [];
-  for (let k = goal; k !== -1; k = prev[k]) path.push(unpack(k));
+  for (let st = reached; st !== -1; st = prev[st]) path.push(unpack(st >> 2));
   return path.reverse();
 }
 
@@ -340,9 +350,13 @@ function stepsFor(plan: PlanBuilding, from: Anchor, to: Anchor, legs: RouteLeg[]
   ];
   // Начальное направление — от двери (или входа) внутрь: «выйдите и поверните налево» понятнее, чем просто «идите».
   let heading: Pt | null = unit(from.wall, from.out);
+  // Конец пути в шагах — место, где сворачиваем к двери: короткий подход от середины коридора к двери не шаг.
+  const fl = legs.at(-1)!.points;
+  let e = fl.length - 2;
+  while (e > 0 && segLen(fl[e - 1], fl[e]) < 12) e--;
   legs.forEach((leg, li) => {
-    // Последний отрезок к двери аудитории в шаги не входит: о ней скажет финиш.
-    const pts = li === legs.length - 1 ? leg.points.slice(0, -1) : leg.points;
+    // Подход к двери аудитории в шаги не входит: о ней скажет финиш.
+    const pts = li === legs.length - 1 ? leg.points.slice(0, e + 1) : leg.points;
     for (const g of groupsOf(plan, plan.floor(leg.floor), pts)) {
       if (g.len < 6) continue;
       // Поворот — между направлением, с которым подошли, и первым заметным отрезком участка (шаг из двери не в счёт).
@@ -373,45 +387,26 @@ function stepsFor(plan: PlanBuilding, from: Anchor, to: Anchor, legs: RouteLeg[]
     }
   });
   // Финиш: дверь слева или справа по ходу движения.
-  const last = legs.at(-1)!.points;
-  const end = last.at(-2) ?? last[0];
-  const dir = heading ?? ([0, 0] as Pt);
+  const end = fl[e];
+  const dir: Pt = e > 0 ? unit(fl[e - 1], fl[e]) : (heading ?? [0, 0]);
   const toDoor: Pt = [to.wall[0] - end[0], to.wall[1] - end[1]];
   const cross = dir[0] * toDoor[1] - dir[1] * toDoor[0];
   const ahead = dir[0] * toDoor[0] + dir[1] * toDoor[1];
   // Направление ненадёжно (сразу после лестницы или дверь рядом): не гадаем со стороной.
   const side = !heading || segLen([0, 0], toDoor) < 1 ? "рядом" : Math.abs(cross) < Math.abs(ahead) * 0.5 ? "прямо по ходу" : cross > 0 ? "справа" : "слева";
   const name = `${to.label[0].toUpperCase()}${to.label.slice(1)}`;
-  steps.push({ floor: to.floor, kind: "arrive", text: to.door ? `${name} ${side}` : name, path: [end, to.wall] });
+  steps.push({ floor: to.floor, kind: "arrive", text: to.door ? `${name} ${side}` : name, path: fl.slice(e) });
   return steps;
 }
 
-// ─── Сглаживание: прямая между точками пути, если она не ближе к стенам, чем исходный путь ─────────────────
-function smooth(g: Grid, cells: number[]): Pt[] {
-  if (cells.length < 3) return cells.map((c) => centerOf(g, c));
-  const clear = (a: number, b: number, need: number) => {
-    const [p, q] = [centerOf(g, a), centerOf(g, b)];
-    const n = Math.ceil(segLen(p, q) / (CELL / 2));
-    for (let t = 0; t <= n; t++) {
-      const [x, y] = [p[0] + ((q[0] - p[0]) * t) / n, p[1] + ((q[1] - p[1]) * t) / n];
-      const k = Math.floor(y / CELL) * g.cols + Math.floor(x / CELL);
-      if (!g.ok[k] || g.dist[k] < need) return false;
-    }
-    return true;
-  };
-  const out = [cells[0]];
-  for (let i = 0; i < cells.length - 1; ) {
-    let j = i + 1;
-    let need = Math.min(g.dist[cells[i]], g.dist[cells[j]]);
-    for (let k = i + 2; k < cells.length; k++) {
-      const req = Math.min(need, g.dist[cells[k]], 4);
-      if (!clear(cells[i], cells[k], req)) break;
-      [j, need] = [k, Math.min(need, g.dist[cells[k]])];
-    }
-    out.push(cells[j]);
-    i = j;
-  }
-  return out.map((c) => centerOf(g, c));
+// ─── Упрощение: путь по осям сжимается до точек поворота (скругляет их уже отрисовка) ─────────────────────
+function corners(g: Grid, cells: number[]): Pt[] {
+  const pts = cells.map((c) => centerOf(g, c));
+  return pts.filter((p, i) => {
+    if (i === 0 || i === pts.length - 1) return true;
+    const [a, b] = [pts[i - 1], pts[i + 1]];
+    return !((a[0] === p[0] && p[0] === b[0]) || (a[1] === p[1] && p[1] === b[1])); // не на прямой
+  });
 }
 
 /** Маршрут между входом или аудиторией и аудиторией в одном корпусе. null — если конец не найден или пути нет. */
@@ -430,7 +425,7 @@ export function findRoute(buildingId: string, from: RouteEnd, to: RouteEnd): Rou
     if (part && part.floor === n.floor) part.cells.push(n.cell);
     else parts.push({ floor: n.floor, cells: [n.cell] });
   }
-  const legs: RouteLeg[] = parts.map((p) => ({ floor: p.floor, points: smooth(gridOf(plan, p.floor), p.cells) }));
+  const legs: RouteLeg[] = parts.map((p) => ({ floor: p.floor, points: corners(gridOf(plan, p.floor), p.cells) }));
   const transfers: RouteTransfer[] = legs.slice(0, -1).map((l, i) => ({ floor: l.floor, at: l.points.at(-1)!, toFloor: legs[i + 1].floor }));
   legs[0].points.unshift(a.wall);
   legs.at(-1)!.points.push(b.wall);

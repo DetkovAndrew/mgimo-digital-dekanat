@@ -363,3 +363,80 @@ body {
     display: none;
   }
 }
+
+/* Попутчик на маршруте (src/components/mascots.tsx): шагает, прыгает на лестнице, радуется у двери. */
+@keyframes mascot-bob {
+  50% {
+    translate: 0 -1.5px;
+  }
+}
+@keyframes mascot-leg {
+  to {
+    translate: 0 -1.5px;
+  }
+}
+@keyframes mascot-hop {
+  40% {
+    translate: 0 -6px;
+  }
+}
+@keyframes mascot-cheer {
+  30% {
+    translate: 0 -5px;
+    rotate: -8deg;
+  }
+  60% {
+    translate: 0 -5px;
+    rotate: 8deg;
+  }
+}
+@keyframes mascot-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes mascot-flame {
+  50% {
+    scale: 1 0.6;
+  }
+}
+@keyframes mascot-spin {
+  25% {
+    rotate: 25deg;
+  }
+  75% {
+    rotate: -25deg;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mascot-walk {
+    animation: mascot-bob 0.36s ease-in-out infinite;
+  }
+  .mascot-walk .mascot-leg-a {
+    animation: mascot-leg 0.18s ease-in-out infinite alternate;
+  }
+  .mascot-walk .mascot-leg-b {
+    animation: mascot-leg 0.18s ease-in-out 0.18s infinite alternate;
+  }
+  .mascot-hop {
+    animation: mascot-hop 0.7s var(--ease-out) infinite;
+  }
+  .mascot-cheer {
+    animation: mascot-cheer 0.9s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+  }
+  .mascot-cursor {
+    animation: mascot-blink 1s steps(1) infinite;
+  }
+  .mascot-flame {
+    animation: mascot-flame 0.25s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: 50% 0;
+  }
+  .mascot-needle {
+    animation: mascot-spin 1.6s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: 50% 50%;
+  }
+}
