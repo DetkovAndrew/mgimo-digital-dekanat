@@ -1,4 +1,4 @@
-import { ArrowUpDown, BookOpen, DoorOpen, Dumbbell, type LucideIcon, Shirt, Toilet, Utensils } from "lucide-react";
+import { ArrowUpDown, BookOpen, DoorOpen, Dumbbell, type LucideIcon, Shirt, Toilet, Trees, Utensils } from "lucide-react";
 import Link from "next/link";
 import { roomKindLabel, type DecorIcon, type PlanBuilding, type Pt, type RoomKind } from "@/lib/campus/plans";
 
@@ -15,9 +15,15 @@ export const ROOM_KIND_STYLE: Record<RoomKind, { fill: string; soft: string }> =
 };
 
 const WING_TINT = ["fill-m-wing-1", "fill-m-wing-2", "fill-m-wing-3"];
-const DECOR_TONE = { hall: "fill-surface", service: "fill-m-service", quiet: "fill-m-quiet" } as const;
-const ICON: Record<DecorIcon, LucideIcon> = { toilet: Toilet, stairs: ArrowUpDown, food: Utensils, sport: Dumbbell, book: BookOpen, coat: Shirt, entrance: DoorOpen };
-const ICON_LABEL: Record<DecorIcon, string> = { toilet: "Туалет", stairs: "Лестница", food: "Столовая", sport: "Спортзал", book: "Библиотека", coat: "Гардероб", entrance: "Вход" };
+const DECOR_TONE = { hall: "fill-surface", void: "fill-page stroke-ink-3", service: "fill-m-service", quiet: "fill-m-quiet" } as const;
+const ICON: Record<DecorIcon, LucideIcon> = { toilet: Toilet, stairs: ArrowUpDown, food: Utensils, sport: Dumbbell, book: BookOpen, coat: Shirt, entrance: DoorOpen, tree: Trees };
+const ICON_LABEL: Record<DecorIcon, string> = { toilet: "Туалет", stairs: "Лестница", food: "Столовая", sport: "Спортзал", book: "Библиотека", coat: "Гардероб", entrance: "Вход", tree: "Двор" };
+
+/** Подпись помещения 11 единиц, в узком (спортзал вдоль коридора) — мельче, чтобы не вылезала за стены. */
+function labelSize(p: Pt[], label: string) {
+  const width = Math.max(...p.map((q) => q[0])) - Math.min(...p.map((q) => q[0]));
+  return Math.min(11, (width - 6) / (label.length * 0.58));
+}
 
 /** Многоугольник со скруглёнными углами: радиус не больше половины соседних сторон. */
 function rounded(p: Pt[], r: number) {
@@ -66,7 +72,7 @@ export function CampusMap({
 
   return (
     <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:thin]">
-      <svg viewBox={`0 0 ${w} ${h}`} role="group" aria-label={`Схема: ${plan.title}, ${floor} этаж`} className="w-full min-w-80 rounded-2xl bg-page">
+      <svg viewBox={`0 0 ${w} ${h}`} role="group" aria-label={`Схема: ${plan.title}, ${floor} этаж`} className="w-full min-w-80 rounded-2xl bg-page md:max-h-[min(72dvh,42rem)]">
         <defs>
           <pattern id="busy-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="3" height="8" className="fill-ink-3" opacity="0.22" />
@@ -93,10 +99,10 @@ export function CampusMap({
         {/* Холлы и служебные помещения: не кликаются, подписаны словом и иконкой. */}
         {geo.decor.map((d, i) => (
           <g key={`d${i}`}>
-            <path d={rounded(d.pts, 16)} className={DECOR_TONE[d.tone]} />
+            <path d={rounded(d.pts, 16)} className={DECOR_TONE[d.tone]} {...(d.tone === "void" ? { strokeWidth: 1, strokeDasharray: "4 4" } : {})} />
             {d.icon && <Glyph icon={d.icon} at={[d.c[0], d.c[1] - (d.label ? 8 : 0)]} className="text-ink-2" />}
             {d.label && (
-              <text x={d.c[0]} y={d.c[1] + (d.icon ? 12 : 4)} textAnchor="middle" fontSize={11} className="fill-ink-2 font-medium">
+              <text x={d.c[0]} y={d.c[1] + (d.icon ? 12 : 4)} textAnchor="middle" fontSize={labelSize(d.pts, d.label)} className="fill-ink-2 font-medium">
                 {d.label}
               </text>
             )}

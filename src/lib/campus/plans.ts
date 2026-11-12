@@ -1,4 +1,5 @@
-// Условные схемы корпусов (не копии реальных планов): прямые крылья, светлые коридоры, скруглённые помещения.
+// Условные схемы корпусов (не копии реальных планов): корпус обходит двор кольцом коридоров, аудитории стоят
+// по обе стороны коридора, в углах — холлы с лестницами. Каждая аудитория выходит в коридор или холл (plans.test.ts).
 // Одно описание — и для рисунка, и для строк Room в БД (scripts/sync-rooms.ts). docs/plans/rooms.md.
 // Номер аудитории XYAB: X — крыло, Y — этаж, AB — номер на этаже.
 
@@ -17,9 +18,10 @@ export type PlanRoom = {
 };
 
 export type Pt = readonly [number, number];
-export type DecorIcon = "toilet" | "stairs" | "food" | "sport" | "book" | "coat" | "entrance";
+export type DecorIcon = "toilet" | "stairs" | "food" | "sport" | "book" | "coat" | "entrance" | "tree";
 export type GeoRoom = { room: PlanRoom; pts: Pt[]; c: Pt; narrow: boolean };
-export type Decor = { pts: Pt[]; c: Pt; label?: string; icon?: DecorIcon; tone: "hall" | "service" | "quiet" };
+// hall — проходимое (холл, вход, галерея); void — проём «второго света», по нему не пройти; service и quiet — помещения.
+export type Decor = { pts: Pt[]; c: Pt; label?: string; icon?: DecorIcon; tone: "hall" | "void" | "service" | "quiet" };
 export type WingGeo = { wing: number; body: Pt[]; corridor: Pt[] | null; badge: Pt | null };
 export type FloorGeo = { rooms: GeoRoom[]; decor: Decor[]; wings: WingGeo[]; marks: { at: Pt; icon: DecorIcon }[]; h?: number }; // h — своя высота этажа
 
@@ -34,40 +36,49 @@ export type PlanBuilding = {
   floor: (f: number) => FloorGeo;
 };
 
-// ─── Мини-язык аудиторий: «37:H120*!Название» — номер AB, тип, места, * бронируемая, ! название ─────────────
+// ─── Мини-язык: «37:H120*!Название» — аудитория (номер AB, тип, места, * бронируемая, ! название);
+//     «~90:food!Столовая» — помещение без номера длиной 90 вдоль коридора (иконка, подпись). ──────────────────────
 const KIND: Record<string, RoomKind> = { H: "LECTURE_HALL", C: "CLASSROOM", P: "COMPUTER_LAB", L: "LAB", W: "COWORKING", M: "MEETING" };
 type Def = { ab: string; kind: RoomKind; capacity: number; bookable: boolean; title: string | null };
+type Space = { len: number; icon: DecorIcon; label: string };
+type Slot = { def: Def } | { space: Space };
 
-function defs(spec: string): Def[] {
+function slots(spec: string): Slot[] {
   return spec
-    .split(/\s+(?=\d{2}:)/)
+    .split(/\s+(?=\d{2}:|~)/)
     .filter(Boolean)
     .map((tok) => {
+      const sp = tok.match(/^~(\d+):(\w+)!(.+)$/);
+      if (sp) return { space: { len: Number(sp[1]), icon: sp[2] as DecorIcon, label: sp[3].trim() } };
       const m = tok.match(/^(\d{2}):([HCPLWM])(\d+)(\*)?(?:!(.+))?$/);
       if (!m) throw new Error(`Схема: не разобрать «${tok}»`);
-      return { ab: m[1], kind: KIND[m[2]], capacity: Number(m[3]), bookable: !!m[4], title: m[5]?.trim() || null };
+      return { def: { ab: m[1], kind: KIND[m[2]], capacity: Number(m[3]), bookable: !!m[4], title: m[5]?.trim() || null } };
     });
 }
 
-// ─── Геометрия ──────────────────────────────────────────────────────────────────────────────────────────────
-const deg = (a: number) => (a * Math.PI) / 180;
-const add = (p: Pt, d: Pt, k = 1): Pt => [p[0] + d[0] * k, p[1] + d[1] * k];
-const centroid = (pts: Pt[]): Pt => [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
-const box = (x0: number, y0: number, x1: number, y1: number): Pt[] => [
+// ─── Геометрия: всё по осям, прямоугольник — [x0, y0, x1, y1] ─────────────────────────────────────────────────
+type Rect = readonly [number, number, number, number];
+const box = ([x0, y0, x1, y1]: Rect): Pt[] => [
   [x0, y0],
   [x1, y0],
   [x1, y1],
   [x0, y1],
 ];
+const mid = ([x0, y0, x1, y1]: Rect): Pt => [(x0 + x1) / 2, (y0 + y1) / 2];
 
-/** Ширина аудитории вдоль коридора: растёт с вместимостью, лекционные и коворкинги шире. */
-const roomWidth = (d: Def) => (d.kind === "LECTURE_HALL" ? Math.min(100, 50 + d.capacity * 0.3) : d.kind === "COWORKING" ? 70 : Math.max(32, Math.min(64, 22 + d.capacity * 0.9)));
+/** Длина аудитории вдоль коридора: растёт с вместимостью, лекционные и коворкинги длиннее. */
+const roomLen = (d: Def) => (d.kind === "LECTURE_HALL" ? Math.min(100, 50 + d.capacity * 0.3) : d.kind === "COWORKING" ? 70 : Math.max(32, Math.min(64, 22 + d.capacity * 0.9)));
+const slotLen = (s: Slot) => ("def" in s ? roomLen(s.def) : s.space.len);
+const spaceTone = (icon: DecorIcon): Decor["tone"] => (icon === "sport" || icon === "book" ? "quiet" : "service");
 
-type Strip = { wing: number; start: Pt; angle: number; len: number; depth: number; corridor: number; a: string; b: string; endDecor?: { len: number; label: string; icon: DecorIcon } };
+const CORRIDOR = 16; // ширина коридора
+const DEPTH = 44; // глубина аудитории от коридора
+const GAP = 4; // стены между помещениями
+const PAD = 4; // от аудитории до края корпуса
 
 type Ctx = { buildingId: string; floor: number; out: FloorGeo; rooms: PlanRoom[] };
 
-function place(ctx: Ctx, wing: number, d: Def, pts: Pt[], narrow = false) {
+function place(ctx: Ctx, wing: number, d: Def, r: Rect) {
   const room: PlanRoom = {
     id: `${ctx.buildingId}-${wing}${ctx.floor}${d.ab}`,
     buildingId: ctx.buildingId,
@@ -80,69 +91,75 @@ function place(ctx: Ctx, wing: number, d: Def, pts: Pt[], narrow = false) {
     title: d.title,
   };
   ctx.rooms.push(room);
-  ctx.out.rooms.push({ room, pts, c: centroid(pts), narrow });
+  // Узкая: номер мельче, без подписи мест. Номер пишется горизонтально, поэтому важны обе стороны.
+  ctx.out.rooms.push({ room, pts: box(r), c: mid(r), narrow: r[2] - r[0] < 44 || r[3] - r[1] < 32 });
 }
 
-/** Крыло: коридор по оси, аудитории с обеих сторон; ширины по вместимости, при нехватке места — сжимаются. */
-function strip(ctx: Ctx, s: Strip) {
-  const d: Pt = [Math.cos(deg(s.angle)), Math.sin(deg(s.angle))];
-  const n: Pt = [-d[1], d[0]];
-  const at = (t: number, k: number): Pt => add(add(s.start, d, t), n, k);
-  const half = s.corridor / 2;
-  const full = half + s.depth;
-  const rect = (t0: number, t1: number, k0: number, k1: number): Pt[] => [at(t0, k0), at(t1, k0), at(t1, k1), at(t0, k1)];
-  ctx.out.wings.push({ wing: s.wing, body: rect(0, s.len, -full - 6, full + 6), corridor: rect(0, s.len, -half, half), badge: at(14, 0) });
-
-  const pad = 20; // у торца — лестница
-  const usable = s.len - pad - (s.endDecor?.len ?? 0) - 6;
-  const gap = 4;
-  for (const [spec, k0, k1] of [
-    [s.a, half + gap, full],
-    [s.b, -full, -half - gap],
-  ] as const) {
-    const list = defs(spec);
-    const want = list.reduce((sum, x) => sum + roomWidth(x) + gap, 0);
-    const scale = Math.min(1.5, usable / want); // короткий ряд растягивается вдоль крыла
-    let t = 6;
-    for (const x of list) {
-      const w = roomWidth(x) * scale;
-      place(ctx, s.wing, x, rect(t, t + w, k0, k1), w < 44);
-      t += w + gap;
-    }
-  }
-  ctx.out.marks.push({ at: at(s.len - pad / 2 - 2, 0), icon: "stairs" });
-  if (s.endDecor) {
-    const e = s.endDecor;
-    const pts = rect(s.len - pad - e.len, s.len - pad - 2, -full, full);
-    ctx.out.decor.push({ pts, c: centroid(pts), label: e.label, icon: e.icon, tone: "service" });
-  }
+function decor(ctx: Ctx, r: Rect, tone: Decor["tone"], label?: string, icon?: DecorIcon) {
+  ctx.out.decor.push({ pts: box(r), c: mid(r), label, icon, tone });
 }
 
-/** Ряд аудиторий в прямоугольнике без коридора (у атриума, в лекционном блоке): ширины по вместимости, ровно по ряду. */
-function row(ctx: Ctx, wing: number, spec: string, [x0, y0, x1, y1]: [number, number, number, number], axis: "x" | "y", gap = 6) {
-  const list = defs(spec);
-  const span = (axis === "x" ? x1 - x0 : y1 - y0) - gap * (list.length - 1);
-  const scale = span / list.reduce((sum, x) => sum + roomWidth(x), 0);
-  let t = axis === "x" ? x0 : y0;
+/**
+ * Ряд помещений вдоль отрезка [from, to] оси, длины по вместимости. Вдоль коридора ряд растягивается не больше 2×
+ * (одна переговорная не займёт всё крыло); fill — ровно по отрезку (ряд у атриума, лекционный блок).
+ */
+function lay(ctx: Ctx, wing: number, spec: string, axis: "x" | "y", from: number, to: number, across: readonly [number, number], fill = false) {
+  const list = slots(spec);
+  const free = to - from - GAP * (list.length - 1);
+  const k = free / list.reduce((sum, x) => sum + slotLen(x), 0);
+  const scale = fill ? k : Math.min(2, k);
+  let t = from;
   for (const x of list) {
-    const w = roomWidth(x) * scale;
-    place(ctx, wing, x, axis === "x" ? box(t, y0, t + w, y1) : box(x0, t, x1, t + w), (axis === "x" ? w : x1 - x0) < 44);
-    t += w + gap;
+    const len = slotLen(x) * scale;
+    const r: Rect = axis === "x" ? [t, across[0], t + len, across[1]] : [across[0], t, across[1], t + len];
+    if ("def" in x) place(ctx, wing, x.def, r);
+    else decor(ctx, r, spaceTone(x.space.icon), x.space.label, x.space.icon);
+    t += len + GAP;
   }
 }
 
-function decor(ctx: Ctx, pts: Pt[], tone: Decor["tone"], label?: string, icon?: DecorIcon) {
-  ctx.out.decor.push({ pts, c: centroid(pts), label, icon, tone });
+type Run = { wing: number; axis: "x" | "y"; at: number; from: number; to: number; a?: string; b?: string; depthA?: number; depthB?: number; badge?: boolean };
+
+/**
+ * Коридор вдоль оси с помещениями по обе стороны. axis "x" — горизонтальный (a — сверху, b — снизу),
+ * "y" — вертикальный (a — слева, b — справа). at — координата середины коридора поперёк.
+ */
+function run(ctx: Ctx, r: Run) {
+  const half = CORRIDOR / 2;
+  const [da, db] = [r.depthA ?? DEPTH, r.depthB ?? DEPTH];
+  const lo = r.at - half - GAP - da - PAD;
+  const hi = r.at + half + GAP + db + PAD;
+  const rect = (a0: number, a1: number, c0: number, c1: number): Rect => (r.axis === "x" ? [a0, c0, a1, c1] : [c0, a0, c1, a1]);
+  const badge: Pt | null = r.badge ? (r.axis === "x" ? [r.from + 16, r.at] : [r.at, r.from + 16]) : null;
+  ctx.out.wings.push({ wing: r.wing, body: box(rect(r.from, r.to, lo, hi)), corridor: box(rect(r.from, r.to, r.at - half, r.at + half)), badge });
+  const [from, to] = [r.from + PAD, r.to - PAD];
+  if (r.a) lay(ctx, r.wing, r.a, r.axis, from, to, [r.at - half - GAP - da, r.at - half - GAP]);
+  if (r.b) lay(ctx, r.wing, r.b, r.axis, from, to, [r.at + half + GAP, r.at + half + GAP + db]);
 }
 
-/** Подложка без коридора: пристройка, атриум. */
-const annex = (ctx: Ctx, wing: number, body: Pt[]) => ctx.out.wings.push({ wing, body, corridor: null, badge: null });
+/** Подложка без коридора: лекционный блок, атриум. */
+const annex = (ctx: Ctx, wing: number, r: Rect) => ctx.out.wings.push({ wing, body: box(r), corridor: null, badge: null });
 
-// ─── Главный корпус: холл в центре, крылья 1 и 3 — в стороны, крыло 2 — вверх, у входа лекционные ─────────────
-const KRONV_W = 560;
+/** Холл на стыке коридоров: лестница и туалет — в наружных углах, коридоры подходят к середине сторон. */
+type Corner = "tl" | "tr" | "bl" | "br";
+function lobby(ctx: Ctx, r: Rect, stairs: Corner, toilet: Corner) {
+  decor(ctx, r, "hall");
+  const s = 40;
+  const at = (c: Corner): Rect => {
+    const x = c.endsWith("l") ? r[0] + PAD : r[2] - PAD - s;
+    const y = c.startsWith("t") ? r[1] + PAD : r[3] - PAD - s;
+    return [x, y, x + s, y + s];
+  };
+  decor(ctx, at(stairs), "service", undefined, "stairs");
+  decor(ctx, at(toilet), "service", undefined, "toilet");
+}
+
+// ─── Главный корпус: кольцо вокруг двора. Крыло 2 — сверху, 1 — слева, 3 — справа; снизу (1–2 этажи) — вход
+//     и лекционные, выше третьего этажа корпус открыт во двор буквой «П». ─────────────────────────────────────
+const KRONV_W = 440;
 const KRONV: Record<number, { w1: [string, string]; w2: [string, string]; w3: [string, string] }> = {
   1: {
-    w1: ["10:C30 17:M6!Деканат 21:C24", "12:C36 32:C40 37:C24"],
+    w1: ["~84:sport!Спортзал 10:C30 17:M6!Деканат 21:C24", "12:C36 32:C40 37:C24"],
     w2: ["01:W60*!Коворкинг «Атриум» 06:C30 12:C24", "04:C32 10:L16 16:P20"],
     w3: ["12:C30 18:L16 24:C28 32:P20", "10:C36 16:C24 21:C30 37:P16"],
   },
@@ -165,33 +182,53 @@ const KRONV: Record<number, { w1: [string, string]; w2: [string, string]; w3: [s
 
 function kronvFloor(ctx: Ctx) {
   const f = KRONV[ctx.floor];
-  const common = { depth: 48, corridor: 16 };
-  strip(ctx, { wing: 2, start: [280, 206], angle: -90, len: 172, ...common, a: f.w2[0], b: f.w2[1] });
-  strip(ctx, { wing: 1, start: [222, 260], angle: 180, len: 206, ...common, a: f.w1[0], b: f.w1[1] });
-  strip(ctx, { wing: 3, start: [338, 260], angle: 0, len: 206, ...common, a: f.w3[0], b: f.w3[1] });
-  decor(ctx, box(214, 196, 346, 324), "hall", ctx.floor === 1 ? "Холл" : "Рекреация", ctx.floor === 1 ? "coat" : undefined);
-  if (ctx.floor === 1 || ctx.floor === 2) {
-    decor(ctx, box(44, 56, 204, 186), "quiet", ctx.floor === 1 ? "Спортзал" : "Библиотека", ctx.floor === 1 ? "sport" : "book");
-    // Лекционный блок у входа (на втором этаже — их второй свет): слева при крыле 1, справа при крыле 3.
-    annex(ctx, 1, box(10, 322, 228, 446));
-    annex(ctx, 3, box(KRONV_W - 228, 322, KRONV_W - 10, 446));
+  const W = KRONV_W;
+  const t = 10 + 60; // ось верхнего и боковых коридоров: 10 от края + половина толщины крыла
+  const corner = 130; // размер углового холла
+  const ring = ctx.floor <= 2; // нижняя часть кольца есть на 1–2 этажах
+  const yb = 442; // ось нижнего коридора
+  const sideEnd = ring ? yb - 60 : 382;
+
+  run(ctx, { wing: 2, axis: "x", at: t, from: corner, to: W - corner, a: f.w2[0], b: f.w2[1], badge: true });
+  run(ctx, { wing: 1, axis: "y", at: t, from: corner, to: sideEnd, a: f.w1[0], b: f.w1[1], badge: true });
+  run(ctx, { wing: 3, axis: "y", at: W - t, from: corner, to: sideEnd, a: f.w3[0], b: f.w3[1], badge: true });
+  lobby(ctx, [10, 10, corner, corner], "tl", "tr");
+  lobby(ctx, [W - corner, 10, W - 10, corner], "tr", "tl");
+  decor(ctx, [corner + 6, corner + 6, W - corner - 6, sideEnd - (ring ? 6 : -48)], "quiet", "Двор", "tree");
+
+  if (ring) {
+    // Нижний коридор от угла до угла; во двор — служебные помещения, наружу — лекционные (на 2 этаже их второй свет).
+    const top = yb - 60;
+    const hallY = yb + CORRIDOR / 2; // низ коридора и угловых холлов
+    annex(ctx, 1, [10, top, W / 2, 530]);
+    annex(ctx, 3, [W / 2, top, W - 10, 530]);
+    ctx.out.wings.push({ wing: 1, body: box([corner, top, W - corner, hallY]), corridor: box([10, yb - CORRIDOR / 2, W - 10, hallY]), badge: null });
+    lay(ctx, 1, ctx.floor === 1 ? "~90:coat!Гардероб ~80:food!Столовая" : "~180:book!Библиотека", "x", corner + PAD, W - corner - PAD, [top + PAD, yb - CORRIDOR / 2 - GAP], true);
+    lobby(ctx, [10, top, corner, hallY], "tl", "tr");
+    lobby(ctx, [W - corner, top, W - 10, hallY], "tr", "tl");
+    const [r0, r1] = [hallY + GAP, hallY + GAP + 72]; // ряд под коридором
+    if (ctx.floor === 1) {
+      lay(ctx, 1, "01:H120 04:H180 06:H90", "x", 14, W / 2 - 34, [r0, r1], true);
+      lay(ctx, 3, "06:H90 04:H120 01:H150", "x", W / 2 + 34, W - 14, [r0, r1], true);
+      decor(ctx, [W / 2 - 30, r0, W / 2 + 30, r1 + 4], "hall", "Вход", "entrance");
+    } else {
+      decor(ctx, [14, r0, W / 2 - 34, r1], "void", "Второй свет");
+      decor(ctx, [W / 2 + 34, r0, W - 14, r1], "void", "Второй свет");
+      decor(ctx, [W / 2 - 30, r0, W / 2 + 30, r1], "service", undefined, "stairs");
+    }
+  } else {
+    // Выше второго этажа нижней части нет: крылья заканчиваются лестничными холлами.
+    decor(ctx, [10, sideEnd, corner, sideEnd + 48], "service", undefined, "stairs");
+    decor(ctx, [W - corner, sideEnd, W - 10, sideEnd + 48], "service", undefined, "stairs");
+    ctx.out.h = sideEnd + 58;
   }
-  if (ctx.floor === 1) {
-    row(ctx, 1, "01:H120 04:H180 06:H90", [18, 332, 220, 436], "x");
-    row(ctx, 3, "06:H90 04:H120 01:H150", [KRONV_W - 220, 332, KRONV_W - 18, 436], "x");
-    decor(ctx, box(250, 318, 310, 366), "hall", "Вход", "entrance");
-    decor(ctx, box(KRONV_W - 204, 56, KRONV_W - 44, 186), "service", "Столовая", "food");
-    ctx.out.marks.push({ at: [240, 344] as Pt, icon: "toilet" as const }, { at: [320, 344] as Pt, icon: "toilet" as const });
-  } else if (ctx.floor === 2) {
-    decor(ctx, box(18, 332, 220, 436), "hall", "Второй свет");
-    decor(ctx, box(KRONV_W - 220, 332, KRONV_W - 18, 436), "hall", "Второй свет");
-  } else ctx.out.h = 340; // выше второго этажа лекционного блока нет: схема ниже, на телефоне крупнее
 }
 
-// ─── Корпус М: атриум, от него вверх коридор к лекционной, вправо — длинное крыло ──────────────────────────────
-const LOMM: Record<number, { inner: string; side: string; front: [string, string]; spine: [string, string]; hall: string; top: [string, string]; east: [string, string] }> = {
+// ─── Корпус М: атриум внизу слева; от него вверх коридор к угловому холлу и верхнему крылу, вправо — длинное крыло.
+//     Между крыльями — два двора. ────────────────────────────────────────────────────────────────────────────
+const LOMM_W = 440;
+const LOMM: Record<number, { side: string; front: [string, string]; spine: [string, string]; hall: string; top: [string, string]; east: [string, string] }> = {
   1: {
-    inner: "Гардероб",
     side: "01:W30*!Коворкинг «Колба» 02:C24 03:C28",
     front: ["04:L14", "07:C24"],
     spine: ["12:C30 16:P20", "13:L14 17:C24"],
@@ -200,7 +237,6 @@ const LOMM: Record<number, { inner: string; side: string; front: [string, string
     east: ["26:C30 29:L16 33:C24 35:C28", "27:P20 31:C28 34:C30"],
   },
   2: {
-    inner: "Второй свет",
     side: "01:C30 02:C24 03:L14",
     front: ["05:M8*!Переговорная", "07:C24"],
     spine: ["12:C28 16:P24", "13:C30 20:L14"],
@@ -209,7 +245,6 @@ const LOMM: Record<number, { inner: string; side: string; front: [string, string
     east: ["26:C30 29:C24 33:L16 35:C24", "27:C28 31:P20 34:C30"],
   },
   3: {
-    inner: "Второй свет",
     side: "01:C28 02:C24 03:C30",
     front: ["04:P20", "07:C24"],
     spine: ["12:C30 16:C24", "09:C30* 13:L14"],
@@ -221,30 +256,42 @@ const LOMM: Record<number, { inner: string; side: string; front: [string, string
 
 function lommFloor(ctx: Ctx) {
   const f = LOMM[ctx.floor];
-  const common = { depth: 44, corridor: 16 };
-  // Атриум с аудиториями слева и снизу (по центру снизу — вход).
-  annex(ctx, 1, box(30, 242, 238, 432));
-  decor(ctx, box(100, 250, 230, 370), "hall", f.inner, ctx.floor === 1 ? "coat" : undefined);
-  row(ctx, 1, f.side, [38, 250, 94, 370], "y");
-  row(ctx, 1, f.front[0], [38, 376, 118, 424], "x");
-  row(ctx, 1, f.front[1], [182, 376, 230, 424], "x");
-  if (ctx.floor === 1) decor(ctx, box(124, 376, 176, 424), "hall", "Вход", "entrance");
-  else ctx.out.marks.push({ at: [150, 400], icon: "stairs" });
-  // Вверх от атриума: коридор к лекционной в углу, от неё вправо — верхнее крыло.
-  strip(ctx, { wing: 1, start: [165, 252], angle: -90, len: 118, ...common, a: f.spine[0], b: f.spine[1] });
-  annex(ctx, 1, box(98, 12, 232, 138));
-  row(ctx, 1, f.hall, [106, 20, 224, 130], "x");
-  strip(ctx, { wing: 1, start: [228, 75], angle: 0, len: 204, ...common, a: f.top[0], b: f.top[1] });
-  // Вправо от атриума: длинное крыло.
-  strip(ctx, { wing: 1, start: [234, 310], angle: 0, len: 266, ...common, a: f.east[0], b: f.east[1] });
-  if (ctx.floor === 1) ctx.out.marks.push({ at: [216, 264], icon: "toilet" });
+  const W = LOMM_W;
+  const atrium: Rect = [70, 300, 230, 420];
+  const x = (atrium[0] + atrium[2]) / 2; // ось коридора вверх
+  const y = (atrium[1] + atrium[3]) / 2; // ось коридора вправо
+  // Атриум: аудитории слева и снизу выходят прямо в него, по центру снизу — вход (выше — лестница).
+  annex(ctx, 1, [10, 296, atrium[2] + 4, 480]);
+  // На 1 этаже атриум — холл с гардеробом; выше — галерея по периметру проёма, двери аудиторий выходят на неё.
+  if (ctx.floor === 1) decor(ctx, atrium, "hall", "Гардероб", "coat");
+  else {
+    decor(ctx, atrium, "hall");
+    decor(ctx, [atrium[0] + 22, atrium[1] + 22, atrium[2] - 22, atrium[3] - 22], "void", "Второй свет");
+  }
+  lay(ctx, 1, f.side, "y", atrium[1], atrium[3], [14, atrium[0] - GAP], true);
+  lay(ctx, 1, f.front[0], "x", 14, 112, [atrium[3] + GAP, 476], true);
+  lay(ctx, 1, f.front[1], "x", 180, atrium[2], [atrium[3] + GAP, 476], true);
+  if (ctx.floor === 1) decor(ctx, [116, atrium[3] + GAP, 176, 480], "hall", "Вход", "entrance");
+  else decor(ctx, [116, atrium[3] + GAP, 176, 476], "service", undefined, "stairs");
+  // Вверх — коридор к угловому холлу; слева от холла лекционная, вправо — верхнее крыло.
+  run(ctx, { wing: 1, axis: "y", at: x, from: 130, to: atrium[1], a: f.spine[0], b: f.spine[1] });
+  lobby(ctx, [x - 60, 10, x + 60, 130], "tr", "tl");
+  annex(ctx, 1, [10, 10, x - 56, 130]);
+  lay(ctx, 1, f.hall, "x", 14, x - 60 - GAP, [14, 126], true);
+  run(ctx, { wing: 1, axis: "x", at: 70, from: x + 60, to: W - 10, a: f.top[0], b: f.top[1] });
+  // Вправо от атриума — длинное крыло; в торцах крыльев — лестницы.
+  run(ctx, { wing: 1, axis: "x", at: y, from: atrium[2], to: W - 10, a: f.east[0], b: f.east[1] });
+  ctx.out.marks.push({ at: [W - 22, 70], icon: "stairs" }, { at: [W - 22, y], icon: "stairs" });
+  // Дворы между крыльями.
+  decor(ctx, [14, 136, x - 66, 290], "quiet", "Двор", "tree");
+  decor(ctx, [x + 66, 136, W - 14, 290], "quiet", "Двор", "tree");
 }
 
 // ─── Сборка ─────────────────────────────────────────────────────────────────────────────────────────────────
 type Spec = Omit<PlanBuilding, "rooms" | "floor"> & { draw: (ctx: Ctx) => void };
 const SPECS: Spec[] = [
-  { buildingId: "kronv", short: "ГК", title: "Главный корпус", view: { w: KRONV_W, h: 456 }, floors: [1, 2, 3, 4], wingCount: 3, draw: kronvFloor },
-  { buildingId: "lom-m", short: "М", title: "Корпус М", view: { w: 514, h: 442 }, floors: [1, 2, 3], wingCount: 1, draw: lommFloor },
+  { buildingId: "kronv", short: "ГК", title: "Главный корпус", view: { w: KRONV_W, h: 540 }, floors: [1, 2, 3, 4], wingCount: 3, draw: kronvFloor },
+  { buildingId: "lom-m", short: "М", title: "Корпус М", view: { w: LOMM_W, h: 490 }, floors: [1, 2, 3], wingCount: 1, draw: lommFloor },
 ];
 
 function build({ draw, ...meta }: Spec): PlanBuilding {

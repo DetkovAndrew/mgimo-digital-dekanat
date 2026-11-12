@@ -49,8 +49,10 @@ describe("запись", () => {
 
   it("не больше 2 в неделю и 1 в день", async () => {
     const me = await makeStudent("t.quota");
+    // Тренировки с очередью не трогаем: запись продвигает очереди всей недели, и при вместимости 99 ожидающие
+    // получили бы места, а после возврата вместимости тренировка осталась бы переполненной.
     const slots = await prisma.sportSlot.findMany({
-      where: { startsAt: { gt: new Date(), lt: addDays(new Date(), SPORT_RULES.windowDays) } },
+      where: { startsAt: { gt: new Date(), lt: addDays(new Date(), SPORT_RULES.windowDays) }, bookings: { none: { status: "WAITLIST" } } },
       orderBy: { startsAt: "asc" },
     });
     // Места не должны мешать проверке квот: временно расширяем вместимость и возвращаем её.
