@@ -2,23 +2,40 @@ import { ArrowUpDown, BookOpen, DoorOpen, Dumbbell, type LucideIcon, Shirt, Toil
 import Link from "next/link";
 import { roomKindLabel, type DecorIcon, type PlanBuilding, type Pt, type RoomKind } from "@/lib/campus/plans";
 
-// Условная схема этажа: крылья разного оттенка, аудитории окрашены по типу, служебные помещения подписаны иконками.
+// Условная схема этажа: пастельные крылья, скруглённые помещения, цвет аудитории — её тип, номер всегда text-ink.
 // Каждая аудитория является ссылкой: открывает её расписание и бронь. Размеры шрифта в SVG заданы в единицах viewBox.
 
-export const ROOM_KIND_STYLE: Record<RoomKind, { fill: string; stroke: string; text: string; dot: string; soft: string; ink: string }> = {
-  LECTURE_HALL: { fill: "fill-k-lecture-soft", stroke: "stroke-k-lecture", text: "fill-k-lecture", dot: "bg-k-lecture", soft: "bg-k-lecture-soft", ink: "text-k-lecture" },
-  CLASSROOM: { fill: "fill-k-practice-soft", stroke: "stroke-k-practice", text: "fill-k-practice", dot: "bg-k-practice", soft: "bg-k-practice-soft", ink: "text-k-practice" },
-  COMPUTER_LAB: { fill: "fill-k-consult-soft", stroke: "stroke-k-consult", text: "fill-k-consult", dot: "bg-k-consult", soft: "bg-k-consult-soft", ink: "text-k-consult" },
-  LAB: { fill: "fill-k-language-soft", stroke: "stroke-k-language", text: "fill-k-language", dot: "bg-k-language", soft: "bg-k-language-soft", ink: "text-k-language" },
-  COWORKING: { fill: "fill-k-sport-soft", stroke: "stroke-k-sport", text: "fill-k-sport", dot: "bg-k-sport", soft: "bg-k-sport-soft", ink: "text-k-sport" },
-  MEETING: { fill: "fill-warn-soft", stroke: "stroke-warn", text: "fill-warn", dot: "bg-warn", soft: "bg-warn-soft", ink: "text-warn" },
+export const ROOM_KIND_STYLE: Record<RoomKind, { fill: string; soft: string }> = {
+  LECTURE_HALL: { fill: "fill-m-hall", soft: "bg-m-hall" },
+  CLASSROOM: { fill: "fill-m-class", soft: "bg-m-class" },
+  COMPUTER_LAB: { fill: "fill-m-pc", soft: "bg-m-pc" },
+  LAB: { fill: "fill-m-lab", soft: "bg-m-lab" },
+  COWORKING: { fill: "fill-m-cowork", soft: "bg-m-cowork" },
+  MEETING: { fill: "fill-m-meet", soft: "bg-m-meet" },
 };
 
-// Оттенок крыла: заливка и такой же контур (скругляет углы подложки).
-const WING_TINT = ["fill-brand-soft stroke-brand-soft", "fill-info-soft stroke-info-soft", "fill-ok-soft stroke-ok-soft"];
+const WING_TINT = ["fill-m-wing-1", "fill-m-wing-2", "fill-m-wing-3"];
+const DECOR_TONE = { hall: "fill-surface", service: "fill-m-service", quiet: "fill-m-quiet" } as const;
 const ICON: Record<DecorIcon, LucideIcon> = { toilet: Toilet, stairs: ArrowUpDown, food: Utensils, sport: Dumbbell, book: BookOpen, coat: Shirt, entrance: DoorOpen };
 const ICON_LABEL: Record<DecorIcon, string> = { toilet: "Туалет", stairs: "Лестница", food: "Столовая", sport: "Спортзал", book: "Библиотека", coat: "Гардероб", entrance: "Вход" };
-const pts = (p: Pt[]) => p.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+
+/** Многоугольник со скруглёнными углами: радиус не больше половины соседних сторон. */
+function rounded(p: Pt[], r: number) {
+  const f = (n: number) => n.toFixed(1);
+  const n = p.length;
+  let d = "";
+  for (let i = 0; i < n; i++) {
+    const [prev, cur, next] = [p[(i + n - 1) % n], p[i], p[(i + 1) % n]];
+    const toward = (q: Pt) => {
+      const len = Math.hypot(q[0] - cur[0], q[1] - cur[1]);
+      const k = Math.min(r, len / 2) / len;
+      return [cur[0] + (q[0] - cur[0]) * k, cur[1] + (q[1] - cur[1]) * k];
+    };
+    const [a, b] = [toward(prev), toward(next)];
+    d += `${i ? "L" : "M"}${f(a[0])},${f(a[1])} Q${f(cur[0])},${f(cur[1])} ${f(b[0])},${f(b[1])} `;
+  }
+  return `${d}Z`;
+}
 
 function Glyph({ icon, at, size = 14, className }: { icon: DecorIcon; at: Pt; size?: number; className: string }) {
   const I = ICON[icon];
@@ -43,44 +60,40 @@ export function CampusMap({
   const geo = plan.floor(floor);
   const busy = new Set(busyNow);
   const my = new Set(mine);
-  const { w, h } = plan.view;
+  const { w } = plan.view;
+  const h = geo.h ?? plan.view.h;
   const tint = (wing: number) => WING_TINT[(wing - 1) % WING_TINT.length];
 
   return (
     <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:thin]">
-      <svg viewBox={`0 0 ${w} ${h}`} role="group" aria-label={`Схема: ${plan.title}, ${floor} этаж`} className="w-full min-w-80 rounded-2xl bg-surface ring-1 ring-hairline">
+      <svg viewBox={`0 0 ${w} ${h}`} role="group" aria-label={`Схема: ${plan.title}, ${floor} этаж`} className="w-full min-w-80 rounded-2xl bg-page">
         <defs>
           <pattern id="busy-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="3" height="8" className="fill-ink-3" opacity="0.28" />
+            <rect width="3" height="8" className="fill-ink-3" opacity="0.22" />
           </pattern>
         </defs>
 
-        {/* Крылья: подложка своего оттенка и коридор. */}
+        {/* Крылья: подложка своего оттенка и светлый коридор. */}
         {geo.wings.map((wg, i) => (
-          <polygon key={`b${i}`} points={pts(wg.body)} strokeLinejoin="round" strokeWidth="8" className={tint(wg.wing)} />
+          <path key={`b${i}`} d={rounded(wg.body, 22)} className={tint(wg.wing)} />
         ))}
-        {geo.wings.map((wg, i) => (
-          <polygon key={`c${i}`} points={pts(wg.corridor)} className="fill-fill" />
-        ))}
+        {geo.wings.map((wg, i) => wg.corridor && <path key={`c${i}`} d={rounded(wg.corridor, 8)} className="fill-surface" />)}
         {plan.wingCount > 1 &&
-          geo.wings.map((wg) => (
-            <g key={`n${wg.wing}`} aria-hidden>
-              <circle cx={wg.badge[0]} cy={wg.badge[1]} r="9" className="fill-surface stroke-hairline" />
-              <text x={wg.badge[0]} y={wg.badge[1] + 4} textAnchor="middle" fontSize={11} className="fill-ink-2 font-bold">
-                {wg.wing}
-              </text>
-            </g>
-          ))}
+          geo.wings.map(({ wing, badge }) =>
+            badge ? (
+              <g key={`n${wing}`} aria-hidden>
+                <circle cx={badge[0]} cy={badge[1]} r="9" className="fill-surface stroke-hairline" />
+                <text x={badge[0]} y={badge[1] + 4} textAnchor="middle" fontSize={11} className="fill-ink-2 font-bold">
+                  {wing}
+                </text>
+              </g>
+            ) : null,
+          )}
 
         {/* Холлы и служебные помещения: не кликаются, подписаны словом и иконкой. */}
         {geo.decor.map((d, i) => (
           <g key={`d${i}`}>
-            <polygon
-              points={pts(d.pts)}
-              strokeWidth="1.5"
-              strokeLinejoin="round"
-              className={d.tone === "hall" ? "fill-page stroke-hairline" : d.tone === "quiet" ? "fill-info-soft stroke-hairline" : "fill-warn-soft stroke-hairline"}
-            />
+            <path d={rounded(d.pts, 16)} className={DECOR_TONE[d.tone]} />
             {d.icon && <Glyph icon={d.icon} at={[d.c[0], d.c[1] - (d.label ? 8 : 0)]} className="text-ink-2" />}
             {d.label && (
               <text x={d.c[0]} y={d.c[1] + (d.icon ? 12 : 4)} textAnchor="middle" fontSize={11} className="fill-ink-2 font-medium">
@@ -91,7 +104,7 @@ export function CampusMap({
         ))}
         {geo.marks.map((m, i) => (
           <g key={`m${i}`} aria-hidden>
-            <circle cx={m.at[0]} cy={m.at[1]} r="8" className="fill-surface stroke-hairline" />
+            <circle cx={m.at[0]} cy={m.at[1]} r="9" className="fill-surface stroke-hairline" />
             <Glyph icon={m.icon} at={m.at} size={10} className="text-ink-2" />
           </g>
         ))}
@@ -113,26 +126,26 @@ export function CampusMap({
             .join(", ");
           // Крупно в единицах схемы: на телефоне шириной 360 px схема ужата почти вдвое.
           const fs = narrow ? 12 : room.kind === "LECTURE_HALL" ? 16 : 14;
+          const shape = rounded(p, narrow ? 7 : 10);
           return (
             <Link key={room.id} href={href(room.number)} aria-label={label} aria-current={isSel ? "true" : undefined} className="group outline-none">
-              <polygon
-                points={pts(p)}
-                strokeLinejoin="round"
-                strokeWidth={isMine || isSel ? 3 : 1.25}
-                className={`transition-[fill,stroke-width] duration-200 group-hover:brightness-95 ${isSel ? "fill-brand-fill stroke-brand-fill" : `${s.fill} ${isMine ? "stroke-brand" : s.stroke}`}`}
+              <path
+                d={shape}
+                strokeWidth={isMine || isSel ? 3 : 0}
+                className={`transition-[fill,stroke-width] duration-200 group-hover:brightness-95 ${isSel ? "fill-brand-fill stroke-brand-fill" : `${s.fill} stroke-brand`}`}
               />
-              {isBusy && !isSel && <polygon points={pts(p)} fill="url(#busy-hatch)" />}
+              {isBusy && !isSel && <path d={shape} fill="url(#busy-hatch)" />}
               {/* Кольцо фокуса с клавиатуры: тёмный контур, заметен и на выбранной аудитории. */}
-              <polygon points={pts(p)} strokeWidth="5" strokeLinejoin="round" className="hidden fill-none stroke-ink group-focus-visible:inline" />
-              <text x={c[0]} y={c[1] + (room.bookable ? 2 : 5)} textAnchor="middle" fontSize={fs} className={`font-bold tabular-nums ${isSel ? "fill-on-brand" : s.text}`}>
+              <path d={shape} strokeWidth="4" className="hidden fill-none stroke-ink group-focus-visible:inline" />
+              <text x={c[0]} y={c[1] + (room.bookable ? 2 : 5)} textAnchor="middle" fontSize={fs} className={`font-semibold tabular-nums ${isSel ? "fill-on-brand" : "fill-ink"}`}>
                 {room.number}
               </text>
               {room.kind === "LECTURE_HALL" && !narrow && (
-                <text x={c[0]} y={c[1] + 19} textAnchor="middle" fontSize={11} className={isSel ? "fill-on-brand" : "fill-ink-2"}>
+                <text x={c[0]} y={c[1] + 19} textAnchor="middle" fontSize={11} className={isSel ? "fill-on-brand" : "fill-ink"}>
                   {room.capacity} мест
                 </text>
               )}
-              {room.bookable && <circle cx={c[0]} cy={c[1] + 11} r="3" className={isSel ? "fill-on-brand" : s.text} />}
+              {room.bookable && <circle cx={c[0]} cy={c[1] + 11} r="3" className={isSel ? "fill-on-brand" : "fill-ink-2"} />}
             </Link>
           );
         })}
@@ -148,7 +161,7 @@ export function MapLegend() {
     <ul aria-label="Обозначения" className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-ink-2">
       {kinds.map((k) => (
         <li key={k} className="flex items-center gap-1.5">
-          <span aria-hidden className={`size-2.5 rounded-sm ${ROOM_KIND_STYLE[k].dot}`} />
+          <span aria-hidden className={`size-3 rounded ${ROOM_KIND_STYLE[k].soft}`} />
           {roomKindLabel[k]}
         </li>
       ))}
@@ -157,7 +170,7 @@ export function MapLegend() {
         можно забронировать
       </li>
       <li className="flex items-center gap-1.5">
-        <svg aria-hidden width="12" height="12" className="rounded-sm ring-1 ring-hairline">
+        <svg aria-hidden width="12" height="12" className="rounded ring-1 ring-hairline">
           <rect width="12" height="12" fill="url(#busy-hatch)" />
         </svg>
         занято сейчас

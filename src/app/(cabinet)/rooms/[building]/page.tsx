@@ -107,8 +107,7 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
               </span>
             </div>
             <p className="mt-2 flex flex-wrap gap-1.5">
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${ROOM_KIND_STYLE[selected.kind].soft} ${ROOM_KIND_STYLE[selected.kind].ink}`}>
-                <span aria-hidden className={`size-2 rounded-full ${ROOM_KIND_STYLE[selected.kind].dot}`} />
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${ROOM_KIND_STYLE[selected.kind].soft} text-ink`}>
                 {roomKindLabel[selected.kind]}
               </span>
               {selected.bookable ? (
@@ -199,7 +198,7 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
               {bookableHere.map((r) => (
                 <RowLink key={r.id} href={`${url({ room: r.number })}#room`}>
                   <span className="flex items-center gap-3">
-                    <span aria-hidden className={`grid size-10 shrink-0 place-items-center rounded-xl text-xs font-bold tabular-nums ${ROOM_KIND_STYLE[r.kind].soft} ${ROOM_KIND_STYLE[r.kind].ink}`}>
+                    <span aria-hidden className={`grid size-10 shrink-0 place-items-center rounded-xl text-xs font-bold tabular-nums ${ROOM_KIND_STYLE[r.kind].soft} text-ink`}>
                       {r.number.slice(-2)}
                     </span>
                     <span className="min-w-0">

@@ -23,7 +23,7 @@ export default async function RoomsPage() {
               const room = new URLSearchParams({ room: b.room.number, d: mskDayKey(b.startsAt) });
               return (
                 <li key={b.id} className="flex items-center gap-3 px-4 py-3">
-                  <span aria-hidden className={`grid size-10 shrink-0 place-items-center rounded-xl ${s.soft} ${s.ink}`}>
+                  <span aria-hidden className={`grid size-10 shrink-0 place-items-center rounded-xl ${s.soft} text-ink`}>
                     <DoorOpen className="size-5" />
                   </span>
                   <Link href={`/rooms/${b.room.buildingId}?${room}#room`} transitionTypes={["nav-forward"]} className="min-w-0 flex-1">
