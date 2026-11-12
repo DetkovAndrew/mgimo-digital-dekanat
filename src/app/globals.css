@@ -310,3 +310,15 @@ body {
     scale: 0.98;
   }
 }
+
+/* Маршрут внутри корпуса: штрихи «бегут» по направлению движения. Без анимации при prefers-reduced-motion. */
+@keyframes route-flow {
+  to {
+    stroke-dashoffset: -22;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .route-flow {
+    animation: route-flow 1.1s linear infinite;
+  }
+}

@@ -7,13 +7,14 @@ import { LessonCard } from "@/components/lesson-card";
 import { NextLesson } from "@/components/next-lesson";
 import { TransferNote } from "@/components/transfer-note";
 import { Badge, Empty, IconTile, List, PageTitle, RowLink, Section } from "@/components/ui";
-import { addDays, formatDay, formatShortDate, mskStartOfDay, requestStatusLabel } from "@/lib/format";
+import { indoorRouteHref, lessonRoomOnPlan } from "@/lib/campus/route-link";
+import { addDays, formatDay, formatShortDate, mskDayKey, mskStartOfDay, requestStatusLabel } from "@/lib/format";
 import { formatRequestNumber, isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { transfersForDay } from "@/lib/transfers";
 import { getMyUpcomingDeadlines } from "@/server/dal/grades";
 import { getMyProfile } from "@/server/dal/profile";
 import { listMyRequests } from "@/server/dal/requests";
-import { getMySchedule } from "@/server/dal/schedule";
+import { getMyRouteStart, getMySchedule } from "@/server/dal/schedule";
 
 export default async function TodayPage() {
   const now = new Date();
@@ -28,6 +29,9 @@ export default async function TodayPage() {
   const todayLessons = upcoming.filter((l) => l.startsAt < addDays(today, 1));
   const transfers = transfersForDay(todayLessons);
   const next = upcoming.find((l) => l.status !== "CANCELLED" && l.endsAt > now);
+  // «Как пройти» внутри корпуса к следующей паре: из аудитории прошлой пары в тот же день, если она там же.
+  const nextRoom = next ? lessonRoomOnPlan(next) : null;
+  const indoorHref = next && nextRoom ? indoorRouteHref(nextRoom, mskDayKey(next.startsAt), await getMyRouteStart(nextRoom.buildingId, next.startsAt)) : null;
   const needAction = requests.filter((r) => r.status === "NEEDS_INFO" || r.status === "READY");
   // Только предстоящие переходы: утренние предупреждения вечером уже не актуальны.
   const impossible = [...transfers.values()].filter((t) => t.verdict.kind === "impossible" && t.toStartsAt > now);
@@ -43,7 +47,7 @@ export default async function TodayPage() {
 
       <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start xl:gap-x-8">
         <div className="xl:col-start-1">
-          {next && <NextLesson next={next} upcoming={upcoming} now={now} />}
+          {next && <NextLesson next={next} upcoming={upcoming} now={now} indoorHref={indoorHref} />}
           <AskBar className="mb-8" />
         </div>
 

@@ -25,9 +25,11 @@ export type Door = { side: Side; at: readonly [number, number] };
 export type GeoRoom = { room: PlanRoom; pts: Pt[]; c: Pt; narrow: boolean; door: Door | null };
 // hall — проходимое (холл, вход, галерея); void — проём «второго света», по нему не пройти; room — помещение без номера
 // (лестница, туалет, столовая…), цвет по иконке; yard — двор снаружи корпуса.
-export type Decor = { pts: Pt[]; c: Pt; label?: string; icon?: DecorIcon; tone: "hall" | "void" | "room" | "yard"; door?: Door | null };
-export type WingGeo = { wing: number; body: Pt[]; corridor: Pt[] | null; badge: Pt | null };
-export type FloorGeo = { rooms: GeoRoom[]; decor: Decor[]; wings: WingGeo[]; marks: { at: Pt; icon: DecorIcon }[]; h?: number }; // h — своя высота этажа
+// shaft — лестничный пролёт («между крыльями 1 и 2»): лестницы с одним пролётом на соседних этажах связаны (route.ts),
+// название попадает в шаги маршрута: «Поднимитесь по лестнице между крыльями 1 и 2 на 3 этаж».
+export type Decor = { pts: Pt[]; c: Pt; label?: string; icon?: DecorIcon; tone: "hall" | "void" | "room" | "yard"; door?: Door | null; shaft?: string };
+export type WingGeo = { wing: number; body: Pt[]; corridor: Pt[] | null; badge: Pt | null; name?: string }; // name — для шагов маршрута
+export type FloorGeo = { rooms: GeoRoom[]; decor: Decor[]; wings: WingGeo[]; marks: { at: Pt; icon: DecorIcon; shaft?: string }[]; h?: number }; // h — своя высота этажа
 
 export type PlanBuilding = {
   buildingId: string;
@@ -61,7 +63,7 @@ function slots(spec: string): Slot[] {
 }
 
 // ─── Геометрия: всё по осям, прямоугольник — [x0, y0, x1, y1] ─────────────────────────────────────────────────
-type Rect = readonly [number, number, number, number];
+export type Rect = readonly [number, number, number, number];
 const box = ([x0, y0, x1, y1]: Rect): Pt[] => [
   [x0, y0],
   [x1, y0],
@@ -136,9 +138,15 @@ function run(ctx: Ctx, r: Run) {
 /** Часть корпуса без коридора: холл, лекционный блок, атриум. Нужна для наружной стены. */
 const annex = (ctx: Ctx, wing: number, r: Rect) => ctx.out.wings.push({ wing, body: box(r), corridor: null, badge: null });
 
+/** Лестница: помещение со значком, дверью в проход и номером пролёта (одинаковым на всех этажах, где он есть). */
+function stair(ctx: Ctx, r: Rect, door: Side, shaft: string) {
+  decor(ctx, r, "room", undefined, "stairs", door);
+  ctx.out.decor.at(-1)!.shaft = shaft;
+}
+
 /** Холл на стыке коридоров: лестница и туалет — в наружных углах, коридоры подходят к середине сторон. */
 type Corner = "tl" | "tr" | "bl" | "br";
-function lobby(ctx: Ctx, wing: number, r: Rect, stairs: Corner, toilet: Corner) {
+function lobby(ctx: Ctx, wing: number, r: Rect, stairs: Corner, toilet: Corner, shaft: string) {
   annex(ctx, wing, r);
   decor(ctx, r, "hall");
   const s = 40;
@@ -147,7 +155,7 @@ function lobby(ctx: Ctx, wing: number, r: Rect, stairs: Corner, toilet: Corner) 
     const y = c.startsWith("t") ? r[1] : r[3] - s;
     return [x, y, x + s, y + s];
   };
-  decor(ctx, at(stairs), "room", undefined, "stairs", stairs.startsWith("t") ? "s" : "n");
+  stair(ctx, at(stairs), stairs.startsWith("t") ? "s" : "n", shaft);
   decor(ctx, at(toilet), "room", undefined, "toilet", toilet.startsWith("t") ? "s" : "n");
 }
 
@@ -189,8 +197,8 @@ function kronvFloor(ctx: Ctx) {
   run(ctx, { wing: 2, axis: "x", at: t, from: corner, to: W - corner, a: f.w2[0], b: f.w2[1], badge: true });
   run(ctx, { wing: 1, axis: "y", at: t, from: corner, to: sideEnd, a: f.w1[0], b: f.w1[1], badge: true });
   run(ctx, { wing: 3, axis: "y", at: W - t, from: corner, to: sideEnd, a: f.w3[0], b: f.w3[1], badge: true });
-  lobby(ctx, 1, [10, 10, corner, corner], "tl", "tr");
-  lobby(ctx, 3, [W - corner, 10, W - 10, corner], "tr", "tl");
+  lobby(ctx, 1, [10, 10, corner, corner], "tl", "tr", "между крыльями 1 и 2");
+  lobby(ctx, 3, [W - corner, 10, W - 10, corner], "tr", "tl", "между крыльями 2 и 3");
   decor(ctx, [corner, corner, W - corner, ring ? sideEnd : sideEnd + 48], "yard", "Двор");
 
   if (ring) {
@@ -199,10 +207,11 @@ function kronvFloor(ctx: Ctx) {
     const hallY = yb + CORRIDOR / 2; // низ коридора и угловых холлов
     annex(ctx, 1, [10, top, W / 2, 530]);
     annex(ctx, 3, [W / 2, top, W - 10, 530]);
-    ctx.out.wings.push({ wing: 1, body: box([corner, top, W - corner, hallY]), corridor: box([10, yb - CORRIDOR / 2, W - 10, hallY]), badge: null });
+    const name = ctx.floor === 1 ? "коридор у входа" : "коридор у библиотеки";
+    ctx.out.wings.push({ wing: 1, body: box([corner, top, W - corner, hallY]), corridor: box([10, yb - CORRIDOR / 2, W - 10, hallY]), badge: null, name });
     lay(ctx, 1, ctx.floor === 1 ? "~90:coat!Гардероб ~80:food!Столовая" : "~180:book!Библиотека", "x", corner, W - corner, [top, yb - CORRIDOR / 2], { door: "s", fill: true });
-    lobby(ctx, 1, [10, top, corner, hallY], "tl", "tr");
-    lobby(ctx, 3, [W - corner, top, W - 10, hallY], "tr", "tl");
+    lobby(ctx, 1, [10, top, corner, hallY], "tl", "tr", "в конце крыла 1");
+    lobby(ctx, 3, [W - corner, top, W - 10, hallY], "tr", "tl", "в конце крыла 3");
     const [r0, r1] = [hallY, 530]; // ряд под коридором до наружной стены
     if (ctx.floor === 1) {
       lay(ctx, 1, "01:H120 04:H180 06:H90", "x", 10, W / 2 - 30, [r0, r1], { door: "n", fill: true });
@@ -211,13 +220,13 @@ function kronvFloor(ctx: Ctx) {
     } else {
       decor(ctx, [10, r0, W / 2 - 30, r1], "void", "Второй свет");
       decor(ctx, [W / 2 + 30, r0, W - 10, r1], "void", "Второй свет");
-      decor(ctx, [W / 2 - 30, r0, W / 2 + 30, r1], "room", undefined, "stairs", "n");
+      stair(ctx, [W / 2 - 30, r0, W / 2 + 30, r1], "n", "над вестибюлем"); // одна на этаж, с другими не связана
     }
   } else {
     // Выше второго этажа нижней части нет: крылья заканчиваются лестницами.
     for (const x0 of [10, W - corner]) {
       annex(ctx, x0 < W / 2 ? 1 : 3, [x0, sideEnd, x0 + 120, sideEnd + 48]);
-      decor(ctx, [x0, sideEnd, x0 + 120, sideEnd + 48], "room", undefined, "stairs", "n");
+      stair(ctx, [x0, sideEnd, x0 + 120, sideEnd + 48], "n", x0 < W / 2 ? "в конце крыла 1" : "в конце крыла 3");
     }
     ctx.out.h = sideEnd + 58;
   }
@@ -271,16 +280,16 @@ function lommFloor(ctx: Ctx) {
   lay(ctx, 1, f.front[0], "x", 10, 116, [420, 480], { door: "n", fill: true });
   lay(ctx, 1, f.front[1], "x", 176, 230, [420, 480], { door: "n", fill: true });
   if (ctx.floor === 1) decor(ctx, [116, 420, 176, 480], "hall", "Вход", "entrance");
-  else decor(ctx, [116, 420, 176, 480], "room", undefined, "stairs", "n");
+  else stair(ctx, [116, 420, 176, 480], "n", "у атриума");
   // Вверх — коридор к угловому холлу; слева от холла лекционная, вправо — верхнее крыло.
   run(ctx, { wing: 1, axis: "y", at: x, from: 130, to: 300, a: f.spine[0], b: f.spine[1] });
-  lobby(ctx, 1, [90, 10, 210, 130], "tr", "tl");
+  lobby(ctx, 1, [90, 10, 210, 130], "tr", "tl", "у лекционной");
   annex(ctx, 1, [10, 10, 90, 130]);
   lay(ctx, 1, f.hall, "x", 10, 90, [10, 130], { door: "e", fill: true });
   run(ctx, { wing: 1, axis: "x", at: 70, from: 210, to: W - 10, a: f.top[0], b: f.top[1] });
   // Вправо от атриума — длинное крыло; в торцах крыльев — лестницы.
   run(ctx, { wing: 1, axis: "x", at: y, from: 230, to: W - 10, a: f.east[0], b: f.east[1] });
-  ctx.out.marks.push({ at: [W - 22, 70], icon: "stairs" }, { at: [W - 22, y], icon: "stairs" });
+  ctx.out.marks.push({ at: [W - 22, 70], icon: "stairs", shaft: "в конце верхнего крыла" }, { at: [W - 22, y], icon: "stairs", shaft: "в конце длинного крыла" });
   // Дворы между крыльями.
   decor(ctx, [10, 130, 90, 300], "yard", "Двор");
   decor(ctx, [210, 130, W - 10, 300], "yard", "Двор");
@@ -289,7 +298,7 @@ function lommFloor(ctx: Ctx) {
 // ─── Двери: проём ставится только туда, где за стеной коридор или холл, а не соседнее помещение ────────────────
 const DOOR = 9;
 type Span = [number, number];
-const rectOf = (pts: Pt[]): Rect => [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))];
+export const rectOf = (pts: Pt[]): Rect => [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))];
 
 /** Свободные для прохода участки за стороной side прямоугольника r: проходы минус чужие помещения. */
 export function openSpans(r: Rect, side: Side, walk: Rect[], blocks: Rect[]): Span[] {

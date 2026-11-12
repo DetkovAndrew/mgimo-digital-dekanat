@@ -1,20 +1,31 @@
-import { CalendarClock, Lock, Users } from "lucide-react";
+import { ArrowUp, CalendarClock, CornerUpLeft, CornerUpRight, DoorOpen, Flag, Lock, LogIn, type LucideIcon, Route, Undo2, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ViewTransition } from "react";
 import { BackLink } from "@/components/back-link";
-import { CampusMap, MapLegend, ROOM_KIND_STYLE } from "@/components/campus-map";
+import { CampusMap, MapLegend, ROOM_KIND_STYLE, Stairs } from "@/components/campus-map";
 import { KindTime } from "@/components/kind";
 import { Badge, Disclosure, Empty, List, PageTitle, RowLink, Section } from "@/components/ui";
 import { planFor, roomKindLabel } from "@/lib/campus/plans";
+import { findRoute, type RouteEnd, type StepKind } from "@/lib/campus/route";
 import { ROOM_RULES, roomDayKeys } from "@/lib/campus/rules";
 import { formatDay, formatTime, lessonKindLabel } from "@/lib/format";
 import { getCampusState, getRoomDay } from "@/server/dal/rooms";
+import { getMyRouteStart } from "@/server/dal/schedule";
 import { BookForm, CancelRoomBooking } from "../booking";
 
 const weekday = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", weekday: "short" });
 const dayNum = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "numeric" });
 const noon = (key: string) => new Date(`${key}T12:00:00+03:00`);
+const STEP_ICON: Record<Exclude<StepKind, "start">, LucideIcon> = {
+  straight: ArrowUp,
+  left: CornerUpLeft,
+  right: CornerUpRight,
+  back: Undo2,
+  up: Stairs,
+  down: Stairs,
+  arrive: Flag,
+};
 
 export default async function CampusPage({ params, searchParams }: PageProps<"/rooms/[building]">) {
   const { building } = await params;
@@ -26,16 +37,50 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
   const day = typeof sp.d === "string" && days.includes(sp.d) ? sp.d : days[0];
   const selected = typeof sp.room === "string" ? plan.rooms.find((r) => r.number === sp.room) ?? null : null;
   const floorParam = Number(sp.floor);
-  const floor = selected?.floor ?? (plan.floors.includes(floorParam) ? floorParam : plan.floors[0]);
 
-  const [state, roomDay] = await Promise.all([getCampusState(building, day), selected ? getRoomDay(selected.id, day) : null]);
-  const url = (p: { floor?: number; room?: string | null; d?: string }) => {
+  // Маршрут к выбранной аудитории: from — «entrance» или номер аудитории этого корпуса (селектор, проверяется по схеме).
+  const fromParam = typeof sp.from === "string" ? sp.from : null;
+  const fromEnd: RouteEnd | null =
+    !selected || !fromParam
+      ? null
+      : fromParam === "entrance"
+        ? { kind: "entrance" }
+        : plan.rooms.some((r) => r.number === fromParam && r.number !== selected.number)
+          ? { kind: "room", number: fromParam }
+          : null;
+  const route = selected && fromEnd ? findRoute(building, fromEnd, { kind: "room", number: selected.number }) : null;
+  // С маршрутом этаж показа отдельный от этажа аудитории: вкладки и шаги переключают его, не теряя маршрут.
+  const floor = route ? (plan.floors.includes(floorParam) ? floorParam : route.startFloor) : (selected?.floor ?? (plan.floors.includes(floorParam) ? floorParam : plan.floors[0]));
+
+  const [state, roomDay, lastRoom] = await Promise.all([
+    getCampusState(building, day),
+    selected ? getRoomDay(selected.id, day) : null,
+    selected ? getMyRouteStart(building, new Date()) : null,
+  ]);
+  const url = (p: { floor?: number | null; room?: string | null; d?: string; from?: string | null }) => {
     const q = new URLSearchParams();
-    q.set("floor", String(p.floor ?? floor));
-    if (p.room !== null && (p.room ?? selected?.number)) q.set("room", (p.room ?? selected?.number)!);
+    if (p.floor !== null) q.set("floor", String(p.floor ?? floor));
+    const room = p.room === null ? null : (p.room ?? selected?.number);
+    if (room) q.set("room", room);
     q.set("d", p.d ?? day);
+    const from = p.from === undefined ? (route ? fromParam : null) : p.from;
+    if (room && from) q.set("from", from);
     return `/rooms/${building}?${q}`;
   };
+  // Откуда вести: от входа или из аудитории последней пары сегодня, если она была в этом корпусе.
+  const starts = [
+    { from: "entrance", label: "От входа", icon: LogIn },
+    ...(lastRoom && lastRoom !== selected?.number ? [{ from: lastRoom, label: `От ${lastRoom}, где была пара`, icon: DoorOpen }] : []),
+  ];
+  // Начало, введённое вручную, тоже видно среди вариантов (и отмечено выбранным).
+  if (route && fromEnd?.kind === "room" && !starts.some((st) => st.from === fromEnd.number)) starts.push({ from: fromEnd.number, label: `От ${fromEnd.number}`, icon: DoorOpen });
+  // Шаги блоками по этажам в порядке прохождения: этаж может встретиться дважды (3 → 2 → 3).
+  const blocks = (route?.steps ?? []).reduce<{ floor: number; steps: NonNullable<typeof route>["steps"] }[]>((out, st) => {
+    if (out.at(-1)?.floor === st.floor) out.at(-1)!.steps.push(st);
+    else out.push({ floor: st.floor, steps: [st] });
+    return out;
+  }, []);
+  const here = !!selected && fromParam === selected.number; // следующая пара в той же аудитории
   const bookableHere = plan.rooms.filter((r) => r.floor === floor && r.bookable);
 
   return (
@@ -50,7 +95,7 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
         {plan.floors.map((f) => (
           <Link
             key={f}
-            href={url({ floor: f, room: null })}
+            href={url({ floor: f, room: route ? undefined : null })}
             scroll={false}
             replace
             aria-current={f === floor ? "page" : undefined}
@@ -64,8 +109,16 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
       </nav>
 
       <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_24rem] xl:items-start xl:gap-x-8">
-      <div>
-      <CampusMap plan={plan} floor={floor} busyNow={state.busyNow} mine={state.mine} selected={selected?.number ?? null} href={(n) => `${url({ room: n })}#room`} />
+      <div id="plan" className="scroll-mt-20 md:scroll-mt-6">
+      <CampusMap
+        plan={plan}
+        floor={floor}
+        busyNow={state.busyNow}
+        mine={state.mine}
+        selected={selected?.number ?? null}
+        href={(n) => `${url({ room: n })}#room`}
+        route={route}
+      />
       <MapLegend />
       <p className="mt-2 text-xs text-ink-2">Схема условная. Номер XYAB: крыло, этаж, номер аудитории.</p>
       {/* Та же схема списком: для экранных дикторов и тем, кому мелко на телефоне. */}
@@ -119,6 +172,111 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
                 </Badge>
               )}
             </p>
+
+            <section aria-labelledby="route-title" className="mt-4 rounded-2xl bg-page p-3 ring-1 ring-hairline">
+              <h3 id="route-title" className="flex items-center gap-2 font-semibold">
+                <Route aria-hidden className="size-4 text-brand" />
+                Как пройти
+              </h3>
+              <nav aria-label="Откуда идти" className="mt-2 flex flex-wrap gap-1.5">
+                {starts.map((st) => {
+                  const on = route && fromParam === st.from;
+                  return (
+                    <Link
+                      key={st.from}
+                      href={`${url({ from: st.from, floor: null })}#plan`}
+                      replace
+                      aria-current={on ? "true" : undefined}
+                      className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium transition-colors ${
+                        on ? "bg-brand-fill text-on-brand" : "bg-surface text-ink ring-1 ring-hairline hover:bg-fill/70"
+                      }`}
+                    >
+                      <st.icon aria-hidden className="size-4" />
+                      {st.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+              {route && (
+                <>
+                  <p aria-live="polite" className="mt-3 text-sm text-ink-2">
+                    Около {route.meters}&nbsp;м
+                    {route.startFloor !== selected.floor ? `, с ${route.startFloor} на ${selected.floor} этаж` : ""}. Маршрут и расстояния примерные.
+                  </p>
+                  {blocks.map(({ floor: sf, steps }, bi) => (
+                    <div key={bi} className="mt-3">
+                      <p className="flex min-h-11 items-center justify-between gap-2 text-xs font-semibold text-ink-2">
+                        {sf} этаж
+                        {sf !== floor ? (
+                          <Link href={`${url({ floor: sf })}#plan`} replace className="inline-flex min-h-11 items-center font-medium text-brand">
+                            Показать на схеме
+                          </Link>
+                        ) : (
+                          <span className="font-normal">на схеме</span>
+                        )}
+                      </p>
+                      <ol className="space-y-2">
+                        {steps.map((st, i) => {
+                            const Icon = st.kind === "start" ? (fromEnd?.kind === "entrance" ? LogIn : DoorOpen) : STEP_ICON[st.kind];
+                            return (
+                              <li key={i} className="flex items-start gap-2.5 text-sm">
+                                <span aria-hidden className="grid size-7 shrink-0 place-items-center rounded-full bg-surface text-brand ring-1 ring-hairline">
+                                  <Icon className={`size-4 ${st.kind === "down" ? "-scale-x-100" : ""}`} />
+                                </span>
+                                <span className="min-w-0 flex-1 pt-1">
+                                  {st.text}
+                                  {st.meters ? <span className="text-ink-2">, около {st.meters}&nbsp;м</span> : null}
+                                </span>
+                              </li>
+                            );
+                          })}
+                      </ol>
+                    </div>
+                  ))}
+                  <Link href={`${url({ from: null })}#room`} replace scroll={false} className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-brand">
+                    Скрыть маршрут
+                  </Link>
+                </>
+              )}
+              {here ? (
+                <p aria-live="polite" className="mt-2 text-sm text-ink-2">
+                  Вы уже в аудитории {selected.number}: прошлая пара была здесь же.
+                </p>
+              ) : (
+                fromParam && !route && <p className="mt-2 text-sm text-ink-2">Маршрут построить не получилось: такой аудитории в корпусе нет. Выберите, откуда идти.</p>
+              )}
+              {/* Из любой аудитории корпуса: обычная форма GET, номер проверяет сервер по схеме. */}
+              <Disclosure title="Из другой аудитории" className="mt-2">
+                <form action={`/rooms/${building}`} className="flex items-end gap-2">
+                  <input type="hidden" name="room" value={selected.number} />
+                  <input type="hidden" name="d" value={day} />
+                  <label className="min-w-0 flex-1 text-sm">
+                    <span className="mb-1 block text-ink-2">Номер аудитории</span>
+                    <input
+                      name="from"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      list="plan-rooms"
+                      maxLength={4}
+                      pattern="[0-9]{4}"
+                      placeholder="например, 1121"
+                      defaultValue={fromParam && fromParam !== "entrance" ? fromParam : ""}
+                      className="min-h-11 w-full rounded-xl bg-surface px-3 text-body ring-1 ring-field outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    />
+                  </label>
+                  <datalist id="plan-rooms">
+                    {plan.rooms
+                      .filter((r) => r.number !== selected.number)
+                      .map((r) => (
+                        <option key={r.id} value={r.number} />
+                      ))}
+                  </datalist>
+                  <button type="submit" className="min-h-11 shrink-0 rounded-xl bg-brand-fill px-4 text-sm font-semibold text-on-brand transition active:scale-95">
+                    Проложить
+                  </button>
+                </form>
+              </Disclosure>
+            </section>
 
             <nav aria-label="День" className="-mx-4 mt-4 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:-mx-5 md:px-5">
               {days.map((d) => (

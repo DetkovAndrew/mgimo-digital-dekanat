@@ -1,6 +1,7 @@
 import { BookOpen, createLucideIcon, DoorOpen, Dumbbell, type LucideIcon, Shirt, Toilet, Utensils } from "lucide-react";
 import Link from "next/link";
 import { roomKindLabel, type DecorIcon, type Door, type PlanBuilding, type Pt, type RoomKind, type Side } from "@/lib/campus/plans";
+import type { RouteLeg, RouteTransfer } from "@/lib/campus/route";
 
 // Схема этажа в стиле поэтажного плана. Подложка серая, коридоры белые, наружные стены толще. Аудитории почти белые,
 // у них тонкие общие стены и проём двери в коридор. Тон есть только у особых помещений, значки (цветные квадраты)
@@ -16,7 +17,7 @@ export const ROOM_KIND_STYLE: Record<RoomKind, { fill: string; soft: string }> =
   MEETING: { fill: "fill-m-meet", soft: "bg-m-meet ring-1 ring-inset ring-m-wall" },
 };
 
-const Stairs = createLucideIcon("Stairs", [["path", { d: "M3 20h5v-5h5v-5h5V5h3", key: "stairs" }]]);
+export const Stairs = createLucideIcon("Stairs", [["path", { d: "M3 20h5v-5h5v-5h5V5h3", key: "stairs" }]]);
 const ICON: Record<DecorIcon, LucideIcon> = { toilet: Toilet, stairs: Stairs, food: Utensils, sport: Dumbbell, book: BookOpen, coat: Shirt, entrance: DoorOpen };
 const ICON_LABEL: Record<DecorIcon, string> = { toilet: "Туалет", stairs: "Лестница", food: "Столовая", sport: "Спортзал", book: "Библиотека", coat: "Гардероб", entrance: "Вход" };
 const BADGE: Record<DecorIcon, string> = {
@@ -89,6 +90,7 @@ export function CampusMap({
   mine,
   selected,
   href,
+  route = null,
 }: {
   plan: PlanBuilding;
   floor: number;
@@ -96,6 +98,7 @@ export function CampusMap({
   mine: string[];
   selected: string | null;
   href: (number: string) => string;
+  route?: { legs: RouteLeg[]; transfers: RouteTransfer[] } | null;
 }) {
   const geo = plan.floor(floor);
   const busy = new Set(busyNow);
@@ -217,6 +220,8 @@ export function CampusMap({
           );
         })}
 
+        {route && <RouteOverlay route={route} floor={floor} w={w} />}
+
         {/* Номера крыльев и лестницы в торцах коридоров. */}
         {plan.wingCount > 1 &&
           geo.wings.map(({ wing, badge }) =>
@@ -235,6 +240,95 @@ export function CampusMap({
       </svg>
     </div>
   );
+}
+
+/**
+ * Маршрут на схеме: пунктир по проходам (анимация «бегущих» штрихов только без prefers-reduced-motion), старт, финиш и
+ * переходы по лестнице с подписью этажа. Декоративный слой: текстовая версия — шаги под схемой, клики проходят насквозь.
+ */
+function RouteOverlay({ route, floor, w }: { route: { legs: RouteLeg[] }; floor: number; w: number }) {
+  const legs = route.legs.map((l, i) => ({ ...l, i })).filter((l) => l.floor === floor);
+  const pill = (at: Pt, text: string, key: string) => {
+    const width = text.length * 6.2 + 12;
+    const x = Math.min(Math.max(at[0] + 10, 4), w - width - 4);
+    return (
+      <g key={key}>
+        <rect x={x} y={at[1] - 20} width={width} height={16} rx={8} className="fill-brand-fill" />
+        <text x={x + width / 2} y={at[1] - 8.5} textAnchor="middle" fontSize={10} className="fill-on-brand font-semibold">
+          {text}
+        </text>
+      </g>
+    );
+  };
+  return (
+    <g aria-hidden pointerEvents="none">
+      {legs.map(({ points, i }) =>
+        points.length > 1 ? (
+          <g key={`r${i}`}>
+            <polyline points={points.map((p) => `${f(p[0])},${f(p[1])}`).join(" ")} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" className="fill-none stroke-brand-soft" />
+            <polyline
+              points={points.map((p) => `${f(p[0])},${f(p[1])}`).join(" ")}
+              strokeWidth={3}
+              strokeDasharray="6 5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="route-flow fill-none stroke-brand"
+            />
+          </g>
+        ) : null,
+      )}
+      {legs.map(({ points, i }) => (
+        <g key={`e${i}`}>
+          {i === 0 && <circle cx={points[0][0]} cy={points[0][1]} r={5.5} strokeWidth={2} className="fill-brand stroke-m-floor" />}
+          {i === route.legs.length - 1 && (
+            <circle cx={points.at(-1)![0]} cy={points.at(-1)![1]} r={4} strokeWidth={2} className="fill-m-floor stroke-brand" />
+          )}
+        </g>
+      ))}
+      {legs.map(({ points, i }) => {
+        // Пролёты подряд без остановки — одна подпись: откуда пришли и куда идём дальше.
+        const pass = points.length <= 1 && i > 0 && i < route.legs.length - 1;
+        const out = i < route.legs.length - 1 && !pass ? climbEnd(route.legs, i + 1) : null;
+        const into = i > 0 ? climbStart(route.legs, i - 1) : null;
+        return (
+          <g key={`s${i}`}>
+            {pass ? (
+              <>
+                <circle cx={points[0][0]} cy={points[0][1]} r={4} strokeWidth={2} className="fill-brand stroke-m-floor" />
+                {pill(points[0], `дальше на ${climbEnd(route.legs, i + 1)} эт.`, "pass")}
+              </>
+            ) : (
+              <>
+                {into !== null && (
+                  <>
+                    <circle cx={points[0][0]} cy={points[0][1]} r={4} strokeWidth={2} className="fill-brand stroke-m-floor" />
+                    {pill(points[0], `с ${into} эт.`, "in")}
+                  </>
+                )}
+                {out !== null && (
+                  <>
+                    <circle cx={points.at(-1)![0]} cy={points.at(-1)![1]} r={4} strokeWidth={2} className="fill-brand stroke-m-floor" />
+                    {pill(points.at(-1)!, `на ${out} эт.`, "out")}
+                  </>
+                )}
+              </>
+            )}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** Этаж, где закончится подъём или спуск, начатый на участке i (пролёты подряд без остановок). */
+function climbEnd(legs: RouteLeg[], i: number) {
+  while (legs[i + 1] && legs[i].points.length <= 1) i++;
+  return legs[i].floor;
+}
+/** Этаж, где начался подъём или спуск, который закончился сразу после участка i. */
+function climbStart(legs: RouteLeg[], i: number) {
+  while (i > 0 && legs[i].points.length <= 1) i--;
+  return legs[i].floor;
 }
 
 export function MapLegend() {

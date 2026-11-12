@@ -1,14 +1,15 @@
-import { BookOpen, ClipboardCheck, MapPin, Navigation, UserRound } from "lucide-react";
+import { BookOpen, ClipboardCheck, MapPin, Navigation, Route, UserRound } from "lucide-react";
 import Link from "next/link";
 import { ViewTransition } from "react";
 import { BackLink } from "@/components/back-link";
 import { KindTile, kindStyle } from "@/components/kind";
 import { Badge, Card, Disclosure, IconTile, List, RowLink, Section } from "@/components/ui";
-import { planFor, roomNumberFrom } from "@/lib/campus/plans";
+import { indoorRouteHref, lessonRoomOnPlan } from "@/lib/campus/route-link";
 import { formatDate, formatDateTime, formatDay, formatTime, lessonKindLabel, mskDayKey } from "@/lib/format";
 import { yandexRouteUrl } from "@/lib/geo";
 import { lessonTitleName } from "@/lib/view-transitions";
 import { getMyLesson, type MyLesson } from "@/server/dal/lessons";
+import { getMyRouteStart } from "@/server/dal/schedule";
 
 const statusText: Record<string, string> = { RESCHEDULED: "перенесено", CANCELLED: "отменено" };
 
@@ -38,10 +39,12 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
   const l = await getMyLesson(id);
   const cancelled = l.status === "CANCELLED";
   const latest = l.changes[0];
-  // Аудитория со схемы корпуса: ссылка на её расписание и бронь в день пары.
-  const roomNo = roomNumberFrom(l.room);
-  const onPlan = !l.online && l.building && roomNo && planFor(l.building.id)?.rooms.some((r) => r.number === roomNo);
-  const roomHref = onPlan && l.building ? `/rooms/${l.building.id}?${new URLSearchParams({ room: roomNo!, d: mskDayKey(l.startsAt) })}#room` : null;
+  // Аудитория со схемы корпуса: ссылка на её расписание и бронь в день пары и маршрут внутри корпуса —
+  // из аудитории предыдущей пары в этот день, если она была здесь же, иначе от входа.
+  const onPlanRoom = lessonRoomOnPlan(l);
+  const day = mskDayKey(l.startsAt);
+  const roomHref = onPlanRoom ? `/rooms/${onPlanRoom.buildingId}?${new URLSearchParams({ room: onPlanRoom.number, d: day })}#room` : null;
+  const indoorHref = onPlanRoom && !cancelled ? indoorRouteHref(onPlanRoom, day, await getMyRouteStart(onPlanRoom.buildingId, l.startsAt)) : null;
 
   return (
     <>
@@ -97,6 +100,16 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
                 <Navigation aria-hidden className="size-4" />
                 Маршрут
               </a>
+            )}
+            {indoorHref && (
+              <Link
+                href={indoorHref}
+                transitionTypes={["nav-forward"]}
+                className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-surface text-body font-semibold text-brand ring-1 ring-hairline transition active:scale-[0.98]"
+              >
+                <Route aria-hidden className="size-4" />
+                Как пройти внутри корпуса
+              </Link>
             )}
           </>
         ) : (

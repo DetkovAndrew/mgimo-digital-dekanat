@@ -1,4 +1,6 @@
 import "server-only";
+import { planFor, roomNumberFrom } from "@/lib/campus/plans";
+import { mskStartOfDay } from "@/lib/format";
 import { prisma } from "../db";
 import { requireStudent } from "../session";
 
@@ -102,3 +104,16 @@ export async function getMySchedule(range: { from: Date; to: Date }) {
 }
 
 export type ScheduleLesson = Awaited<ReturnType<typeof getMySchedule>>[number];
+
+/**
+ * Откуда вести маршрут внутри корпуса (docs/plans/indoor-route.md): аудитория последнего занятия студента в этот день
+ * (МСК), закончившегося не позже `before`. Отменённые и онлайн не в счёт. Если последнее такое занятие было в другом
+ * корпусе или не в аудитории со схемы — null, маршрут начнётся от входа. Только из своего расписания (сессия).
+ */
+export async function getMyRouteStart(buildingId: string, before: Date): Promise<string | null> {
+  const day = await getMySchedule({ from: mskStartOfDay(before), to: before });
+  const last = day.filter((l) => l.status !== "CANCELLED" && !l.online && l.endsAt <= before).at(-1);
+  if (!last || last.building?.id !== buildingId) return null;
+  const number = roomNumberFrom(last.room);
+  return number && planFor(buildingId)?.rooms.some((r) => r.number === number) ? number : null;
+}

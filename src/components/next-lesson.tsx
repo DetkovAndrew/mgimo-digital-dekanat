@@ -1,4 +1,4 @@
-import { ChevronRight, MapPin, Navigation, UserRound } from "lucide-react";
+import { ChevronRight, MapPin, Navigation, Route, UserRound } from "lucide-react";
 import Link from "next/link";
 import { addDays, formatDay, formatTime, lessonKindLabel, mskDayKey, mskStartOfDay } from "@/lib/format";
 import { yandexRouteUrl } from "@/lib/geo";
@@ -49,7 +49,7 @@ function DayStrip({ lessons, next, now }: { lessons: ScheduleLesson[]; next: Sch
 }
 
 /** Главная карточка «Сегодня»: следующая пара крупно, место и преподаватель, лента дня и маршрут. */
-export function NextLesson({ next, upcoming, now }: { next: ScheduleLesson; upcoming: ScheduleLesson[]; now: Date }) {
+export function NextLesson({ next, upcoming, now, indoorHref = null }: { next: ScheduleLesson; upcoming: ScheduleLesson[]; now: Date; indoorHref?: string | null }) {
   const ongoing = next.startsAt <= now;
   const day = upcoming.filter((l) => l.status !== "CANCELLED" && mskDayKey(l.startsAt) === mskDayKey(next.startsAt));
   const left = day.filter((l) => l.endsAt > now);
@@ -101,6 +101,17 @@ export function NextLesson({ next, upcoming, now }: { next: ScheduleLesson; upco
           {day.length === 1 ? "одна пара" : left.length > 1 ? `ещё ${left.length} ${plural(left.length, "пара", "пары", "пар")}` : "это последняя пара"}
           {left.length > 1 && `, до ${formatTime(dayEnd)}`}
         </p>
+        <span className="flex flex-wrap gap-2">
+        {indoorHref && (
+          <Link
+            href={indoorHref}
+            transitionTypes={["nav-forward"]}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-surface px-4 text-sm font-semibold text-brand transition active:scale-95 focus-visible:outline-focus-on-brand"
+          >
+            <Route aria-hidden className="size-4" />
+            Как пройти
+          </Link>
+        )}
         {next.building && !next.online && (
           <a
             href={yandexRouteUrl(next.building, "mt")}
@@ -112,6 +123,7 @@ export function NextLesson({ next, upcoming, now }: { next: ScheduleLesson; upco
             Маршрут
           </a>
         )}
+        </span>
       </div>
     </section>
   );
