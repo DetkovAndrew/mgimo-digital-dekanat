@@ -116,9 +116,21 @@ model StudentProfile {
   sportBookings SportBooking[]
   sportExtra    SportExtraPoints[]
   roomBookings  RoomBooking[]
+  avatar        StudentAvatar?
 
   @@index([groupId])
   @@map("student_profile")
+}
+
+/// Фото профиля: уже обрезанное и сжатое в браузере (docs/plans/avatars.md). Отдаётся только владельцу.
+model StudentAvatar {
+  studentId String         @id
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  data      Bytes
+  mime      String // image/webp | image/jpeg | image/png
+  updatedAt DateTime       @updatedAt @db.Timestamptz(6)
+
+  @@map("student_avatar")
 }
 
 model StaffProfile {

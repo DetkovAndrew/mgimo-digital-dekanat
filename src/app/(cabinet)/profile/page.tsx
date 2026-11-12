@@ -1,10 +1,12 @@
 import { SignOut } from "@/components/nav";
 import { Disclosure, List } from "@/components/ui";
 import { formatDate } from "@/lib/format";
+import { getMyAvatarUrl } from "@/server/dal/avatar";
 import { getMyProfile } from "@/server/dal/profile";
+import { AvatarEditor } from "./avatar";
 
 export default async function ProfilePage() {
-  const p = await getMyProfile();
+  const [p, avatar] = await Promise.all([getMyProfile(), getMyAvatarUrl()]);
   const [last, first] = p.fullName.split(" ");
   const initials = `${first?.[0] ?? ""}${last?.[0] ?? ""}`; // «Лебедева Алина» → «АЛ»
   const main: [string, string][] = [
@@ -31,9 +33,7 @@ export default async function ProfilePage() {
   return (
     <>
       <div className="mb-6 flex flex-col items-center pt-2 text-center">
-        <span aria-hidden className="mb-3 grid size-20 place-items-center rounded-full bg-brand-soft text-2xl font-bold text-brand">
-          {initials}
-        </span>
+        <AvatarEditor src={avatar} initials={initials} />
         <h1 className="text-[22px] leading-tight font-bold tracking-tight">{p.fullName}</h1>
         <p className="text-sm text-ink-2">
           {p.group} · {p.course} курс

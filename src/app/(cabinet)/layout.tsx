@@ -4,15 +4,16 @@ import { Bell, Logo, Nav, ProfileLink } from "@/components/nav";
 import { RouteMotion } from "@/components/route-motion";
 import { Toaster } from "@/components/toast";
 import { isAssistantConfigured } from "@/server/ai/gigachat";
+import { getMyAvatarUrl } from "@/server/dal/avatar";
 import { countMyUnread } from "@/server/dal/notifications";
 import { requireStudent } from "@/server/session";
 
 export default async function CabinetLayout({ children }: LayoutProps<"/">) {
   const { userId } = await requireStudent();
-  const unread = await countMyUnread();
+  const [unread, avatar] = await Promise.all([countMyUnread(), getMyAvatarUrl()]);
   return (
     <div className="flex min-h-dvh">
-      <Nav unread={unread} />
+      <Nav unread={unread} avatar={avatar} />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Оговорка уезжает при прокрутке, шапка остаётся: экран телефона — для содержимого. */}
         <Disclaimer />
@@ -24,7 +25,7 @@ export default async function CabinetLayout({ children }: LayoutProps<"/">) {
             </span>
             <span className="flex items-center">
               <Bell unread={unread} />
-              <ProfileLink />
+              <ProfileLink avatar={avatar} />
             </span>
           </header>
         </div>

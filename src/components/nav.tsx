@@ -25,7 +25,7 @@ const desktopItems = [
 // Разделы, открытые изнутри вкладки (пара, дисциплина…), подсвечивают свою вкладку.
 const owner: Record<string, string> = { lessons: "/schedule", teachers: "/schedule", buildings: "/schedule", courses: "/grades", rooms: "/requests" };
 
-export function Nav({ unread }: { unread: number }) {
+export function Nav({ unread, avatar }: { unread: number; avatar: string | null }) {
   const pathname = usePathname();
   const section = owner[pathname.split("/")[1]] ?? pathname;
   const active = (href: string) => section === href || section.startsWith(`${href}/`);
@@ -91,7 +91,7 @@ export function Nav({ unread }: { unread: number }) {
                     on ? "bg-brand-soft font-semibold text-brand" : "text-ink-2 hover:bg-fill"
                   }`}
                 >
-                  <Icon aria-hidden className="size-4.5" />
+                  {href === "/profile" && avatar ? <AvatarImg src={avatar} className="size-4.5" /> : <Icon aria-hidden className="size-4.5" />}
                   <span className="flex-1">{label}</span>
                   {href === "/notifications" && unread > 0 && (
                     <span className="rounded-full bg-bad-fill px-1.5 text-xs leading-5 text-on-brand">{unread}</span>
@@ -154,7 +154,13 @@ export function Bell({ unread }: { unread: number }) {
   );
 }
 
-export function ProfileLink() {
+/** Своё фото из /api/avatar (только владельцу, без кеша). next/image не подходит: оптимизатор ходит без cookie. */
+export function AvatarImg({ src, className = "" }: { src: string; className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt="" aria-hidden className={`shrink-0 rounded-full bg-fill object-cover ${className}`} />;
+}
+
+export function ProfileLink({ avatar }: { avatar: string | null }) {
   return (
     <Link
       href="/profile"
@@ -162,7 +168,7 @@ export function ProfileLink() {
       aria-label="Профиль"
       className="grid size-11 place-items-center rounded-full text-ink-2 transition-colors hover:bg-fill"
     >
-      <CircleUserRound aria-hidden className="size-5.5" />
+      {avatar ? <AvatarImg src={avatar} className="size-7 ring-1 ring-hairline" /> : <CircleUserRound aria-hidden className="size-5.5" />}
     </Link>
   );
 }

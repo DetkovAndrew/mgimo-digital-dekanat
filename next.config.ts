@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Значок разработчика Next перекрывал нижнее меню на телефоне; ошибки сборки показываются и без него.
   devIndicators: false,
+  // Самое большое тело — фото профиля (до 200 КиБ после сжатия в браузере) плюс разметка multipart.
+  experimental: { serverActions: { bodySizeLimit: "256kb" } },
   // Проект лежит на диске C: (DrvFS в WSL): события файловой системы туда не доходят,
   // и Fast Refresh не видит правок. Опрос — крайняя мера, включается только локально через .env.
   ...(process.env.NEXT_WATCH_POLL_MS ? { watchOptions: { pollIntervalMs: Number(process.env.NEXT_WATCH_POLL_MS) } } : {}),
