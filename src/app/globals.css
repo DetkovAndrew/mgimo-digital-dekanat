@@ -60,6 +60,7 @@
   --m-ic-sport: #18935a;
   --m-ic-book: #a86f15;
   --m-ic-glyph: #ffffff;
+  --m-lamp: #2bd47a; /* глаз Инвиктуса «загорается» на финише маршрута */
   --focus: #3b4cca;
   --focus-on-brand: #ffffff; /* фокус на брендовой заливке */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -120,6 +121,7 @@
     --m-ic-sport: #18935a;
     --m-ic-book: #a86f15;
     --m-ic-glyph: #ffffff;
+    --m-lamp: #5ff2a0;
     --focus: #a3adff;
     --focus-on-brand: #ffffff;
   }
@@ -195,6 +197,7 @@
   --color-m-ic-sport: var(--m-ic-sport);
   --color-m-ic-book: var(--m-ic-book);
   --color-m-ic-glyph: var(--m-ic-glyph);
+  --color-m-lamp: var(--m-lamp);
   --color-focus: var(--focus);
   --color-focus-on-brand: var(--focus-on-brand);
   --font-sans: var(--font-onest);
@@ -462,5 +465,37 @@ body {
     animation: mascot-spin 1.6s ease-in-out infinite;
     transform-box: fill-box;
     transform-origin: 50% 50%;
+  }
+}
+
+/* Попутчик читается поверх синей линии и выбранной аудитории: обводка цветом пола схемы. */
+.mascot-sticker {
+  filter: drop-shadow(0 0 0.6px var(--m-floor)) drop-shadow(0 0 0.6px var(--m-floor));
+}
+/* Финиш: звезда-глаз Инвиктуса загорается зелёным и светится. */
+.mascot-lit .mascot-eye {
+  fill: var(--m-lamp);
+  filter: drop-shadow(0 0 1.5px var(--m-lamp));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mascot-lit .mascot-eye {
+    animation:
+      mascot-lamp-on 0.5s 0.3s ease-out backwards,
+      mascot-lamp 1.6s 0.8s ease-in-out infinite;
+  }
+}
+/* Лампочка: была белой, вспыхнула зелёным, дальше мягко светится. */
+@keyframes mascot-lamp-on {
+  from {
+    fill: var(--on-brand);
+    filter: none;
+  }
+  60% {
+    filter: drop-shadow(0 0 5px var(--m-lamp));
+  }
+}
+@keyframes mascot-lamp {
+  50% {
+    filter: drop-shadow(0 0 3.5px var(--m-lamp));
   }
 }

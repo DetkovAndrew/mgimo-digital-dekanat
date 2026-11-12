@@ -342,6 +342,15 @@ function firstDir(g: Group): Pt {
   return unit(g.pts[0], g.pts.at(-1)!);
 }
 
+/** Точка напротив двери внутри прохода, куда она открывается. */
+function standAt(geo: FloorGeo, wall: Pt, out: Pt, door: Door): Pt {
+  const horizontalWall = door.side === "n" || door.side === "s";
+  const corridor = geo.wings.map((w) => w.corridor && rectOf(w.corridor)).find((r) => r && inRect(r, out[0], out[1]));
+  if (corridor) return horizontalWall ? [wall[0], (corridor[1] + corridor[3]) / 2] : [(corridor[0] + corridor[2]) / 2, wall[1]];
+  const sign = door.side === "n" || door.side === "w" ? -1 : 1;
+  return horizontalWall ? [wall[0], wall[1] + sign * 10] : [wall[0] + sign * 10, wall[1]];
+}
+
 function stepsFor(plan: PlanBuilding, from: Anchor, to: Anchor, legs: RouteLeg[]): RouteStep[] {
   const steps: RouteStep[] = [
     from.door
@@ -395,7 +404,9 @@ function stepsFor(plan: PlanBuilding, from: Anchor, to: Anchor, legs: RouteLeg[]
   // Направление ненадёжно (сразу после лестницы или дверь рядом): не гадаем со стороной.
   const side = !heading || segLen([0, 0], toDoor) < 1 ? "рядом" : Math.abs(cross) < Math.abs(ahead) * 0.5 ? "прямо по ходу" : cross > 0 ? "справа" : "слева";
   const name = `${to.label[0].toUpperCase()}${to.label.slice(1)}`;
-  steps.push({ floor: to.floor, kind: "arrive", text: to.door ? `${name} ${side}` : name, path: fl.slice(e) });
+  // Где встать на финише (path[0]): напротив середины двери — по оси коридора, а в холле — в 10 единицах от двери.
+  const stand = to.door ? standAt(plan.floor(to.floor), to.wall, to.out, to.door) : null;
+  steps.push({ floor: to.floor, kind: "arrive", text: to.door ? `${name} ${side}` : name, path: stand ? [stand, to.wall] : fl.slice(e) });
   return steps;
 }
 

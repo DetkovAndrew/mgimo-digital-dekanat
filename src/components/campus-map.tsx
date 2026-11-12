@@ -225,8 +225,6 @@ export function CampusMap({
           );
         })}
 
-        {overlay}
-
         {/* Номера крыльев и лестницы в торцах коридоров. */}
         {plan.wingCount > 1 &&
           geo.wings.map(({ wing, badge }) =>
@@ -242,6 +240,8 @@ export function CampusMap({
         {geo.marks.map((m, i) => (
           <Badge key={`m${i}`} icon={m.icon} at={m.at} size={14} />
         ))}
+        {/* Маршрут с попутчиком — поверх всего остального. */}
+        {overlay}
       </svg>
     </div>
   );

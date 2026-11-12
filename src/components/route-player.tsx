@@ -238,7 +238,7 @@ function focusBox(pts: Pt[], v: View): [number, number, number, number] {
  * переминаясь; на лестнице прыгает, у двери радуется. Стоит ступнями на линии; точка — по центру линии.
  * Родитель пересоздаёт его на каждом шаге (key), так что проход начинается заново только при смене шага.
  */
-function Walker({ mascot, at, motion, mood }: { mascot: MascotId; at?: Pt; motion?: { d: string; dur: number }; mood: "walk" | "hop" | "cheer" | "still" }) {
+function Walker({ mascot, at, motion, mood, finale = false }: { mascot: MascotId; at?: Pt; motion?: { d: string; dur: number }; mood: "walk" | "hop" | "still"; finale?: boolean }) {
   const lift = mascot === "dot" ? 0 : -8;
   const group = useRef<SVGGElement>(null);
   const anim = useRef<SVGAnimateMotionElement>(null);
@@ -253,12 +253,17 @@ function Walker({ mascot, at, motion, mood }: { mascot: MascotId; at?: Pt; motio
     g.style.visibility = "visible"; // до запуска фигурка стояла бы в углу схемы
     return () => a.removeEventListener("endEvent", end);
   }, []);
-  const pose = mood === "walk" ? (arrived ? "idle" : "walk") : mood;
+  // Пришёл к двери — радуется, звезда-глаз загорается зелёным, как лампочка.
+  const pose = finale ? "cheer" : motion ? (arrived ? "idle" : "walk") : mood;
+  const lit = finale;
   return (
     <g ref={group} transform={at ? `translate(${f1(at[0])} ${f1(at[1])})` : undefined} style={motion ? { visibility: "hidden" } : undefined}>
       {motion && <animateMotion ref={anim} begin="indefinite" dur={`${motion.dur.toFixed(2)}s`} fill="freeze" calcMode="paced" path={motion.d} />}
-      <g transform={`translate(0 ${lift})`}>
-        <g className={pose === "still" ? "" : `mascot-${pose}`}>
+      {/* На схеме чуть меньше натурального размера: коридор узкий. Масштаб вокруг ступней. */}
+      <g transform={`translate(0 ${lift}) translate(0 10) scale(0.8) translate(0 -10)`}>
+        {/* Тень под ногами и обводка цветом пола: не сливается с линией маршрута и выбранной аудиторией. */}
+        {mascot !== "dot" && <ellipse cy={10.6} rx={7} ry={1.7} className="fill-ink opacity-20" />}
+        <g className={`mascot-sticker ${pose === "still" ? "" : `mascot-${pose}`} ${lit ? "mascot-lit" : ""}`}>
           <MascotFigure id={mascot} />
         </g>
       </g>
@@ -324,11 +329,11 @@ export function RouteLayer({ floor }: { floor: number }) {
   const legs = route.legs.map((l, i) => ({ ...l, i })).filter((l) => l.floor === floor);
   const pill = (at: Pt, text: string) => {
     const width = text.length * 6.2 + 12;
-    const x = Math.min(Math.max(at[0] + 10, 4), (view?.w ?? 440) - width - 4);
+    const x = Math.min(Math.max(at[0] - width / 2, 4), (view?.w ?? 440) - width - 4);
     return (
       <g>
-        <rect x={x} y={at[1] - 20} width={width} height={16} rx={8} className="fill-brand-fill" />
-        <text x={x + width / 2} y={at[1] - 8.5} textAnchor="middle" fontSize={10} className="fill-on-brand font-semibold">
+        <rect x={x} y={at[1] + 7} width={width} height={16} rx={8} className="fill-brand-fill" />
+        <text x={x + width / 2} y={at[1] + 18.5} textAnchor="middle" fontSize={10} className="fill-on-brand font-semibold">
           {text}
         </text>
       </g>
@@ -347,26 +352,17 @@ export function RouteLayer({ floor }: { floor: number }) {
         .map((s) => (
           <path key={`p${s.i}`} d={curve(s.path)} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="fill-none stroke-brand" />
         ))}
-      {/* Текущий шаг: подложка, линия «прорисовывается», по ней шагает попутчик. */}
+      {/* Текущий шаг: подложка и линия, которая «прорисовывается». */}
       {current.floor === floor && current.path.length > 1 && (
         <g key={`c${step}`}>
           <path d={curve(current.path)} strokeWidth={10} strokeLinecap="round" strokeLinejoin="round" className="fill-none stroke-brand-soft" />
           <path d={curve(current.path)} pathLength={1} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" className={`fill-none stroke-brand ${calm ? "" : "route-draw"}`} />
-          {/* key: смена режима (анимация включилась после гидрации или выключилась) — новый попутчик, проход заново. */}
-          {current.kind === "arrive" || calm ? (
-            <Walker key="still" mascot={mascot} at={current.path.at(-1)!} mood={current.kind === "arrive" && !calm ? "cheer" : "still"} />
-          ) : (
-            <Walker key="walk" mascot={mascot} motion={{ d: curve(current.path), dur: Math.max(1.4, lengthOf(current.path) / 70) }} mood="walk" />
-          )}
         </g>
       )}
       {current.floor === floor && current.path.length === 1 && (
-        <g key={`d${step}`}>
-          <circle cx={current.path[0][0]} cy={current.path[0][1]} r={8} strokeWidth={3} className={`fill-brand-soft stroke-brand ${calm ? "" : "route-pulse"}`} />
-          <Walker mascot={mascot} at={current.path[0]} mood={calm ? "still" : "hop"} />
-        </g>
+        <circle key={`d${step}`} cx={current.path[0][0]} cy={current.path[0][1]} r={8} strokeWidth={3} className={`fill-brand-soft stroke-brand ${calm ? "" : "route-pulse"}`} />
       )}
-      {/* Старт, финиш и лестницы. */}
+      {/* Старт, финиш и лестницы. Подписи этажа — под точкой: над ней стоит попутчик. */}
       {legs.map(({ points, i }) => {
         const last = route.legs.length - 1;
         const pass = points.length <= 1 && i > 0 && i < last;
@@ -380,6 +376,21 @@ export function RouteLayer({ floor }: { floor: number }) {
           </g>
         );
       })}
+      {/* Попутчик — последним, поверх линий и подписей. key: новый шаг или смена режима анимации — проход заново. */}
+      {current.floor === floor && (
+        <g key={`w${step}-${calm ? "calm" : "move"}`}>
+          {current.path.length === 1 ? (
+            <Walker mascot={mascot} at={current.path[0]} mood={calm ? "still" : "hop"} />
+          ) : current.kind === "arrive" ? (
+            // Финиш: стоит в коридоре напротив двери (а не в проёме) и «загорается».
+            <Walker mascot={mascot} at={current.path[0]} mood="still" finale />
+          ) : calm ? (
+            <Walker mascot={mascot} at={current.path.at(-1)!} mood="still" />
+          ) : (
+            <Walker mascot={mascot} motion={{ d: curve(current.path), dur: Math.max(1.4, lengthOf(current.path) / 70) }} mood="walk" />
+          )}
+        </g>
+      )}
     </g>
   );
 }

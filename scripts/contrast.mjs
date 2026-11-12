@@ -57,6 +57,7 @@ const pairs = [
   ...["stairs", "wc", "food", "coat", "exit", "sport", "book"].map((i) => ["m-ic-glyph", `m-ic-${i}`, 3]),
   // Стены передают границы помещений: как графика, не ниже 3:1 к полу и к каждой заливке.
   ...["floor", "room", "hall", "cowork", "meet", "food", "wc", "quiet"].map((m) => ["m-wall", `m-${m}`, 3]),
+  ["m-lamp", "brand-fill", 3], // зелёный глаз Инвиктуса на синей голове
 ];
 
 let failed = 0;

@@ -14,13 +14,20 @@ function offPath(buildingId: string, floor: number, pts: Pt[]): Pt[] {
   const bad: Pt[] = [];
   for (let i = 1; i < pts.length; i++) {
     const [a, b] = [pts[i - 1], pts[i]];
-    const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]));
+    const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1])));
     for (let t = 0; t <= n; t++) {
       const p: Pt = [a[0] + ((b[0] - a[0]) * t) / n, a[1] + ((b[1] - a[1]) * t) / n];
       if (!walk.some((r) => inRect(r, p, 0.01)) || solid.some((r) => inRect(r, p, -0.01))) bad.push(p);
     }
   }
   return bad;
+}
+
+/** Финиш: попутчик стоит строго внутри прохода (с запасом 2 от стен) и не в помещении. */
+function standOk(buildingId: string, floor: number, p: Pt) {
+  const geo = planFor(buildingId)!.floor(floor);
+  const solid = [...geo.rooms.map((r) => rectOf(r.pts)), ...geo.decor.filter((d) => d.tone === "room" || d.tone === "void").map((d) => rectOf(d.pts))];
+  return walkRects(geo).some((r) => inRect(r, p, -2)) && !solid.some((r) => inRect(r, p, 0));
 }
 
 describe("маршрут внутри корпуса", () => {
@@ -32,6 +39,7 @@ describe("маршрут внутри корпуса", () => {
       expect(r!.steps[0]).toMatchObject({ kind: "start", text: "Войдите через главный вход" });
       expect(r!.steps.at(-1)).toMatchObject({ kind: "arrive", floor: room.floor });
       expect(r!.steps.at(-1)!.text).toContain(room.number);
+      expect(standOk(plan.buildingId, room.floor, r!.steps.at(-1)!.path[0]), `${room.number}: место у двери`).toBe(true);
     }
   });
 
@@ -44,6 +52,24 @@ describe("маршрут внутри корпуса", () => {
         expect(offPath(plan.buildingId, leg.floor, pts), `${room.number}, ${leg.floor} этаж`).toEqual([]);
       });
     }
+  });
+
+  it.each(PLANS.map((p) => [p.short, p] as const))("%s: из аудитории в аудиторию финиш напротив двери внутри прохода", (_, plan) => {
+    // Из каждой аудитории — в соседнюю по списку и в аудиторию на другом конце (оба направления коридора).
+    plan.rooms.forEach((room, i) => {
+      for (const other of [plan.rooms[(i + 1) % plan.rooms.length], plan.rooms[(i + Math.floor(plan.rooms.length / 2)) % plan.rooms.length]]) {
+        if (other.number === room.number) continue;
+        const r = findRoute(plan.buildingId, { kind: "room", number: other.number }, { kind: "room", number: room.number })!;
+        expect(standOk(plan.buildingId, room.floor, r.steps.at(-1)!.path[0]), `${other.number} → ${room.number}`).toBe(true);
+      }
+    });
+  });
+
+  it("финиш через коридор (М: 1227 → 1226): попутчик на оси коридора напротив середины двери", () => {
+    const r = findRoute("lom-m", { kind: "room", number: "1227" }, { kind: "room", number: "1226" })!;
+    const [stand, wall] = r.steps.at(-1)!.path;
+    expect(stand[1]).toBe(360); // ось длинного крыла
+    expect(stand[0]).toBeCloseTo(wall[0]);
   });
 
   it("корпус М, 2 этаж: путь между аудиториями у атриума обходит проём «второго света» по галерее", () => {
