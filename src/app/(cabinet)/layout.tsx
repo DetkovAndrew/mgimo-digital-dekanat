@@ -1,5 +1,5 @@
 import { Disclaimer } from "@/components/disclaimer";
-import { Bell, Logo, Nav, ProfileLink } from "@/components/nav";
+import { AskLink, Bell, Logo, Nav, ProfileLink } from "@/components/nav";
 import { RouteMotion } from "@/components/route-motion";
 import { Toaster } from "@/components/toast";
 import { countMyUnread } from "@/server/dal/notifications";
@@ -21,6 +21,7 @@ export default async function CabinetLayout({ children }: LayoutProps<"/">) {
               University
             </span>
             <span className="flex items-center">
+              <AskLink />
               <Bell unread={unread} />
               <ProfileLink />
             </span>

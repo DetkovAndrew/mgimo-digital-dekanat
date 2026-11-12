@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileText, Footprints } from "lucide-react";
+import { ClipboardCheck, FileText, Footprints, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Fragment } from "react";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -41,11 +41,18 @@ export default async function TodayPage() {
       <PageTitle sub={`${formatDay(now)} · ${profile.group}`}>Привет, {firstName}!</PageTitle>
 
       <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start xl:gap-x-8">
-        {next && (
-          <div className="xl:col-start-1">
-            <NextLesson next={next} upcoming={upcoming} now={now} />
-          </div>
-        )}
+        <div className="xl:col-start-1">
+          {next && <NextLesson next={next} upcoming={upcoming} now={now} />}
+          <Link
+            href="/assistant"
+            transitionTypes={["nav-forward"]}
+            className="mb-8 flex min-h-13 items-center gap-3 rounded-2xl bg-surface px-4 text-body text-ink-2 ring-1 ring-hairline transition hover:bg-fill/70 active:scale-[0.99]"
+          >
+            <Sparkles aria-hidden className="size-5 shrink-0 text-brand" />
+            <span className="flex-1">Спросить по кабинету…</span>
+            <span className="text-xs text-ink-3">GigaChat</span>
+          </Link>
+        </div>
 
         {attention > 0 ? (
           <Section title="Требует внимания" className={side}>

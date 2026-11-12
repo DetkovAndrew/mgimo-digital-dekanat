@@ -19,3 +19,6 @@ next-env.d.ts
 
 # Скриншоты реальных сервисов — личные данные, не коммитить
 docs/research/screenshots/
+
+# Публичный корневой сертификат Минцифры для TLS к GigaChat (docs/plans/assistant.md)
+!certs/russian_trusted_root_ca.pem

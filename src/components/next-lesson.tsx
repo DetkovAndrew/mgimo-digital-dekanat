@@ -59,7 +59,7 @@ export function NextLesson({ next, upcoming, now }: { next: ScheduleLesson; upco
   const leftMin = Math.max(1, Math.round((next.endsAt.getTime() - now.getTime()) / 60_000));
 
   return (
-    <section aria-label="Следующая пара" className="mb-8 rounded-3xl bg-brand-fill p-5 text-on-brand md:p-6">
+    <section aria-label="Следующая пара" className="mb-3 rounded-3xl bg-brand-fill p-5 text-on-brand md:p-6">
       <div className="flex items-center justify-between gap-3">
         <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-brand">{lessonKindLabel[next.kind]}</span>
         <p className="text-sm font-medium tabular-nums">{ongoing ? `идёт · ещё ${leftMin} мин` : startsIn(next.startsAt, now)}</p>
