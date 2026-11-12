@@ -266,6 +266,8 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
 /** Кружок в углу и окно помощника: на телефоне на весь экран, на десктопе — панель справа внизу. */
 export function Assistant({ configured, owner }: { configured: boolean; owner: string }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const fab = useRef<HTMLButtonElement>(null);
+  const star = useRef<HTMLSpanElement>(null);
   const [open, setOpen] = useState(false);
   const close = () => dialog.current?.close();
   // Layout переживает переходы, поэтому сессию сверяем сами: если в другой вкладке вошли под другим аккаунтом
@@ -285,6 +287,32 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
     setOpen(true);
   };
 
+  // Звёздочка следит за курсором, когда он рядом с кнопкой: сдвиг до 7 px и лёгкий наклон в его сторону.
+  // Только мышь и только без prefers-reduced-motion; стиль меняется напрямую, без перерисовки React.
+  useEffect(() => {
+    const motion = window.matchMedia("(pointer: fine) and (prefers-reduced-motion: no-preference)");
+    if (!motion.matches) return;
+    let frame = 0;
+    const onMove = (e: PointerEvent) => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const btn = fab.current?.getBoundingClientRect();
+        if (!btn || !star.current) return;
+        const dx = e.clientX - (btn.left + btn.width / 2);
+        const dy = e.clientY - (btn.top + btn.height / 2);
+        const dist = Math.hypot(dx, dy);
+        const pull = Math.max(0, 1 - dist / 260); // ближе 260 px — тянется, дальше — на месте
+        const k = dist ? (7 * Math.min(1, dist / 40) * pull) / dist : 0; // у самого центра сдвиг плавно гаснет
+        star.current.style.transform = `translate(${dx * k}px, ${dy * k}px) rotate(${Math.max(-1, Math.min(1, dx / 80)) * 20 * pull}deg) scale(${1 + 0.12 * pull})`;
+      });
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("pointermove", onMove);
+    };
+  }, []);
+
   useEffect(() => {
     const onOpen = () => void show();
     const onVisible = () => {
@@ -302,13 +330,16 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
     <>
       <button
         type="button"
+        ref={fab}
         onClick={() => void show()}
         aria-label="Спросить помощника"
         aria-haspopup="dialog"
         aria-expanded={open}
         className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-brand-fill text-on-brand ring-4 ring-page transition duration-200 hover:scale-105 active:scale-95 motion-reduce:transition-none md:right-6 md:bottom-6 ${open ? "pointer-events-none scale-75 opacity-0" : ""}`}
       >
-        <Sparkles aria-hidden className="size-6" />
+        <span ref={star} aria-hidden className="block transition-transform duration-300 ease-(--ease-out)">
+          <Sparkles className="size-6" />
+        </span>
       </button>
       <dialog
         ref={dialog}
