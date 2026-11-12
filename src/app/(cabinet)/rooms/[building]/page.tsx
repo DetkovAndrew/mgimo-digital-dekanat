@@ -42,8 +42,8 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
     // На широком экране схема слева, панель аудитории справа (как «Сегодня»).
     <div className="xl:-mx-40">
       <BackLink href="/rooms">Аудитории</BackLink>
-      <PageTitle sub={`${state.building.address} · ${plan.wings.length > 1 ? `${plan.wings.length} крыла, ` : ""}${plan.floors.length} этажа`}>
-        {plan.short === "ГК" ? "Главный корпус" : `Корпус ${plan.short}`}
+      <PageTitle sub={`${state.building.address} · ${plan.wingCount > 1 ? `${plan.wingCount} крыла, ` : ""}${plan.floors.length} этажа`}>
+        {plan.title}
       </PageTitle>
 
       <nav aria-label="Этаж" className="mb-3 flex gap-1.5">

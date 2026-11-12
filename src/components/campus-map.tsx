@@ -1,8 +1,9 @@
+import { ArrowUpDown, BookOpen, DoorOpen, Dumbbell, type LucideIcon, Shirt, Toilet, Utensils } from "lucide-react";
 import Link from "next/link";
-import { layoutFloor, roomKindLabel, type PlanBuilding, type RoomKind } from "@/lib/campus/plans";
+import { roomKindLabel, type DecorIcon, type PlanBuilding, type Pt, type RoomKind } from "@/lib/campus/plans";
 
-// Условная схема этажа: крылья разного оттенка, аудитории окрашены по типу. Каждая аудитория является ссылкой:
-// открывает её расписание и бронь ниже. Размеры шрифта в SVG заданы в единицах viewBox (атрибут fontSize). Классы записаны целиком: Tailwind собирает только то, что видит.
+// Условная схема этажа: крылья разного оттенка, аудитории окрашены по типу, служебные помещения подписаны иконками.
+// Каждая аудитория является ссылкой: открывает её расписание и бронь. Размеры шрифта в SVG заданы в единицах viewBox.
 
 export const ROOM_KIND_STYLE: Record<RoomKind, { fill: string; stroke: string; text: string; dot: string; soft: string; ink: string }> = {
   LECTURE_HALL: { fill: "fill-k-lecture-soft", stroke: "stroke-k-lecture", text: "fill-k-lecture", dot: "bg-k-lecture", soft: "bg-k-lecture-soft", ink: "text-k-lecture" },
@@ -13,8 +14,16 @@ export const ROOM_KIND_STYLE: Record<RoomKind, { fill: string; stroke: string; t
   MEETING: { fill: "fill-warn-soft", stroke: "stroke-warn", text: "fill-warn", dot: "bg-warn", soft: "bg-warn-soft", ink: "text-warn" },
 };
 
-const WING_TINT = ["fill-brand-soft", "fill-info-soft", "fill-ok-soft"];
-const box = (r: { x: number; y: number; w: number; h: number }) => ({ x: r.x, y: r.y, width: r.w, height: r.h });
+// Оттенок крыла: заливка и такой же контур (скругляет углы подложки).
+const WING_TINT = ["fill-brand-soft stroke-brand-soft", "fill-info-soft stroke-info-soft", "fill-ok-soft stroke-ok-soft"];
+const ICON: Record<DecorIcon, LucideIcon> = { toilet: Toilet, stairs: ArrowUpDown, food: Utensils, sport: Dumbbell, book: BookOpen, coat: Shirt, entrance: DoorOpen };
+const ICON_LABEL: Record<DecorIcon, string> = { toilet: "Туалет", stairs: "Лестница", food: "Столовая", sport: "Спортзал", book: "Библиотека", coat: "Гардероб", entrance: "Вход" };
+const pts = (p: Pt[]) => p.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+
+function Glyph({ icon, at, size = 14, className }: { icon: DecorIcon; at: Pt; size?: number; className: string }) {
+  const I = ICON[icon];
+  return <I x={at[0] - size / 2} y={at[1] - size / 2} width={size} height={size} strokeWidth={2} className={className} aria-hidden />;
+}
 
 export function CampusMap({
   plan,
@@ -31,56 +40,63 @@ export function CampusMap({
   selected: string | null;
   href: (number: string) => string;
 }) {
-  const { rooms, corridors } = layoutFloor(plan, floor);
+  const geo = plan.floor(floor);
   const busy = new Set(busyNow);
   const my = new Set(mine);
   const { w, h } = plan.view;
+  const tint = (wing: number) => WING_TINT[(wing - 1) % WING_TINT.length];
 
   return (
     <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:thin]">
-      <svg
-        viewBox={`0 0 ${w} ${h}`}
-        role="group"
-        aria-label={`Схема: ${plan.short}, ${floor} этаж`}
-        className="w-full min-w-80 rounded-2xl bg-surface ring-1 ring-hairline"
-      >
+      <svg viewBox={`0 0 ${w} ${h}`} role="group" aria-label={`Схема: ${plan.title}, ${floor} этаж`} className="w-full min-w-80 rounded-2xl bg-surface ring-1 ring-hairline">
         <defs>
           <pattern id="busy-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="3" height="8" className="fill-ink-3" opacity="0.28" />
           </pattern>
         </defs>
 
-        {plan.wings.map((wing, i) => (
-          <g key={wing.wing}>
-            <rect {...box(wing.rect)} rx="14" className={WING_TINT[i % WING_TINT.length]} />
-            <text
-              x={wing.dir === "h" ? wing.rect.x + 8 : wing.rect.x + wing.rect.w / 2}
-              y={wing.dir === "h" ? wing.rect.y - 6 : wing.rect.y - 6}
-              textAnchor={wing.dir === "h" ? "start" : "middle"}
-              fontSize={11} className="fill-ink-2 font-semibold"
-            >
-              Крыло {wing.wing}
-            </text>
-          </g>
+        {/* Крылья: подложка своего оттенка и коридор. */}
+        {geo.wings.map((wg, i) => (
+          <polygon key={`b${i}`} points={pts(wg.body)} strokeLinejoin="round" strokeWidth="8" className={tint(wg.wing)} />
         ))}
-        {corridors.map((c, i) => (
-          <rect key={i} {...box(c)} className="fill-fill" />
+        {geo.wings.map((wg, i) => (
+          <polygon key={`c${i}`} points={pts(wg.corridor)} className="fill-fill" />
         ))}
-        {plan.hall && (
-          <g>
-            <rect {...box(plan.hall)} rx="14" className="fill-page stroke-hairline" strokeWidth="1.5" />
-            <text x={plan.hall.x + plan.hall.w / 2} y={plan.hall.y + plan.hall.h / 2 + 4} textAnchor="middle" fontSize={12} className="fill-ink-2 font-medium">
-              {plan.hall.label}
-            </text>
-            {plan.hall.h > 60 && (
-              <text x={plan.hall.x + plan.hall.w / 2} y={plan.hall.y + plan.hall.h - 12} textAnchor="middle" fontSize={10} className="fill-ink-3">
-                вход
+        {plan.wingCount > 1 &&
+          geo.wings.map((wg) => (
+            <g key={`n${wg.wing}`} aria-hidden>
+              <circle cx={wg.badge[0]} cy={wg.badge[1]} r="9" className="fill-surface stroke-hairline" />
+              <text x={wg.badge[0]} y={wg.badge[1] + 4} textAnchor="middle" fontSize={11} className="fill-ink-2 font-bold">
+                {wg.wing}
+              </text>
+            </g>
+          ))}
+
+        {/* Холлы и служебные помещения: не кликаются, подписаны словом и иконкой. */}
+        {geo.decor.map((d, i) => (
+          <g key={`d${i}`}>
+            <polygon
+              points={pts(d.pts)}
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+              className={d.tone === "hall" ? "fill-page stroke-hairline" : d.tone === "quiet" ? "fill-info-soft stroke-hairline" : "fill-warn-soft stroke-hairline"}
+            />
+            {d.icon && <Glyph icon={d.icon} at={[d.c[0], d.c[1] - (d.label ? 8 : 0)]} className="text-ink-2" />}
+            {d.label && (
+              <text x={d.c[0]} y={d.c[1] + (d.icon ? 12 : 4)} textAnchor="middle" fontSize={11} className="fill-ink-2 font-medium">
+                {d.label}
               </text>
             )}
           </g>
-        )}
+        ))}
+        {geo.marks.map((m, i) => (
+          <g key={`m${i}`} aria-hidden>
+            <circle cx={m.at[0]} cy={m.at[1]} r="8" className="fill-surface stroke-hairline" />
+            <Glyph icon={m.icon} at={m.at} size={10} className="text-ink-2" />
+          </g>
+        ))}
 
-        {rooms.map(({ room, rect }) => {
+        {geo.rooms.map(({ room, pts: p, c, narrow }) => {
           const s = ROOM_KIND_STYLE[room.kind];
           const isSel = room.number === selected;
           const isBusy = busy.has(room.id);
@@ -95,37 +111,28 @@ export function CampusMap({
           ]
             .filter(Boolean)
             .join(", ");
+          // Крупно в единицах схемы: на телефоне шириной 360 px схема ужата почти вдвое.
+          const fs = narrow ? 12 : room.kind === "LECTURE_HALL" ? 16 : 14;
           return (
             <Link key={room.id} href={href(room.number)} aria-label={label} aria-current={isSel ? "true" : undefined} className="group outline-none">
-              <rect
-                {...box(rect)}
-                rx="6"
+              <polygon
+                points={pts(p)}
+                strokeLinejoin="round"
                 strokeWidth={isMine || isSel ? 3 : 1.25}
                 className={`transition-[fill,stroke-width] duration-200 group-hover:brightness-95 ${isSel ? "fill-brand-fill stroke-brand-fill" : `${s.fill} ${isMine ? "stroke-brand" : s.stroke}`}`}
               />
-              {isBusy && !isSel && <rect {...box(rect)} rx="6" fill="url(#busy-hatch)" />}
-              {/* Кольцо фокуса с клавиатуры: тёмный контур снаружи, заметен и на выбранной (залитой) аудитории. */}
-              <rect
-                x={rect.x - 3}
-                y={rect.y - 3}
-                width={rect.w + 6}
-                height={rect.h + 6}
-                rx="8"
-                strokeWidth="2.5"
-                className="hidden fill-none stroke-ink group-focus-visible:inline"
-              />
-              <text
-                x={rect.x + rect.w / 2}
-                y={rect.y + rect.h / 2 + (room.bookable ? -1 : 4)}
-                textAnchor="middle"
-                fontSize={12}
-                className={`font-bold tabular-nums ${isSel ? "fill-on-brand" : s.text}`}
-              >
+              {isBusy && !isSel && <polygon points={pts(p)} fill="url(#busy-hatch)" />}
+              {/* Кольцо фокуса с клавиатуры: тёмный контур, заметен и на выбранной аудитории. */}
+              <polygon points={pts(p)} strokeWidth="5" strokeLinejoin="round" className="hidden fill-none stroke-ink group-focus-visible:inline" />
+              <text x={c[0]} y={c[1] + (room.bookable ? 2 : 5)} textAnchor="middle" fontSize={fs} className={`font-bold tabular-nums ${isSel ? "fill-on-brand" : s.text}`}>
                 {room.number}
               </text>
-              {room.bookable && (
-                <circle cx={rect.x + rect.w / 2} cy={rect.y + rect.h / 2 + 9} r="2.6" className={isSel ? "fill-on-brand" : s.text} />
+              {room.kind === "LECTURE_HALL" && !narrow && (
+                <text x={c[0]} y={c[1] + 19} textAnchor="middle" fontSize={11} className={isSel ? "fill-on-brand" : "fill-ink-2"}>
+                  {room.capacity} мест
+                </text>
               )}
+              {room.bookable && <circle cx={c[0]} cy={c[1] + 11} r="3" className={isSel ? "fill-on-brand" : s.text} />}
             </Link>
           );
         })}
@@ -136,6 +143,7 @@ export function CampusMap({
 
 export function MapLegend() {
   const kinds: RoomKind[] = ["LECTURE_HALL", "CLASSROOM", "COMPUTER_LAB", "LAB", "COWORKING", "MEETING"];
+  const icons: DecorIcon[] = ["stairs", "toilet", "coat", "food"];
   return (
     <ul aria-label="Обозначения" className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-ink-2">
       {kinds.map((k) => (
@@ -154,6 +162,15 @@ export function MapLegend() {
         </svg>
         занято сейчас
       </li>
+      {icons.map((i) => {
+        const I = ICON[i];
+        return (
+          <li key={i} className="flex items-center gap-1.5">
+            <I aria-hidden className="size-3.5" />
+            {ICON_LABEL[i]}
+          </li>
+        );
+      })}
     </ul>
   );
 }

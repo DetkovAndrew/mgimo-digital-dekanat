@@ -56,7 +56,7 @@ export default async function RoomsPage() {
                   <span className="grid size-12 place-items-center rounded-2xl bg-brand-fill text-lead font-bold text-on-brand">{c.short}</span>
                   <ChevronRight aria-hidden className="size-5 text-ink-3 transition-transform group-hover:translate-x-0.5" />
                 </span>
-                <span className="mt-3 block text-lead font-semibold">{c.short === "ГК" ? "Главный корпус" : `Корпус ${c.short}`}</span>
+                <span className="mt-3 block text-lead font-semibold">{c.name}</span>
                 <span className="block text-sm text-ink-2">
                   {c.address}
                   {c.metro && ` · м. ${c.metro}`}

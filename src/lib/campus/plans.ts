@@ -1,5 +1,5 @@
-// Условные схемы корпусов (не реальные планы): крылья, коридор, аудитории по сторонам.
-// Одно описание — и для рисунка, и для строк Room в БД (scripts/sync-rooms.ts). docs/plans/rooms.md.
+// Условные схемы корпусов «по мотивам» реальных поэтажных планов (не копии): холл-восьмиугольник, крылья под углом,
+// веер лекционных, ротонда. Одно описание — и для рисунка, и для строк Room в БД (scripts/sync-rooms.ts). docs/plans/rooms.md.
 // Номер аудитории XYAB: X — крыло, Y — этаж, AB — номер на этаже.
 
 export type RoomKind = "LECTURE_HALL" | "CLASSROOM" | "COMPUTER_LAB" | "LAB" | "COWORKING" | "MEETING";
@@ -16,132 +16,260 @@ export type PlanRoom = {
   title: string | null;
 };
 
-type Rect = { x: number; y: number; w: number; h: number };
-type WingShape = { wing: number; rect: Rect; dir: "h" | "v" };
-type Special = Partial<Pick<PlanRoom, "kind" | "capacity" | "bookable" | "title">>;
+export type Pt = readonly [number, number];
+export type DecorIcon = "toilet" | "stairs" | "food" | "sport" | "book" | "coat" | "entrance";
+export type GeoRoom = { room: PlanRoom; pts: Pt[]; c: Pt; narrow: boolean };
+export type Decor = { pts: Pt[]; c: Pt; label?: string; icon?: DecorIcon; tone: "hall" | "service" | "quiet" };
+export type WingGeo = { wing: number; body: Pt[]; corridor: Pt[]; badge: Pt };
+export type FloorGeo = { rooms: GeoRoom[]; decor: Decor[]; wings: WingGeo[]; marks: { at: Pt; icon: DecorIcon }[] };
 
-type PlanSpec = {
+export type PlanBuilding = {
   buildingId: string;
   short: string; // «ГК»
+  title: string; // «Главный корпус»
   view: { w: number; h: number };
   floors: number[];
-  hall?: Rect & { label: string };
-  wings: WingShape[];
-  /** Номера AB на каждом этаже каждого крыла. */
-  numbers: string[];
-  /** Тип по номеру AB (для всех этажей), остальное — обычная аудитория. */
-  kindByNumber: Record<string, RoomKind>;
-  /** Особые аудитории по полному номеру: коворкинги, переговорные. */
-  special: Record<string, Special>;
+  wingCount: number;
+  rooms: PlanRoom[];
+  floor: (f: number) => FloorGeo;
 };
 
-const CAPACITY: Record<RoomKind, number> = { LECTURE_HALL: 120, CLASSROOM: 30, COMPUTER_LAB: 24, LAB: 16, COWORKING: 40, MEETING: 8 };
+// ─── Мини-язык аудиторий: «37:H120*!Название» — номер AB, тип, места, * бронируемая, ! название ─────────────
+const KIND: Record<string, RoomKind> = { H: "LECTURE_HALL", C: "CLASSROOM", P: "COMPUTER_LAB", L: "LAB", W: "COWORKING", M: "MEETING" };
+type Def = { ab: string; kind: RoomKind; capacity: number; bookable: boolean; title: string | null };
 
-const SPECS: PlanSpec[] = [
-  {
-    buildingId: "kronv",
-    short: "ГК",
-    view: { w: 460, h: 420 },
-    floors: [1, 2, 3, 4],
-    // «Ш»: три крыла поднимаются от общего холла — вся схема помещается в экран телефона без прокрутки.
-    hall: { x: 20, y: 316, w: 420, h: 84, label: "Холл" },
-    wings: [
-      { wing: 1, rect: { x: 20, y: 28, w: 120, h: 280 }, dir: "v" },
-      { wing: 2, rect: { x: 170, y: 28, w: 120, h: 280 }, dir: "v" },
-      { wing: 3, rect: { x: 320, y: 28, w: 120, h: 280 }, dir: "v" },
-    ],
-    numbers: ["01", "04", "06", "10", "14", "16", "17", "21", "26", "32", "37"],
-    kindByNumber: { "04": "LECTURE_HALL", "37": "LECTURE_HALL", "16": "COMPUTER_LAB", "26": "COMPUTER_LAB", "21": "LAB" },
-    special: {
-      "1117": { kind: "MEETING", title: "Деканат", capacity: 6, bookable: false },
-      "2101": { kind: "COWORKING", title: "Коворкинг «Атриум»", capacity: 40, bookable: true },
-      "3310": { kind: "COWORKING", title: "Тихая зона", capacity: 20, bookable: true },
-      "1206": { kind: "MEETING", title: "Переговорная", capacity: 8, bookable: true },
-      "3406": { kind: "MEETING", title: "Переговорная", capacity: 10, bookable: true },
-      "2214": { bookable: true },
-      "3214": { bookable: true },
-    },
-  },
-  {
-    buildingId: "lom-m",
-    short: "М",
-    view: { w: 460, h: 240 },
-    floors: [1, 2, 3],
-    wings: [{ wing: 1, rect: { x: 20, y: 28, w: 420, h: 150 }, dir: "h" }],
-    hall: { x: 160, y: 186, w: 140, h: 44, label: "Вход" },
-    numbers: ["01", "05", "09", "13", "17", "20", "21", "25", "29", "33"],
-    kindByNumber: { "21": "LECTURE_HALL", "20": "LAB", "29": "LAB", "13": "LAB", "33": "COMPUTER_LAB" },
-    special: {
-      "1101": { kind: "COWORKING", title: "Коворкинг «Колба»", capacity: 30, bookable: true },
-      "1205": { kind: "MEETING", title: "Переговорная", capacity: 8, bookable: true },
-      "1309": { bookable: true },
-    },
-  },
-];
-
-export type PlanBuilding = Omit<PlanSpec, "numbers" | "kindByNumber" | "special"> & { rooms: PlanRoom[] };
-
-function expand(spec: PlanSpec): PlanBuilding {
-  const rooms: PlanRoom[] = [];
-  for (const { wing } of spec.wings)
-    for (const floor of spec.floors)
-      for (const ab of spec.numbers) {
-        const number = `${wing}${floor}${ab}`;
-        const sp = spec.special[number] ?? {};
-        const kind = sp.kind ?? spec.kindByNumber[ab] ?? "CLASSROOM";
-        rooms.push({
-          id: `${spec.buildingId}-${number}`,
-          buildingId: spec.buildingId,
-          number,
-          wing,
-          floor,
-          kind,
-          capacity: sp.capacity ?? CAPACITY[kind],
-          bookable: sp.bookable ?? false,
-          title: sp.title ?? null,
-        });
-      }
-  return { buildingId: spec.buildingId, short: spec.short, view: spec.view, floors: spec.floors, hall: spec.hall, wings: spec.wings, rooms };
+function defs(spec: string): Def[] {
+  return spec
+    .split(/\s+(?=\d{2}:)/)
+    .filter(Boolean)
+    .map((tok) => {
+      const m = tok.match(/^(\d{2}):([HCPLWM])(\d+)(\*)?(?:!(.+))?$/);
+      if (!m) throw new Error(`Схема: не разобрать «${tok}»`);
+      return { ab: m[1], kind: KIND[m[2]], capacity: Number(m[3]), bookable: !!m[4], title: m[5]?.trim() || null };
+    });
 }
 
-export const PLANS: PlanBuilding[] = SPECS.map(expand);
+// ─── Геометрия ──────────────────────────────────────────────────────────────────────────────────────────────
+const deg = (a: number) => (a * Math.PI) / 180;
+const add = (p: Pt, d: Pt, k = 1): Pt => [p[0] + d[0] * k, p[1] + d[1] * k];
+const centroid = (pts: Pt[]): Pt => [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
+const polar = (c: Pt, r: number, a: number): Pt => [c[0] + r * Math.cos(deg(a)), c[1] + r * Math.sin(deg(a))];
+const octagon = (c: Pt, r: number): Pt[] => Array.from({ length: 8 }, (_, i) => polar(c, r, 22.5 + i * 45));
+
+/** Ширина аудитории вдоль коридора: растёт с вместимостью, лекционные и коворкинги шире. */
+const roomWidth = (d: Def) => (d.kind === "LECTURE_HALL" ? Math.min(100, 50 + d.capacity * 0.3) : d.kind === "COWORKING" ? 70 : Math.max(32, Math.min(64, 22 + d.capacity * 0.9)));
+
+type Strip = { wing: number; start: Pt; angle: number; len: number; depth: number; corridor: number; a: string; b: string; endDecor?: { len: number; label: string; icon: DecorIcon } };
+
+type Ctx = { buildingId: string; floor: number; out: FloorGeo; rooms: PlanRoom[] };
+
+function place(ctx: Ctx, wing: number, d: Def, pts: Pt[], narrow = false) {
+  const room: PlanRoom = {
+    id: `${ctx.buildingId}-${wing}${ctx.floor}${d.ab}`,
+    buildingId: ctx.buildingId,
+    number: `${wing}${ctx.floor}${d.ab}`,
+    wing,
+    floor: ctx.floor,
+    kind: d.kind,
+    capacity: d.capacity,
+    bookable: d.bookable,
+    title: d.title,
+  };
+  ctx.rooms.push(room);
+  ctx.out.rooms.push({ room, pts, c: centroid(pts), narrow });
+}
+
+/** Крыло: коридор по оси, аудитории с обеих сторон; ширины по вместимости, при нехватке места — сжимаются. */
+function strip(ctx: Ctx, s: Strip) {
+  const d: Pt = [Math.cos(deg(s.angle)), Math.sin(deg(s.angle))];
+  const n: Pt = [-d[1], d[0]];
+  const at = (t: number, k: number): Pt => add(add(s.start, d, t), n, k);
+  const half = s.corridor / 2;
+  const full = half + s.depth;
+  const rect = (t0: number, t1: number, k0: number, k1: number): Pt[] => [at(t0, k0), at(t1, k0), at(t1, k1), at(t0, k1)];
+  ctx.out.wings.push({ wing: s.wing, body: rect(0, s.len, -full - 4, full + 4), corridor: rect(0, s.len, -half, half), badge: at(14, 0) });
+
+  const pad = 20; // у торца — лестница
+  const usable = s.len - pad - (s.endDecor?.len ?? 0) - 6;
+  const gap = 3;
+  for (const [spec, k0, k1] of [
+    [s.a, half + gap, full],
+    [s.b, -full, -half - gap],
+  ] as const) {
+    const list = defs(spec);
+    const want = list.reduce((sum, x) => sum + roomWidth(x) + gap, 0);
+    const scale = Math.min(1, usable / want);
+    let t = 6;
+    for (const x of list) {
+      const w = roomWidth(x) * scale;
+      place(ctx, s.wing, x, rect(t, t + w, k0, k1), w < 38);
+      t += w + gap;
+    }
+  }
+  ctx.out.marks.push({ at: at(s.len - pad / 2 - 2, 0), icon: "stairs" });
+  if (s.endDecor) {
+    const e = s.endDecor;
+    const pts = rect(s.len - pad - e.len, s.len - pad - 2, -full, full);
+    ctx.out.decor.push({ pts, c: centroid(pts), label: e.label, icon: e.icon, tone: "service" });
+  }
+}
+
+/** Кольцо аудиторий вокруг восьмиугольного холла: сектора по 45°, по часовой от «справа». */
+function ring(ctx: Ctx, wing: number, c: Pt, r0: number, r1: number, sectors: Partial<Record<"R" | "BR" | "B" | "BL" | "L" | "TL" | "T" | "TR", string>>) {
+  const dir = { R: 0, BR: 45, B: 90, BL: 135, L: 180, TL: 225, T: 270, TR: 315 } as const;
+  for (const [key, spec] of Object.entries(sectors)) {
+    const a = dir[key as keyof typeof dir];
+    const [x] = defs(spec!);
+    const pts = [polar(c, r0, a - 21), polar(c, r0, a + 21), polar(c, r1, a + 21), polar(c, r1, a - 21)];
+    place(ctx, wing, x, pts, 2 * r0 * Math.sin(deg(21)) < 38);
+  }
+}
+
+/** Лекционная произвольной формы (веер у входа). */
+function hall(ctx: Ctx, wing: number, spec: string, pts: Pt[]) {
+  place(ctx, wing, defs(spec)[0], pts);
+}
+
+function decor(ctx: Ctx, pts: Pt[], tone: Decor["tone"], label?: string, icon?: DecorIcon) {
+  ctx.out.decor.push({ pts, c: centroid(pts), label, icon, tone });
+}
+
+// ─── Главный корпус: холл, три крыла, веер лекционных ───────────────────────────────────────────────────────
+const KRONV_W = 560;
+const mirror = (pts: Pt[]): Pt[] => pts.map(([x, y]) => [KRONV_W - x, y] as const);
+const KRONV: Record<number, { w1: [string, string]; w2: [string, string]; w3: [string, string] }> = {
+  1: {
+    w1: ["10:C30 17:M6!Деканат 21:C24", "12:C36 32:C40 37:C24"],
+    w2: ["01:W60*!Коворкинг «Атриум» 06:C30 12:C24", "04:C32 10:L16 16:P20"],
+    w3: ["12:C30 18:L16 24:C28 32:P20", "10:C36 16:C24 21:C30 37:P16"],
+  },
+  2: {
+    w1: ["06:M8*!Переговорная 10:C30 16:P24 21:C28", "08:C40 12:C24 18:P20 24:L16"],
+    w2: ["02:C36 08:P24 14:C30*", "04:C28 10:L14 20:C24"],
+    w3: ["06:C28 14:C30* 20:P24 26:L16", "08:C36 12:C24 18:C30 24:P20"],
+  },
+  3: {
+    w1: ["01:C30 06:C24 12:P20 18:C36", "04:L14 10:C28 16:C30 22:P24"],
+    w2: ["06:C30 12:P20 37:H120", "01:C24 18:C28 26:L16"],
+    w3: ["04:C28 10:W24*!Тихая зона 16:C30 22:L14", "06:C24 12:P20 18:C36 26:C28"],
+  },
+  4: {
+    w1: ["04:H90 10:C30 16:P24", "06:C24 12:L16 20:C32 28:C36"],
+    w2: ["04:C30 10:P24 16:C28", "02:C24 08:L16 20:C36"],
+    w3: ["06:M10*!Переговорная 12:C30 18:P24", "04:C28 10:C24 16:L16 22:C32"],
+  },
+};
+
+function kronvFloor(ctx: Ctx) {
+  const f = KRONV[ctx.floor];
+  const hub: Pt = [280, 300];
+  const common = { len: 205, depth: 48, corridor: 16 };
+  strip(ctx, { wing: 2, start: [280, 242], angle: -90, ...common, len: 170, a: f.w2[0], b: f.w2[1] });
+  strip(ctx, { wing: 1, start: [220, 304], angle: 205, ...common, a: f.w1[0], b: f.w1[1], ...(ctx.floor === 1 ? { endDecor: { len: 44, label: "Столовая", icon: "food" as const } } : {}) });
+  strip(ctx, { wing: 3, start: [340, 304], angle: -25, ...common, a: f.w3[0], b: f.w3[1] });
+  decor(ctx, octagon(hub, 60), "hall", ctx.floor === 1 ? "Холл" : "Рекреация", ctx.floor === 1 ? "coat" : undefined);
+  if (ctx.floor === 1 || ctx.floor === 2) {
+    const top: Pt[] = [
+      [224, 8],
+      [336, 8],
+      [336, 62],
+      [224, 62],
+    ];
+    decor(ctx, top, "quiet", ctx.floor === 1 ? "Спортзал" : "Библиотека", ctx.floor === 1 ? "sport" : "book");
+  }
+  if (ctx.floor === 1) {
+    // Веер лекционных у входа: слева крыло 1, справа (зеркально) крыло 3.
+    const left: [string, Pt[]][] = [
+      ["01:H120", [[42, 300], [100, 328], [100, 404], [42, 384]]],
+      ["04:H180", [[108, 332], [168, 360], [168, 444], [108, 420]]],
+      ["06:H90", [[176, 364], [232, 390], [232, 458], [176, 448]]],
+    ];
+    const right = ["01:H150", "04:H120", "06:H90"];
+    left.forEach(([spec, pts]) => hall(ctx, 1, spec, pts));
+    right.forEach((spec, i) => hall(ctx, 3, spec, mirror(left[i][1])));
+    decor(ctx, [[252, 392], [308, 392], [308, 430], [252, 430]], "hall", "Вход", "entrance");
+    ctx.out.marks.push({ at: [240, 372] as Pt, icon: "toilet" as const }, { at: [320, 372] as Pt, icon: "toilet" as const });
+  }
+}
+
+// ─── Корпус М: ротонда, коридор к узлу с лекционной, боковой коридор ────────────────────────────────────────
+type RingSpec = Partial<Record<"R" | "BR" | "B" | "BL" | "L" | "TL" | "T" | "TR", string>>;
+const LOMM: Record<number, { ring: RingSpec; s1: [string, string]; node: RingSpec; s2: [string, string]; inner: string }> = {
+  1: {
+    inner: "Гардероб",
+    ring: { TL: "01:W30*!Коворкинг «Колба»", L: "02:C24", BL: "03:C28", T: "04:L14", BR: "07:C24" },
+    s1: ["12:C30 16:P20", "13:L14 17:C24"],
+    node: { L: "21:H120", TL: "22:C30", T: "23:C36", TR: "24:L16", R: "25:C24" },
+    s2: ["26:C30 29:L16 33:C24 35:C28", "27:P20 31:C28 34:C30"],
+  },
+  2: {
+    inner: "Второй свет",
+    ring: { TL: "01:C30", L: "02:C24", BL: "03:L14", T: "05:M8*!Переговорная", BR: "07:C24" },
+    s1: ["12:C28 16:P24", "13:C30 20:L14"],
+    node: { L: "21:H100", TL: "22:C28", T: "23:C32", TR: "24:P20", R: "25:C24" },
+    s2: ["26:C30 29:C24 33:L16 35:C24", "27:C28 31:P20 34:C30"],
+  },
+  3: {
+    inner: "Второй свет",
+    ring: { TL: "01:C28", L: "02:C24", BL: "03:C30", T: "04:P20", BR: "07:C24" },
+    s1: ["12:C30 16:C24", "09:C30* 13:L14"],
+    node: { L: "21:H90", TL: "22:C28", T: "23:C30", TR: "24:L14", R: "25:C24" },
+    s2: ["26:C28 29:L16 33:C24 35:C30", "27:P24 31:C30 34:C28"],
+  },
+};
+
+function lommFloor(ctx: Ctx) {
+  const f = LOMM[ctx.floor];
+  const rot: Pt = [140, 330];
+  // Ротонда: внутренний холл и кольцо аудиторий; справа сверху — выход к узлу, справа — боковой коридор, снизу — вход.
+  ctx.out.wings.push({ wing: 1, body: octagon(rot, 112), corridor: octagon(rot, 58), badge: rot });
+  decor(ctx, octagon(rot, 50), "hall", f.inner, ctx.floor === 1 ? "coat" : undefined);
+  ring(ctx, 1, rot, 62, 108, f.ring);
+  // Коридор от ротонды к узлу на северо-восток; узел с лекционной стоит на продолжении коридора.
+  const s1 = polar(rot, 118, -45);
+  const len1 = 110;
+  strip(ctx, { wing: 1, start: s1, angle: -50, len: len1, depth: 44, corridor: 16, a: f.s1[0], b: f.s1[1] });
+  const node = polar(s1, len1 + 92, -50);
+  ctx.out.wings.push({ wing: 1, body: octagon(node, 84), corridor: octagon(node, 36), badge: node });
+  decor(ctx, octagon(node, 32), "hall", "Узел");
+  ring(ctx, 1, node, 40, 80, f.node);
+  // Боковой коридор на восток.
+  strip(ctx, { wing: 1, start: polar(rot, 116, 10), angle: 5, len: 230, depth: 44, corridor: 16, a: f.s2[0], b: f.s2[1] });
+  if (ctx.floor === 1) {
+    decor(ctx, [[112, 414], [168, 414], [168, 442], [112, 442]], "hall", "Вход", "entrance");
+    ctx.out.marks.push({ at: polar(rot, 85, 0), icon: "toilet" });
+  }
+}
+
+// ─── Сборка ─────────────────────────────────────────────────────────────────────────────────────────────────
+type Spec = Omit<PlanBuilding, "rooms" | "floor"> & { draw: (ctx: Ctx) => void };
+const SPECS: Spec[] = [
+  { buildingId: "kronv", short: "ГК", title: "Главный корпус", view: { w: KRONV_W, h: 470 }, floors: [1, 2, 3, 4], wingCount: 3, draw: kronvFloor },
+  { buildingId: "lom-m", short: "М", title: "Корпус М", view: { w: 520, h: 452 }, floors: [1, 2, 3], wingCount: 1, draw: lommFloor },
+];
+
+function build({ draw, ...meta }: Spec): PlanBuilding {
+  const cache = new Map<number, { geo: FloorGeo; rooms: PlanRoom[] }>();
+  const run = (floor: number) => {
+    if (!cache.has(floor)) {
+      const ctx: Ctx = { buildingId: meta.buildingId, floor, out: { rooms: [], decor: [], wings: [], marks: [] }, rooms: [] };
+      draw(ctx);
+      cache.set(floor, { geo: ctx.out, rooms: ctx.rooms });
+    }
+    return cache.get(floor)!;
+  };
+  const rooms = meta.floors.flatMap((f) => run(f).rooms);
+  const dup = rooms.find((r, i) => rooms.findIndex((x) => x.id === r.id) !== i);
+  if (dup) throw new Error(`Схема: аудитория ${dup.number} повторяется`);
+  return { ...meta, rooms, floor: (f) => run(f).geo };
+}
+
+export const PLANS: PlanBuilding[] = SPECS.map(build);
 export const planFor = (buildingId: string) => PLANS.find((p) => p.buildingId === buildingId) ?? null;
 export const allPlanRooms = () => PLANS.flatMap((p) => p.rooms);
 
 /** «ауд. 2337» → «2337» (номер для сопоставления занятия с аудиторией схемы). */
 export const roomNumberFrom = (text: string | null | undefined) => text?.match(/(\d{3,4})/)?.[1] ?? null;
-
-/** Прямоугольники аудиторий этажа на схеме: вдоль коридора крыла, нечётные по индексу — с одной стороны, чётные — с другой. */
-export function layoutFloor(plan: PlanBuilding, floor: number) {
-  const out: { room: PlanRoom; rect: Rect }[] = [];
-  const corridors: Rect[] = [];
-  for (const w of plan.wings) {
-    const rooms = plan.rooms.filter((r) => r.wing === w.wing && r.floor === floor);
-    const perSide = Math.ceil(rooms.length / 2);
-    const { x, y, w: W, h: H } = w.rect;
-    const gap = 3;
-    if (w.dir === "h") {
-      const depth = (H - 18) / 2;
-      corridors.push({ x, y: y + depth, w: W, h: 18 });
-      const step = W / perSide;
-      rooms.forEach((room, i) => {
-        const side = i % 2;
-        const k = Math.floor(i / 2);
-        out.push({ room, rect: { x: x + k * step + gap, y: side ? y + depth + 18 + gap : y + gap, w: step - 2 * gap, h: depth - 2 * gap } });
-      });
-    } else {
-      const depth = (W - 18) / 2;
-      corridors.push({ x: x + depth, y, w: 18, h: H });
-      const step = H / perSide;
-      rooms.forEach((room, i) => {
-        const side = i % 2;
-        const k = Math.floor(i / 2);
-        out.push({ room, rect: { x: side ? x + depth + 18 + gap : x + gap, y: y + k * step + gap, w: depth - 2 * gap, h: step - 2 * gap } });
-      });
-    }
-  }
-  return { rooms: out, corridors };
-}
 
 export const roomKindLabel: Record<RoomKind, string> = {
   LECTURE_HALL: "Лекционная",

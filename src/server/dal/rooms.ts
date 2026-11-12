@@ -26,7 +26,7 @@ export async function listCampus() {
   });
   return PLANS.map((p) => {
     const b = buildings.find((x) => x.id === p.buildingId)!;
-    return { id: b.id, title: b.title, address: b.address, metro: b.metro, short: p.short, floors: p.floors, wings: p.wings.length, bookable: b._count.rooms };
+    return { id: b.id, title: b.title, address: b.address, metro: b.metro, short: p.short, name: p.title, floors: p.floors, wings: p.wingCount, bookable: b._count.rooms };
   });
 }
 

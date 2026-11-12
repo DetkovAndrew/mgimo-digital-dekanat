@@ -22,3 +22,6 @@ docs/research/screenshots/
 
 # Публичный корневой сертификат Минцифры для TLS к GigaChat (docs/plans/assistant.md)
 !certs/russian_trusted_root_ca.pem
+
+# Референсы планов реального вуза от капитана — только для вдохновения, не коммитить
+maps/

@@ -22,11 +22,30 @@ export async function syncRooms() {
     const n = roomNumberFrom(l.room);
     const id = !l.online && n ? `${l.buildingId}-${n}` : null;
     const target = id && known.has(id) ? id : null;
-    if (!l.online && l.room && !target) unmatched++;
+    if (!l.online && l.room && !target) {
+      // Аудитории занятия больше нет на схеме: старую связь не трогаем, синхронизация сообщит об ошибке.
+      unmatched++;
+      continue;
+    }
     if (target !== l.roomId) byRoom.set(target, [...(byRoom.get(target) ?? []), l.id]);
   }
   for (const [roomId, ids] of byRoom) await prisma.lesson.updateMany({ where: { id: { in: ids } }, data: { roomId } });
-  return { rooms: rooms.length, lessonsLinked: lessons.filter((l) => !l.online).length - unmatched, unmatched };
+  // Аудитории, которых больше нет на схеме (ревью Codex 20). Сначала закрываем бронирование: bookRoom перечитывает
+  // bookable под блокировкой аудитории. Затем каждую удаляем под той же блокировкой и только без занятий и броней,
+  // иначе бронь, созданная в этот момент, ушла бы каскадом вместе с аудиторией.
+  const stale = await prisma.room.findMany({ where: { buildingId: { in: PLANS.map((p) => p.buildingId) }, id: { notIn: [...known] } }, select: { id: true } });
+  await prisma.room.updateMany({ where: { id: { in: stale.map((r) => r.id) } }, data: { bookable: false } });
+  let removed = 0;
+  for (const { id } of stale) {
+    removed += await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM "room" WHERE "id" = ${id} FOR UPDATE`;
+      const used = (await tx.lesson.count({ where: { roomId: id } })) + (await tx.roomBooking.count({ where: { roomId: id } }));
+      if (used) return 0;
+      await tx.room.delete({ where: { id } });
+      return 1;
+    });
+  }
+  return { rooms: rooms.length, lessonsLinked: lessons.filter((l) => !l.online).length - unmatched, unmatched, removed, staleKept: stale.length - removed };
 }
 
 // ─── Брони аудиторий (docs/plans/rooms.md) ───────────────────────────────────
