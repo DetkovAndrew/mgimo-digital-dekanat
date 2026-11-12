@@ -4,6 +4,8 @@ import { ArrowUp, RotateCcw, Sparkles, SquarePen, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { parseInline } from "@/lib/assistant/answer";
+import { ASKED_KEY, writeLocal } from "./local-store";
+import { MascotFigure, MascotIcon } from "./mascots";
 import { authClient } from "@/lib/auth-client";
 
 // Помощник GigaChat — кружок в углу любого экрана кабинета. Живёт в layout: разговор не теряется при переходах,
@@ -88,6 +90,7 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
     setMessages(history);
     setPending(true);
     setError(null);
+    writeLocal(ASKED_KEY, "1"); // пасхалка: вопрос Инвиктусу открывает попутчика Искорку
     try {
       const res = await fetch("/api/assistant", {
         method: "POST",
@@ -128,14 +131,14 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
   return (
     <div className="flex h-full flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:p-0">
       <header className="flex items-center gap-3 border-b border-hairline py-2 pr-2 pl-4">
-        <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-soft text-brand">
-          <Sparkles className="size-4.5" />
+        <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-soft">
+          <MascotIcon id="invictus" size={34} />
         </span>
         <span className="min-w-0 flex-1">
           <h2 id="assistant-title" className="font-semibold">
-            Помощник
+            Инвиктус
           </h2>
-          <p className="truncate text-xs text-ink-2">GigaChat · может ошибаться, сверяйтесь с разделами</p>
+          <p className="truncate text-xs text-ink-2">Помощник на GigaChat · может ошибаться, сверяйтесь с разделами</p>
         </span>
         {messages.length > 0 && (
           <button type="button" onClick={restart} aria-label="Новый разговор" className="grid size-11 place-items-center rounded-full text-ink-2 transition-colors hover:bg-fill">
@@ -168,7 +171,7 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
             {messages.length === 0 && (
               <section aria-label="Примеры вопросов">
-                <p className="mb-3 text-body text-ink-2">Спросите обычными словами: помощник ответит по данным вашего кабинета и даст ссылку на нужный экран.</p>
+                <p className="mb-3 text-body text-ink-2">Спросите обычными словами: Инвиктус ответит по данным вашего кабинета и даст ссылку на нужный экран.</p>
                 <ul className="grid gap-2">
                   {SUGGESTIONS.map((s) => (
                     <li key={s}>
@@ -199,13 +202,14 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
                 ),
               )}
               {pending && (
-                <p role="status" className="mr-auto flex w-fit items-center gap-2 rounded-2xl rounded-bl-md bg-page px-4 py-3 text-sm text-ink-2">
-                  <span aria-hidden className="flex gap-1">
-                    {[0, 1, 2].map((d) => (
-                      <span key={d} className="size-1.5 animate-pulse rounded-full bg-ink-3 motion-reduce:animate-none" style={{ animationDelay: `${d * 150}ms` }} />
-                    ))}
-                  </span>
-                  Смотрю в кабинет…
+                <p role="status" className="mr-auto flex w-fit items-center gap-2 rounded-2xl rounded-bl-md bg-page py-2 pr-4 pl-2 text-sm text-ink-2">
+                  {/* Инвиктус думает: переминается и моргает (без анимации при prefers-reduced-motion). */}
+                  <svg aria-hidden width={30} height={30} viewBox="-16 -18 32 32" className="shrink-0 overflow-visible">
+                    <g className="mascot-idle">
+                      <MascotFigure id="invictus" />
+                    </g>
+                  </svg>
+                  Инвиктус смотрит в кабинет…
                 </p>
               )}
               {error && (
@@ -333,7 +337,7 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
         ref={fab}
         onClick={() => void show()}
         data-assistant-fab
-        aria-label="Спросить помощника"
+        aria-label="Спросить Инвиктуса, помощника по кабинету"
         aria-haspopup="dialog"
         aria-expanded={open}
         className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-brand-fill text-on-brand ring-4 ring-page transition duration-200 hover:scale-105 active:scale-95 motion-reduce:transition-none md:right-6 md:bottom-6 ${open ? "pointer-events-none scale-75 opacity-0" : ""}`}

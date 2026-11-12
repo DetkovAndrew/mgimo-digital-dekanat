@@ -2,12 +2,16 @@
 // (токены --m-*, --brand…), центр в (0, 0), ступни на y ≈ 10. Часть открывается ачивками (src/server/dal/achievements.ts).
 import type { Achievements } from "@/server/dal/achievements";
 
-export type MascotId = "claude" | "codex" | "dot" | "owl" | "runner" | "rocket" | "cat" | "compass";
-/** Чем открывается: ачивка с сервера, «навигатор» (дошёл до конца трёх маршрутов, считает браузер) или ничем. */
-export type Unlock = keyof Achievements | "navigator" | null;
+export type MascotId = "invictus" | "claude" | "codex" | "dot" | "owl" | "runner" | "rocket" | "cat" | "compass";
+/**
+ * Чем открывается: ачивка с сервера, «навигатор» (дошёл до конца трёх маршрутов) или «вопрос» (спросил Инвиктуса) —
+ * эти два считает браузер; null — открыт сразу.
+ */
+export type Unlock = keyof Achievements | "navigator" | "asked" | null;
 
 export const MASCOTS: { id: MascotId; name: string; about: string; unlock: Unlock; hint?: string }[] = [
-  { id: "claude", name: "Искорка", about: "Оранжевый помощник с искоркой", unlock: null },
+  { id: "invictus", name: "Инвиктус", about: "Наш помощник: глаз-звезда, всегда знает дорогу", unlock: null },
+  { id: "claude", name: "Искорка", about: "Оранжевая подружка Инвиктуса", unlock: "asked", hint: "задать вопрос Инвиктусу" },
   { id: "codex", name: "Терминал", about: "Командная строка на ножках", unlock: null },
   { id: "dot", name: "Точка", about: "Просто точка, без лишнего", unlock: null },
   { id: "owl", name: "Сова", about: "Для круглых отличников", unlock: "excellent", hint: "все оценки прошлой сессии «5»" },
@@ -31,9 +35,48 @@ const Eyes = ({ y = -2, dx = 3.2, r = 1.3 }: { y?: number; dx?: number; r?: numb
   </>
 );
 
+/** Глаз Инвиктуса: четырёхлучевая звезда (как в кружке помощника в углу экрана). */
+export const STAR_EYE = "M0 -4.6Q0.7 -0.7 4.6 0Q0.7 0.7 0 4.6Q-0.7 0.7 -4.6 0Q-0.7 -0.7 0 -4.6Z";
+
+/**
+ * Инвиктус — маскот помощника (docs/design/MASCOT.md): голова — тот же синий кругляш, что кнопка помощника в углу,
+ * вместо лица — звезда-глаз; мини-тело, ручки и ножки. Блик-«плюсик» на макушке — от значка помощника.
+ */
+function Invictus() {
+  return (
+    <g>
+      <Legs className="fill-brand-fill" xs={[-2.6, 2.6]} y={5.5} />
+      <ellipse cx={-3.2} cy={10.2} rx={2.4} ry={1.1} className="mascot-leg-a fill-brand-fill" />
+      <ellipse cx={3.2} cy={10.2} rx={2.4} ry={1.1} className="mascot-leg-b fill-brand-fill" />
+      <rect x={-4.5} y={0} width={9} height={7.5} rx={3.5} className="fill-brand-fill" />
+      <ellipse cx={-5.6} cy={3.2} rx={1.4} ry={2.4} className="mascot-arm-a fill-brand-fill" />
+      <ellipse cx={5.6} cy={3.2} rx={1.4} ry={2.4} className="mascot-arm-b fill-brand-fill" />
+      <circle cy={-6} r={9} strokeWidth={1.6} className="fill-brand-fill stroke-m-floor" />
+      <g transform="translate(0 -6)">
+        <path d={STAR_EYE} className="mascot-eye fill-on-brand" />
+      </g>
+      <path d="M4 -12.5V-9.7M2.6 -11.1H5.4" strokeWidth={1.1} strokeLinecap="round" className="mascot-spark stroke-on-brand" />
+    </g>
+  );
+}
+
+/** Рост фигурок выровнен: масштаб вокруг ступней (0, 10), чтобы все стояли на линии маршрута одинаково. */
+const SCALE: Record<MascotId, number> = { invictus: 0.98, claude: 0.94, codex: 1.15, dot: 1.3, owl: 0.94, runner: 1.15, rocket: 0.82, cat: 1, compass: 1.1 };
+
 /** Фигурка попутчика. Анимация шага в классах mascot-*, их выключает prefers-reduced-motion (globals.css). */
 export function MascotFigure({ id }: { id: MascotId }) {
+  return (
+    // Точка без ступней — масштаб вокруг центра, она идёт прямо по линии.
+    <g transform={id === "dot" ? `scale(${SCALE[id]})` : `translate(0 10) scale(${SCALE[id]}) translate(0 -10)`}>
+      <Figure id={id} />
+    </g>
+  );
+}
+
+function Figure({ id }: { id: MascotId }) {
   switch (id) {
+    case "invictus":
+      return <Invictus />;
     case "claude":
       return (
         <g>

@@ -2,11 +2,12 @@
 
 import { ArrowLeft, ArrowRight, ArrowUp, CornerUpLeft, CornerUpRight, DoorOpen, Flag, LogIn, type LucideIcon, RotateCcw, Undo2, X } from "lucide-react";
 import Link from "next/link";
-import { createContext, type KeyboardEvent, type ReactNode, useContext, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createContext, type KeyboardEvent, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import type { Pt } from "@/lib/campus/plans";
 import { climbEnd, climbStart, type RouteLeg, type RouteStep, type StepKind } from "@/lib/campus/route";
 import type { Achievements } from "@/server/dal/achievements";
 import { MASCOTS, MascotFigure, MascotIcon, type MascotId } from "./mascots";
+import { ASKED_KEY, DONE_KEY, MASCOT_KEY, useLocal, writeLocal } from "./local-store";
 import { Stairs } from "./stairs-icon";
 
 // Маршрут по шагам (docs/plans/indoor-route.md): «Дальше» листает шаги, схема сама переключает этаж и плавно
@@ -26,42 +27,6 @@ type Ctx = {
   openPicker: () => void;
 };
 
-// Попутчик и счётчик пройденных маршрутов: удобство одного браузера (localStorage). Без хранилища (приватный режим)
-// значения живут в памяти вкладки. На сервере и при гидрации — значения по умолчанию (useSyncExternalStore).
-const MASCOT_KEY = "campus-mascot";
-const DONE_KEY = "campus-routes-done";
-const memory = new Map<string, string>();
-const listeners = new Set<() => void>();
-const readLocal = (key: string) => {
-  try {
-    return window.localStorage.getItem(key) ?? memory.get(key) ?? null;
-  } catch {
-    return memory.get(key) ?? null;
-  }
-};
-const writeLocal = (key: string, value: string) => {
-  memory.set(key, value);
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {
-    // хранилище недоступно: остаётся значение в памяти
-  }
-  listeners.forEach((l) => l());
-};
-const subscribe = (cb: () => void) => {
-  listeners.add(cb);
-  window.addEventListener("storage", cb);
-  return () => {
-    listeners.delete(cb);
-    window.removeEventListener("storage", cb);
-  };
-};
-const useLocal = (key: string, fallback: string) =>
-  useSyncExternalStore(
-    subscribe,
-    () => readLocal(key) ?? fallback,
-    () => fallback,
-  );
 
 const RouteCtx = createContext<Ctx | null>(null);
 const useRoute = () => useContext(RouteCtx);
@@ -82,15 +47,16 @@ function useReducedMotion() {
 export function RouteProvider({ route, views, achievements, children }: { route: RouteData | null; views: Record<number, View>; achievements: Achievements; children: ReactNode }) {
   const [step, setStepRaw] = useState(0);
   const [manual, setManual] = useState<number | null>(null);
-  const saved = useLocal(MASCOT_KEY, "claude");
-  const mascot: MascotId = MASCOTS.some((m) => m.id === saved) ? (saved as MascotId) : "claude";
+  const saved = useLocal(MASCOT_KEY, "invictus");
+  const mascot: MascotId = MASCOTS.some((m) => m.id === saved) ? (saved as MascotId) : "invictus";
   const done = Number(useLocal(DONE_KEY, "0")) || 0;
+  const asked = useLocal(ASKED_KEY, "0") === "1";
   const [picking, setPicking] = useState(false);
   const counted = useRef(false);
   const calm = useReducedMotion();
   const unlocked = (id: MascotId) => {
     const m = MASCOTS.find((x) => x.id === id)!;
-    return !m.unlock || (m.unlock === "navigator" ? done >= 3 : achievements[m.unlock]);
+    return !m.unlock || (m.unlock === "navigator" ? done >= 3 : m.unlock === "asked" ? asked : achievements[m.unlock]);
   };
   if (!route) return children;
   const last = route.steps.length - 1;
@@ -106,14 +72,15 @@ export function RouteProvider({ route, views, achievements, children }: { route:
   };
   const current = Math.min(step, last);
   const shown = manual ?? route.steps[current].floor;
+  const active: MascotId = unlocked(mascot) ? mascot : "invictus"; // сохранённый, но закрытый — по умолчанию
   const choose = (id: MascotId) => {
     if (!unlocked(id)) return;
     writeLocal(MASCOT_KEY, id);
   };
   return (
-    <RouteCtx value={{ route, views, step: current, setStep, shown, showFloor: setManual, calm, mascot: unlocked(mascot) ? mascot : "claude", openPicker: () => setPicking(true) }}>
+    <RouteCtx value={{ route, views, step: current, setStep, shown, showFloor: setManual, calm, mascot: active, openPicker: () => setPicking(true) }}>
       {children}
-      {picking && <MascotPicker current={mascot} unlocked={unlocked} done={done} onChoose={choose} onClose={() => setPicking(false)} />}
+      {picking && <MascotPicker current={active} unlocked={unlocked} done={done} onChoose={choose} onClose={() => setPicking(false)} />}
     </RouteCtx>
   );
 }
@@ -145,7 +112,7 @@ function MascotPicker({ current, unlocked, done, onChoose, onClose }: { current:
             <X aria-hidden className="size-5" />
           </button>
         </div>
-        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+        <ul className="mt-3 grid auto-rows-fr gap-2 sm:grid-cols-2">
           {MASCOTS.map((m) => {
             const open = unlocked(m.id);
             const on = m.id === current;
@@ -159,7 +126,7 @@ function MascotPicker({ current, unlocked, done, onChoose, onClose }: { current:
                     onChoose(m.id);
                     ref.current?.close();
                   }}
-                  className={`flex min-h-16 w-full items-center gap-2 rounded-2xl p-2 text-left ring-1 transition ${
+                  className={`flex h-full min-h-16 w-full items-center gap-2 rounded-2xl p-2 text-left ring-1 transition ${
                     on ? "bg-brand-soft ring-brand" : open ? "bg-page ring-hairline hover:bg-fill" : "bg-page ring-hairline"
                   }`}
                 >
@@ -267,16 +234,31 @@ function focusBox(pts: Pt[], v: View): [number, number, number, number] {
 }
 
 /**
- * Попутчик на схеме: идёт по участку шага (animateMotion по той же скруглённой линии), прыгает на лестнице,
- * радуется у двери. Стоит ступнями на линии; точка — по центру линии.
+ * Попутчик на схеме: проходит участок шага один раз (animateMotion по той же скруглённой линии) и остаётся в конце,
+ * переминаясь; на лестнице прыгает, у двери радуется. Стоит ступнями на линии; точка — по центру линии.
+ * Родитель пересоздаёт его на каждом шаге (key), так что проход начинается заново только при смене шага.
  */
 function Walker({ mascot, at, motion, mood }: { mascot: MascotId; at?: Pt; motion?: { d: string; dur: number }; mood: "walk" | "hop" | "cheer" | "still" }) {
   const lift = mascot === "dot" ? 0 : -8;
+  const group = useRef<SVGGElement>(null);
+  const anim = useRef<SVGAnimateMotionElement>(null);
+  const [arrived, setArrived] = useState(!motion);
+  useEffect(() => {
+    const a = anim.current;
+    const g = group.current;
+    if (!a || !g) return;
+    const end = () => setArrived(true);
+    a.addEventListener("endEvent", end);
+    a.beginElement(); // begin="indefinite": SMIL-время документа давно ушло, запускаем вручную
+    g.style.visibility = "visible"; // до запуска фигурка стояла бы в углу схемы
+    return () => a.removeEventListener("endEvent", end);
+  }, []);
+  const pose = mood === "walk" ? (arrived ? "idle" : "walk") : mood;
   return (
-    <g transform={at ? `translate(${f1(at[0])} ${f1(at[1])})` : undefined}>
-      {motion && <animateMotion dur={`${motion.dur.toFixed(2)}s`} repeatCount="indefinite" path={motion.d} />}
+    <g ref={group} transform={at ? `translate(${f1(at[0])} ${f1(at[1])})` : undefined} style={motion ? { visibility: "hidden" } : undefined}>
+      {motion && <animateMotion ref={anim} begin="indefinite" dur={`${motion.dur.toFixed(2)}s`} fill="freeze" calcMode="paced" path={motion.d} />}
       <g transform={`translate(0 ${lift})`}>
-        <g className={mood === "still" ? "" : `mascot-${mood}`}>
+        <g className={pose === "still" ? "" : `mascot-${pose}`}>
           <MascotFigure id={mascot} />
         </g>
       </g>
@@ -370,10 +352,11 @@ export function RouteLayer({ floor }: { floor: number }) {
         <g key={`c${step}`}>
           <path d={curve(current.path)} strokeWidth={10} strokeLinecap="round" strokeLinejoin="round" className="fill-none stroke-brand-soft" />
           <path d={curve(current.path)} pathLength={1} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" className={`fill-none stroke-brand ${calm ? "" : "route-draw"}`} />
+          {/* key: смена режима (анимация включилась после гидрации или выключилась) — новый попутчик, проход заново. */}
           {current.kind === "arrive" || calm ? (
-            <Walker mascot={mascot} at={current.path.at(-1)!} mood={current.kind === "arrive" && !calm ? "cheer" : "still"} />
+            <Walker key="still" mascot={mascot} at={current.path.at(-1)!} mood={current.kind === "arrive" && !calm ? "cheer" : "still"} />
           ) : (
-            <Walker mascot={mascot} motion={{ d: curve(current.path), dur: Math.max(1.4, lengthOf(current.path) / 70) }} mood="walk" />
+            <Walker key="walk" mascot={mascot} motion={{ d: curve(current.path), dur: Math.max(1.4, lengthOf(current.path) / 70) }} mood="walk" />
           )}
         </g>
       )}

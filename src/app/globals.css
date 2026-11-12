@@ -390,6 +390,16 @@ body {
     rotate: 8deg;
   }
 }
+@keyframes mascot-wink {
+  0%,
+  92%,
+  100% {
+    scale: 1 1;
+  }
+  95% {
+    scale: 1 0.15;
+  }
+}
 @keyframes mascot-blink {
   50% {
     opacity: 0;
@@ -417,6 +427,20 @@ body {
   }
   .mascot-walk .mascot-leg-b {
     animation: mascot-leg 0.18s ease-in-out 0.18s infinite alternate;
+  }
+  .mascot-walk .mascot-arm-a {
+    animation: mascot-leg 0.18s ease-in-out 0.18s infinite alternate;
+  }
+  .mascot-walk .mascot-arm-b {
+    animation: mascot-leg 0.18s ease-in-out infinite alternate;
+  }
+  .mascot-idle {
+    animation: mascot-bob 1.8s ease-in-out infinite;
+  }
+  .mascot-eye {
+    animation: mascot-wink 4.5s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: 50% 50%;
   }
   .mascot-hop {
     animation: mascot-hop 0.7s var(--ease-out) infinite;

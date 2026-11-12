@@ -59,7 +59,11 @@ describe("бронирование", () => {
     const notBookable = allPlanRooms().find((r) => !r.bookable)!;
     expect((await bookRoom({ roomId: notBookable.id, day: day(), start: "10:00", minutes: 60, purpose: "x y" })).ok).toBe(false);
     expect((await bookRoom({ roomId: "kronv-3310", day: day(), start: "20:30", minutes: 60, purpose: "поздно" })).ok).toBe(false);
-    expect((await bookRoom({ roomId: "kronv-3310", day: roomDayKeys()[0], start: "08:00", minutes: 30, purpose: "прошлое" })).ok).toBe(false);
+    // Прошлое: сегодня 08:00 — в прошлом, только если сейчас уже позже 08:30 МСК (ночью проверять нечего).
+    const mskMinutes = (new Date().getUTCHours() + 3) % 24 * 60 + new Date().getUTCMinutes();
+    if (mskMinutes >= 8 * 60 + 30) {
+      expect((await bookRoom({ roomId: "kronv-3310", day: roomDayKeys()[0], start: "08:00", minutes: 30, purpose: "прошлое" })).ok).toBe(false);
+    }
     expect((await bookRoom({ roomId: "kronv-3310", day: day(), start: "10:15", minutes: 60, purpose: "шаг" })).ok).toBe(false);
     expect((await bookRoom({ roomId: "kronv-3310", day: day(), start: "10:00", minutes: 240, purpose: "долго" })).ok).toBe(false);
     expect((await bookRoom({ roomId: "kronv-3310", day: "2030-01-01", start: "10:00", minutes: 60, purpose: "далеко" })).ok).toBe(false);
