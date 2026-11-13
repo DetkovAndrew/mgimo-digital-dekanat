@@ -27,12 +27,12 @@ export function Toaster() {
         <p
           key={t.id}
           role="status"
-          className="flex max-w-md animate-[toast-in_260ms_var(--ease-out)] motion-reduce:animate-none items-start gap-2 rounded-2xl bg-slate-900/95 px-4 py-3 text-sm text-white shadow-lg backdrop-blur"
+          className="flex max-w-md animate-[toast-in_260ms_var(--ease-out)] motion-reduce:animate-none items-start gap-2 rounded-2xl bg-surface px-4 py-3 text-sm text-ink shadow-lg ring-1 ring-hairline"
         >
           {t.ok ? (
-            <CircleCheck aria-hidden className="mt-px size-4 shrink-0 text-emerald-400" />
+            <CircleCheck aria-hidden className="mt-px size-4 shrink-0 text-ok" />
           ) : (
-            <CircleAlert aria-hidden className="mt-px size-4 shrink-0 text-amber-400" />
+            <CircleAlert aria-hidden className="mt-px size-4 shrink-0 text-warn" />
           )}
           {t.text}
         </p>

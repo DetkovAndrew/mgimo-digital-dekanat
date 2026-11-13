@@ -1,0 +1,81 @@
+# Сервер: PostgreSQL + приложение + Caddy (HTTPS для домена сам). Порядок: db → migrate → app → caddy.
+# Запуск и обновление — docs/DEPLOY.md. Переменные — из .env рядом (шаблон deploy/env.production.example).
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dekanat
+      POSTGRES_USER: dekanat
+      # Только hex (openssl rand -hex 24): пароль подставляется в DATABASE_URL без кодирования.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dekanat -d dekanat"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Миграции перед каждым запуском приложения (ничего не стирают).
+  migrate:
+    build: { context: ., target: tools }
+    image: dekanat-tools
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://dekanat:${POSTGRES_PASSWORD}@db:5432/dekanat
+    command: ["npx", "prisma", "migrate", "deploy"]
+    depends_on:
+      db: { condition: service_healthy }
+    restart: "no"
+
+  app:
+    build: { context: ., target: runner }
+    image: dekanat-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://dekanat:${POSTGRES_PASSWORD}@db:5432/dekanat
+      BETTER_AUTH_URL: https://${DOMAIN:?задайте DOMAIN в .env}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app: { condition: service_healthy }
+
+  # Разовые команды: демо-данные и аудитории со схем (docs/DEPLOY.md, шаг 6).
+  tools:
+    profiles: ["tools"]
+    # Тот же образ, что собирает migrate: второй раз не собираем.
+    image: dekanat-tools
+    pull_policy: never
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://dekanat:${POSTGRES_PASSWORD}@db:5432/dekanat
+      BETTER_AUTH_URL: https://${DOMAIN}
+    depends_on:
+      db: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

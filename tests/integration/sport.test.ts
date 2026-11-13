@@ -75,7 +75,9 @@ describe("запись", () => {
       expect(await bookSlot(picks[1].id)).toMatchObject({ ok: true });
       const third = await bookSlot(picks[2].id);
       expect(third).toMatchObject({ ok: false });
-      expect(await statusOf(me.studentId, picks[2].id)).toBeNull();
+      // Активной записи нет. «Отменена» возможна: в конце недели третьим днём оказывается слот, который выше
+      // записали и отменили для проверки «1 в день» (тест падал по пятницам).
+      expect([null, "CANCELLED"]).toContain(await statusOf(me.studentId, picks[2].id));
     } finally {
       await prisma.sportBooking.deleteMany({ where: { studentId: me.studentId } }); // не оставлять «лишних» мест сверх вместимости
       for (const s of slots) await prisma.sportSlot.update({ where: { id: s.id }, data: { capacity: s.capacity } });

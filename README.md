@@ -24,6 +24,9 @@ npm run dev                 # http://127.0.0.1:3000
 Проверки: `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:db`
 (интеграционные тесты на отдельной БД `TEST_DATABASE_URL`, имя должно оканчиваться на `_test`).
 
+На сервере: `docker compose up -d --build` (PostgreSQL, приложение и Caddy с HTTPS) — по шагам в
+[`docs/DEPLOY.md`](docs/DEPLOY.md).
+
 ## Где читать дальше
 
 - [`ТЗ_Вайбкодинг.txt`](ТЗ_Вайбкодинг.txt) — задание конкурса.

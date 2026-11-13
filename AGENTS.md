@@ -18,7 +18,7 @@
 
 Next.js 16 (App Router) + TypeScript, Tailwind CSS 4 + shadcn/ui, PostgreSQL + Prisma 7,
 Better Auth (логин/пароль). Локальная БД — `embedded-postgres` (настоящий PostgreSQL без Docker).
-Развёртывание: Docker Compose + Nginx + HTTPS на ВМ.
+Развёртывание: Docker Compose (PostgreSQL + Next.js standalone + Caddy с автоматическим HTTPS) на ВМ — `docs/DEPLOY.md`.
 Одна Prisma-схема (`provider = postgresql`) и одна история миграций для всех окружений;
 различаются только URL и переменные окружения.
 

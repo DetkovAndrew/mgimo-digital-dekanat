@@ -1,17 +1,45 @@
-import { Disclaimer } from "@/components/disclaimer";
-import { SignOut } from "@/components/nav";
+import { FileText } from "lucide-react";
+import Link from "next/link";
+import { Badge, Empty, List, PageTitle, RowLink } from "@/components/ui";
+import { formatDateTime, requestStatusLabel } from "@/lib/format";
+import { formatRequestNumber, isRequestType, requestCatalog } from "@/lib/requests/catalog";
+import { staffFilters } from "@/lib/staff/requests";
+import { listFacultyRequests } from "@/server/dal/staff";
 import { requireStaff } from "@/server/session";
 
-export default async function StaffPage() {
+export default async function StaffPage({ searchParams }: { searchParams: Promise<{ status?: string | string[] }> }) {
   await requireStaff();
+  const filter = (await searchParams).status ?? "SUBMITTED";
+  const requests = await listFacultyRequests(filter);
   return (
-    <div className="min-h-dvh">
-      <Disclaimer />
-      <main className="mx-auto max-w-lg px-4 py-10 text-center">
-        <h1 className="mb-2 text-2xl font-semibold">Кабинет сотрудника деканата</h1>
-        <p className="mb-6 text-ink-2">В разработке: здесь будут заявки студентов факультета.</p>
-        <SignOut className="rounded-xl bg-surface px-4 py-2 text-sm ring-1 ring-hairline" />
-      </main>
-    </div>
+    <>
+      <PageTitle sub="Заявки студентов вашего факультета. Сначала — старые необработанные.">Заявки факультета</PageTitle>
+      <nav aria-label="Статус заявок" className="mb-5 flex flex-wrap gap-2">
+        {staffFilters.map((f) => (
+          <Link key={f.value} href={`/staff?status=${f.value}`} transitionTypes={["nav-tab"]} aria-current={filter === f.value ? "page" : undefined}
+            className={`inline-flex min-h-11 items-center rounded-xl px-3 text-body font-medium ${filter === f.value ? "bg-brand-fill text-on-brand" : "bg-surface text-ink-2 ring-1 ring-hairline"}`}>
+            {f.label}
+          </Link>
+        ))}
+      </nav>
+      {requests.length ? (
+        <List>
+          {requests.map((r) => {
+            const status = requestStatusLabel[r.status];
+            return (
+              <RowLink key={r.id} href={`/staff/requests/${r.id}`}>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="inline-flex items-center gap-1.5 text-body font-semibold"><FileText aria-hidden className="size-4 text-brand" />{formatRequestNumber(r.number)}</span>
+                  <Badge tone={status.tone}>{status.label}</Badge>
+                </div>
+                <p className="mt-1 text-lead font-medium break-words">{isRequestType(r.type) ? requestCatalog[r.type].title : "Заявка"}</p>
+                <p className="text-body break-words">{r.student.user.name} · {r.student.group.code}</p>
+                <p className="mt-1 text-body text-ink-2">Подана {formatDateTime(r.createdAt)}</p>
+              </RowLink>
+            );
+          })}
+        </List>
+      ) : <Empty>В этой очереди пока нет заявок.</Empty>}
+    </>
   );
 }
