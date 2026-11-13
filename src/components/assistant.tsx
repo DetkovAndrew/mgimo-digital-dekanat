@@ -1,9 +1,11 @@
 "use client";
 
-import { ArrowUp, RotateCcw, Sparkles, SquarePen, X } from "lucide-react";
+import { ArrowUp, CalendarCheck, LoaderCircle, RotateCcw, Sparkles, SquarePen, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { bookFromAssistantAction } from "@/app/(cabinet)/rooms/actions";
 import { parseInline } from "@/lib/assistant/answer";
+import type { BookingProposal } from "@/server/dal/rooms";
 import { ASKED_KEY, writeLocal } from "./local-store";
 import { MascotFigure, MascotIcon } from "./mascots";
 import { authClient } from "@/lib/auth-client";
@@ -15,7 +17,8 @@ const OPEN_EVENT = "assistant:open";
 /** Открыть помощника из любого места (кнопка на «Сегодня»). */
 export const openAssistant = () => window.dispatchEvent(new Event(OPEN_EVENT));
 
-type Msg = { role: "user" | "assistant"; content: string };
+/** proposal — карточка брони, которую подготовил сервер по просьбе студента (в историю для модели не уходит). */
+type Msg = { role: "user" | "assistant"; content: string; proposal?: BookingProposal };
 
 const SUGGESTIONS = [
   "Что у меня завтра и где?",
@@ -58,10 +61,72 @@ function Answer({ text, onNavigate }: { text: string; onNavigate: () => void }) 
   );
 }
 
+/**
+ * Карточка брони от Инвиктуса: что, где, когда, для чего. Бронь создаёт только нажатие «Забронировать» —
+ * обычная серверная бронь с сессией, проверкой правил и блокировками (как на схеме корпуса).
+ */
+function BookingCard({ proposal: p, owner, onNavigate }: { proposal: BookingProposal; owner: string; onNavigate: () => void }) {
+  const [state, setState] = useState<"ready" | "done" | "dismissed">("ready");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const date = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", weekday: "short", day: "numeric", month: "long" }).format(new Date(`${p.day}T12:00:00+03:00`));
+  if (state === "dismissed") return <p className="mt-2 text-sm text-ink-2">Бронь не оформлена.</p>;
+  return (
+    <div className="mt-3 rounded-2xl bg-surface p-3 ring-1 ring-hairline">
+      <p className="flex items-center gap-2 font-semibold">
+        <CalendarCheck aria-hidden className="size-4 text-brand" />
+        {p.number} · {p.name}
+      </p>
+      <p className="mt-0.5 text-sm text-ink-2">
+        {p.building}, {p.capacity} мест · {date}, с {p.start} до {p.end}
+      </p>
+      <p className="text-sm text-ink-2">Цель: {p.purpose}</p>
+      {state === "done" ? (
+        <p role="status" className="mt-2 flex flex-wrap items-center gap-x-2 rounded-xl bg-ok-soft px-3 py-2 text-sm text-ok">
+          Забронировано.
+          <Link href="/rooms" onClick={onNavigate} className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2">
+            Мои брони
+          </Link>
+        </p>
+      ) : (
+        <>
+          {error && (
+            <p role="alert" className="mt-2 rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad">
+              {error}
+            </p>
+          )}
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                start(async () => {
+                  const r = await bookFromAssistantAction(owner, { roomId: p.roomId, day: p.day, start: p.start, minutes: p.minutes, purpose: p.purpose }).catch(() => ({ ok: false as const, error: "Нет связи с сервером. Попробуйте ещё раз." }));
+                  if (r.ok) setState("done");
+                  else setError(r.error);
+                })
+              }
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-brand-fill px-4 text-sm font-semibold text-on-brand transition active:scale-[0.98] disabled:bg-fill disabled:text-ink-3"
+            >
+              {pending && <LoaderCircle aria-hidden className="size-4 animate-spin motion-reduce:animate-none" />}
+              Забронировать
+            </button>
+            <button type="button" disabled={pending} onClick={() => setState("dismissed")} className="inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-medium text-ink-2 ring-1 ring-hairline">
+              Не нужно
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 const MAX_BODY_BYTES = 20 * 1024; // сервер принимает до 24 КиБ
 
 /** Последние реплики, которые помещаются в лимит тела запроса: старые пары уходят первыми. */
-function fit(owner: string, history: Msg[]) {
+function fit(owner: string, full: Msg[]) {
+  // Модели — только роль и текст: карточки броней остаются в браузере.
+  const history = full.map(({ role, content }) => ({ role, content }));
   let h = history.slice(-12);
   const size = (m: Msg[]) => new TextEncoder().encode(JSON.stringify({ owner, messages: m })).length;
   while (h.length > 1 && (size(h) > MAX_BODY_BYTES || h[0].role !== "user")) h = h.slice(1);
@@ -98,14 +163,14 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
         body: JSON.stringify({ owner, messages: fit(owner, history) }),
         signal: ctl.signal,
       });
-      const data = (await res.json().catch(() => ({}))) as { answer?: string; error?: string; reset?: boolean };
+      const data = (await res.json().catch(() => ({}))) as { answer?: string; error?: string; reset?: boolean; proposal?: BookingProposal };
       if (ctl.signal.aborted) return;
       if (data.reset) {
         setMessages([]);
         setError(data.error ?? null);
         return;
       }
-      if (res.ok && data.answer) setMessages([...history, { role: "assistant", content: data.answer }]);
+      if (res.ok && data.answer) setMessages([...history, { role: "assistant", content: data.answer, ...(data.proposal ? { proposal: data.proposal } : {}) }]);
       else setError(data.error ?? "Не получилось получить ответ.");
     } catch {
       if (!ctl.signal.aborted) setError("Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.");
@@ -198,6 +263,7 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
                 ) : (
                   <div key={i} className="mr-auto max-w-[92%] rounded-2xl rounded-bl-md bg-page px-4 py-3 text-body break-words">
                     <Answer text={m.content} onNavigate={onClose} />
+                    {m.proposal && <BookingCard proposal={m.proposal} owner={owner} onNavigate={onClose} />}
                   </div>
                 ),
               )}

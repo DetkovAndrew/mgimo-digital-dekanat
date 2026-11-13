@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { bookRoom, cancelMyRoomBooking, type RoomActionResult } from "@/server/dal/rooms";
+import { bookRoom, bookRoomAs, cancelMyRoomBooking, type RoomActionResult } from "@/server/dal/rooms";
 
 export async function bookRoomAction(input: { roomId: string; day: string; start: string; minutes: number; purpose: string }): Promise<RoomActionResult> {
   const r = await bookRoom(input);
@@ -11,6 +11,13 @@ export async function bookRoomAction(input: { roomId: string; day: string; start
 
 export async function cancelRoomBookingAction(id: string): Promise<RoomActionResult> {
   const r = await cancelMyRoomBooking(String(id));
+  revalidatePath("/rooms", "layout");
+  return r;
+}
+
+/** Бронь из карточки Инвиктуса: сервер сверяет владельца разговора с сессией перед записью. */
+export async function bookFromAssistantAction(owner: string, input: { roomId: string; day: string; start: string; minutes: number; purpose: string }): Promise<RoomActionResult> {
+  const r = await bookRoomAs(String(owner), input);
   revalidatePath("/rooms", "layout");
   return r;
 }

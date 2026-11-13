@@ -2,9 +2,9 @@ import { z } from "zod";
 import { MAX_ANSWER_CHARS, sanitizeAnswer } from "@/lib/assistant/answer";
 import { canonicalLink } from "@/lib/assistant/links";
 import { buildMyContext } from "@/server/ai/context";
-import { FIND_FREE_ROOMS, formatFreeRooms } from "@/server/ai/functions";
+import { BOOK_ROOM, FIND_FREE_ROOMS, formatFreeRooms, formatPrepared } from "@/server/ai/functions";
 import { AssistantError, gigachatComplete, type ChatMessage } from "@/server/ai/gigachat";
-import { findFreeRooms } from "@/server/dal/rooms";
+import { findFreeRooms, prepareBooking, type BookingProposal } from "@/server/dal/rooms";
 import { takeStudentSlot, withProviderSlot } from "@/server/ai/limits";
 import { systemPrompt } from "@/server/ai/prompt";
 import { studentForApi } from "@/server/session";
@@ -100,17 +100,24 @@ export async function POST(req: Request) {
   try {
     const ctx = await buildMyContext();
     if (abort.signal.aborted) throw new AssistantError("unavailable", "aborted");
+    let proposal: BookingProposal | null = null;
     const raw = await withProviderSlot(async () => {
       const messages: ChatMessage[] = [{ role: "system", content: systemPrompt(ctx) }, ...parsed.data.messages];
-      const opts = { maxTokens: 600, signal: abort.signal, functions: [FIND_FREE_ROOMS] };
+      const opts = { maxTokens: 600, signal: abort.signal, functions: [FIND_FREE_ROOMS, BOOK_ROOM] };
       const reply = await gigachatComplete(messages, opts);
-      // Функция только читает свободное время. Ответ по ней собирает сервер: модель путала интервалы при пересказе.
+      // Функции ничего не пишут. Ответ по ним собирает сервер: модель путала интервалы при пересказе.
       if (reply.functionCall?.name === FIND_FREE_ROOMS.name) return formatFreeRooms(await findFreeRooms(reply.functionCall.arguments, ctx.asOf));
+      if (reply.functionCall?.name === BOOK_ROOM.name) {
+        // Карточка брони: параметры проверил сервер; создаст бронь только нажатие студента (bookRoom с сессией).
+        const prepared = await prepareBooking(reply.functionCall.arguments, ctx.asOf);
+        if (prepared.ok) proposal = prepared.proposal;
+        return formatPrepared(prepared);
+      }
       return reply.content;
     }, abort.signal);
     const answer = sanitizeAnswer(raw, (href) => canonicalLink(href, ctx.links, ctx.asOf));
     console.info(`[assistant] ok ${Date.now() - started}ms`);
-    return json(200, { answer: answer || "Не получилось сформулировать ответ. Попробуйте спросить иначе." });
+    return json(200, { answer: answer || "Не получилось сформулировать ответ. Попробуйте спросить иначе.", ...(proposal ? { proposal } : {}) });
   } catch (e) {
     const kind = e instanceof AssistantError ? e.kind : "unavailable";
     // В журнал — только вид ошибки, наш собственный код («chat 400») или имя класса и длительность:

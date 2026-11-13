@@ -6,7 +6,7 @@ import { formatRequestNumber } from "@/lib/requests/catalog";
 import { buildMyContext } from "@/server/ai/context";
 import { gigachatComplete, type ChatMessage } from "@/server/ai/gigachat";
 import { resetAssistantLimits } from "@/server/ai/limits";
-import { findFreeRooms } from "@/server/dal/rooms";
+import { bookRoomAs, findFreeRooms } from "@/server/dal/rooms";
 import { prisma } from "@/server/db";
 import * as session from "@/server/session";
 import { actAs } from "./helpers";
@@ -141,6 +141,46 @@ describe("POST /api/assistant", () => {
     const r = await findFreeRooms({ day, after: "09:15", before: "10:15", minMinutes: 60 });
     expect("rooms" in r ? r.rooms?.flatMap((x) => x.free) : null).toEqual([]);
     expect(await findFreeRooms({ day, after: "99:99" })).toEqual({ error: "Неверные параметры поиска" });
+  });
+
+  it("book_room: сервер готовит карточку брони, но ничего не бронирует; занятое время и закрытая аудитория — отказ", async () => {
+    const day = new Date(Date.now() + 2 * 86_400_000 + 3 * 3_600_000).toISOString().slice(0, 10);
+    const who = await as("timur.orlov");
+    const before = await prisma.roomBooking.count({ where: { studentId: who.studentId } });
+    // Свободный коворкинг или переговорная на 2 часа — сервер подберёт сам (номер не назван).
+    vi.mocked(gigachatComplete).mockResolvedValueOnce({ content: "", functionCall: { name: "book_room", arguments: { day, start: "14:00", minutes: 120, purpose: "Подготовка к физике" } } });
+    const res = await ask(question("Забронируй мне что-нибудь послезавтра с 14 до 16 под физику"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { answer: string; proposal?: { roomId: string; day: string; start: string; end: string; minutes: number; purpose: string } };
+    expect(vi.mocked(gigachatComplete).mock.calls[0][1].functions?.map((f) => f.name)).toEqual(["find_free_rooms", "book_room"]);
+    expect(body.proposal).toMatchObject({ day, start: "14:00", end: "16:00", minutes: 120, purpose: "Подготовка к физике" });
+    expect(body.answer).toContain("Забронировать");
+    expect(await prisma.roomBooking.count({ where: { studentId: who.studentId } })).toBe(before); // модель ничего не записала
+
+    // Названная аудитория, которую бронирует только деканат.
+    const closed = (await prisma.room.findFirstOrThrow({ where: { bookable: false, buildingId: "kronv" } })).number;
+    vi.mocked(gigachatComplete).mockResolvedValueOnce({ content: "", functionCall: { name: "book_room", arguments: { day, start: "14:00", building: "kronv", room: closed } } });
+    const no = (await (await ask(question(`Забронируй ${closed}`))).json()) as { answer: string; proposal?: unknown };
+    expect(no.proposal).toBeUndefined();
+    expect(no.answer).toContain("деканат");
+
+    // Номер есть в обоих корпусах (1101): без корпуса — переспросить, а не выбрать за студента.
+    vi.mocked(gigachatComplete).mockResolvedValueOnce({ content: "", functionCall: { name: "book_room", arguments: { day, start: "14:00", room: "1101" } } });
+    const twice = (await (await ask(question("Забронируй 1101"))).json()) as { answer: string; proposal?: unknown };
+    expect(twice.proposal).toBeUndefined();
+    expect(twice.answer).toContain("уточните");
+
+    // Подтверждение карточки — только тем же студентом: после смены аккаунта бронь не создаётся.
+    const p = body.proposal!;
+    const a = await actAs("alina.lebedeva");
+    const aBefore = await prisma.roomBooking.count({ where: { studentId: a.studentId } });
+    expect(await bookRoomAs(who.userId, { roomId: p.roomId, day: p.day, start: p.start, minutes: p.minutes, purpose: p.purpose })).toMatchObject({ ok: false });
+    expect(await prisma.roomBooking.count({ where: { studentId: a.studentId } })).toBe(aBefore);
+    await as("timur.orlov");
+
+    // Время в прошлом/вне сетки — отказ без карточки.
+    vi.mocked(gigachatComplete).mockResolvedValueOnce({ content: "", functionCall: { name: "book_room", arguments: { day, start: "14:15" } } });
+    expect(((await (await ask(question("Забронируй на 14:15"))).json()) as { proposal?: unknown }).proposal).toBeUndefined();
   });
 
   it("find_free_rooms с датой вне окна брони — отказ без вычислений", async () => {

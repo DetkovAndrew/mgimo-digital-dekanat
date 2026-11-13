@@ -2,7 +2,7 @@ import "server-only";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
-import { PLANS, planFor } from "@/lib/campus/plans";
+import { allPlanRooms, PLANS, planFor } from "@/lib/campus/plans";
 import { ROOM_RULES, roomDayKeys, slotStarts } from "@/lib/campus/rules";
 import { addDays, mskDayKey } from "@/lib/format";
 import { prisma } from "../db";
@@ -290,4 +290,93 @@ export async function findFreeRooms(args: unknown, now = new Date()) {
     })
     .filter((r) => r.free.length);
   return { day, after: after ?? null, before: before ?? null, minMinutes, building: building ?? null, rooms };
+}
+
+// ─── Бронь через помощника (Инвиктус) ─────────────────────────────────────────────────────────────────────
+// Модель только готовит бронь: этот разбор ничего не пишет. Бронирует студент нажатием «Забронировать» в карточке —
+// это обычный bookRoom с сессией, zod и блокировками (решение капитана 13.11; docs/plans/assistant.md).
+const PrepareInput = z.object({
+  building: z.enum(["kronv", "lom-m"]).optional(),
+  room: z.string().regex(/^\d{4}$/).optional(),
+  day: z.iso.date(),
+  start: z.string().regex(HHMM),
+  minutes: z.coerce.number().int().optional(),
+  purpose: z.string().trim().max(ROOM_RULES.purposeMax).optional(),
+  kinds: z.array(z.enum(["COWORKING", "MEETING", "CLASSROOM"])).max(3).optional(),
+  minCapacity: z.coerce.number().int().min(1).max(500).optional(),
+});
+
+export type BookingProposal = { roomId: string; number: string; name: string; building: string; capacity: number; day: string; start: string; end: string; minutes: number; purpose: string };
+
+export async function prepareBooking(
+  args: unknown,
+  now = new Date(),
+): Promise<{ ok: true; proposal: BookingProposal } | { ok: false; error: string; alternatives?: string[]; windows?: string[] }> {
+  const { studentId } = await requireStudent();
+  const parsed = PrepareInput.safeParse(args);
+  if (!parsed.success) return { ok: false, error: "Не понял, что бронировать: назовите день, время и, если нужно, аудиторию" };
+  const { building, room, day, start, purpose, kinds, minCapacity } = parsed.data;
+  const minutes = parsed.data.minutes ?? 60;
+  const problem = intervalProblem(day, start, minutes, now);
+  if (problem) return { ok: false, error: problem };
+
+  // Квоты студента — заранее, чтобы не предлагать бронь, которую всё равно отклонят.
+  const active = await prisma.roomBooking.count({ where: { studentId, status: "CONFIRMED", endsAt: { gt: now } } });
+  if (active >= ROOM_RULES.maxActive) return { ok: false, error: `У вас уже ${ROOM_RULES.maxActive} активные брони: отмените одну в разделе «Аудитории»` };
+  const sameDay = await prisma.roomBooking.count({ where: { studentId, status: "CONFIRMED", startsAt: { gte: dayStart(day), lt: addDays(dayStart(day), 1) } } });
+  if (sameDay >= ROOM_RULES.maxPerDay) return { ok: false, error: "На этот день у вас уже есть бронь" };
+
+  const end = new Date(at(day, start).getTime() + minutes * 60_000);
+  const endHHMM = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit" }).format(end);
+  const free = await findFreeRooms({ day, after: start, before: endHHMM, minMinutes: minutes, ...(building ? { building } : {}), ...(kinds?.length ? { kinds } : {}) }, now);
+  if ("error" in free) return { ok: false, error: free.error ?? "Не удалось проверить свободное время" };
+  const fits = free.rooms.filter((r) => r.capacity >= (minCapacity ?? 0)).sort((a, b) => a.capacity - b.capacity);
+  const alternatives = fits.slice(0, 3).map((r) => r.number);
+
+  let chosen: (typeof fits)[number] | undefined = fits[0];
+  if (room) {
+    // Номер может повторяться в разных корпусах (1101 есть в обоих): без корпуса не угадываем — переспрашиваем.
+    const matches = allPlanRooms().filter((r) => r.number === room && (!building || r.buildingId === building));
+    if (!matches.length) return { ok: false, error: `Аудитории ${room} нет на схемах корпусов` };
+    if (matches.length > 1) return { ok: false, error: `Аудитория ${room} есть в двух корпусах: уточните, в Главном или в корпусе М` };
+    const named = matches[0];
+    if (!named.bookable) return { ok: false, error: `Аудиторию ${room} бронирует только деканат`, alternatives };
+    // Названную аудиторию проверяем саму по себе: тип и вместимость из просьбы её не отсеивают, а объясняют отказ.
+    const own = await findFreeRooms({ day, after: start, before: endHHMM, minMinutes: minutes, building: named.buildingId }, now);
+    chosen = "error" in own ? undefined : own.rooms.find((r) => r.id === named.id);
+    if (!chosen) return { ok: false, error: `Аудитория ${room} занята с ${start} до ${endHHMM}`, alternatives };
+    if (minCapacity && chosen.capacity < minCapacity) return { ok: false, error: `В аудитории ${room} только ${chosen.capacity} мест`, alternatives };
+  }
+  if (!chosen) {
+    // Подскажем, когда в этот день свободно с теми же условиями: студент выберет время следующим сообщением.
+    const day2 = await findFreeRooms({ day, minMinutes: minutes, ...(building ? { building } : {}), ...(kinds?.length ? { kinds } : {}) }, now);
+    const windows = "error" in day2 ? [] : day2.rooms.filter((r) => r.capacity >= (minCapacity ?? 0)).slice(0, 3).map((r) => `${r.number}: ${r.free.join(", ")}`);
+    return { ok: false, error: `С ${start} до ${endHHMM} свободных аудиторий под эти условия нет`, windows };
+  }
+
+  return {
+    ok: true,
+    proposal: {
+      roomId: chosen.id,
+      number: chosen.number,
+      name: chosen.name === chosen.kind ? ({ COWORKING: "Коворкинг", MEETING: "Переговорная", CLASSROOM: "Аудитория" } as Record<string, string>)[chosen.kind] ?? "Аудитория" : chosen.name,
+      building: chosen.building,
+      capacity: chosen.capacity,
+      day,
+      start,
+      end: endHHMM,
+      minutes,
+      purpose: purpose && purpose.length >= 2 ? purpose : "Самостоятельная работа",
+    },
+  };
+}
+
+/**
+ * Бронь по карточке помощника: подтверждает тот же студент, с которым шёл разговор. Если в соседней вкладке вошли
+ * под другим аккаунтом, карточка прежнего разговора бронь не создаст (ревью Codex 42).
+ */
+export async function bookRoomAs(owner: string, input: unknown): Promise<RoomActionResult> {
+  const { userId } = await requireStudent();
+  if (typeof owner !== "string" || owner !== userId) return { ok: false, error: "Вы вошли под другим аккаунтом. Начните новый разговор с Инвиктусом." };
+  return bookRoom(input);
 }
