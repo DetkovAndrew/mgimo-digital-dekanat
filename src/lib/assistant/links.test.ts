@@ -5,6 +5,26 @@ import { canonicalLink } from "./links";
 const known = new Set(["/grades", "/lessons/abc"]);
 const d = roomDayKeys()[1];
 
+describe("canonicalLink: быстрая бронь /rooms/find", () => {
+  it("день в окне, начало по сетке, длительность из списка, корпус со схемы — канонический вид", () => {
+    expect(canonicalLink(`/rooms/find?t=14:00&d=${d}&m=120&b=kronv`, known)).toBe(`/rooms/find?d=${d}&t=14%3A00&m=120&b=kronv`);
+    expect(canonicalLink(`/rooms/find?d=${d}&t=14%3A00&m=60`, known)).toBe(`/rooms/find?d=${d}&t=14%3A00&m=60`);
+  });
+  it("время не по сетке, день вне окна, чужой корпус, лишние параметры, якорь — отказ", () => {
+    for (const href of [
+      `/rooms/find?d=${d}&t=14:15&m=60`,
+      `/rooms/find?d=2030-01-01&t=14:00&m=60`,
+      `/rooms/find?d=${d}&t=14:00&m=45`,
+      `/rooms/find?d=${d}&t=14:00&m=60&b=grivc`,
+      `/rooms/find?d=${d}&t=14:00&m=60&x=1`,
+      `/rooms/find?d=${d}&t=14:00&m=60#room`,
+      `/rooms/find?d=${d}&t=20:30&m=120`, // не успеть до закрытия
+    ]) {
+      expect(canonicalLink(href, known), href).toBeNull();
+    }
+  });
+});
+
 describe("canonicalLink: шаблоны ссылок помощника", () => {
   it("аудитория: известный корпус, номер со схемы, дата в окне — канонический вид с якорем", () => {
     expect(canonicalLink(`/rooms/kronv?d=${d}&room=2101`, known)).toBe(`/rooms/kronv?room=2101&d=${d}#room`);

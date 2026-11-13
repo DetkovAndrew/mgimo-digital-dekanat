@@ -1,12 +1,14 @@
 import { planFor } from "@/lib/campus/plans";
+import { findHref, parseFind } from "@/lib/campus/find";
 import { roomDayKeys } from "@/lib/campus/rules";
 import { prefillFor } from "@/lib/requests/prefill";
 
 // Какие ссылки помощник может дать студенту (ревью Codex 18): точные пути из снимка кабинета
-// и два проверенных шаблона. Ссылка разбирается и собирается заново в каноническом виде;
+// и три проверенных шаблона (аудитория, быстрая бронь, заявка). Ссылка разбирается и собирается заново в каноническом виде;
 // неизвестные или повторяющиеся параметры, чужие корпуса и даты вне окна брони — отказ.
 
 const ROOM_KEYS = new Set(["room", "d", "floor"]);
+const FIND_KEYS = new Set(["d", "t", "m", "b", "c"]);
 
 export function canonicalLink(href: string, known: ReadonlySet<string>, now = new Date()): string | null {
   if (!href.startsWith("/") || href.startsWith("//")) return null;
@@ -21,6 +23,16 @@ export function canonicalLink(href: string, known: ReadonlySet<string>, now = ne
   if (url.origin !== "http://local.invalid" || (url.hash && url.hash !== "#room")) return null;
   const params = [...url.searchParams];
   if (new Set(params.map(([k]) => k)).size !== params.length) return null;
+
+  // Быстрая бронь: каждый указанный параметр должен пройти разбор как есть (иначе разбор подставил бы своё).
+  if (url.pathname === "/rooms/find") {
+    if (url.hash || params.some(([k]) => !FIND_KEYS.has(k))) return null;
+    const q = parseFind(Object.fromEntries(params), now);
+    const given = Object.fromEntries(params);
+    const same = (k: string, v: string | number | null) => given[k] === undefined || given[k] === String(v);
+    if (!same("d", q.d) || !same("t", q.t) || !same("m", q.m) || !same("b", q.b) || !same("c", q.c)) return null;
+    return findHref(q);
+  }
 
   const rooms = url.pathname.match(/^\/rooms\/([a-z-]{1,20})$/);
   if (rooms) {

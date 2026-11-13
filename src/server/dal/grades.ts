@@ -81,3 +81,54 @@ export async function getMyUpcomingDeadlines(range: { from: Date; to: Date }) {
     }))
     .sort((x, y) => x.at.getTime() - y.at.getTime());
 }
+
+/**
+ * События учёбы для календаря расписания: экзамены и зачёты (scheduledAt) и сроки работ (dueAt) группы студента
+ * в полуинтервале [from, to), с отметкой «сдано» по его результату. Чужие результаты не выбираются.
+ */
+export async function getMyStudyEvents(range: { from: Date; to: Date }) {
+  const { studentId, groupId } = await requireStudent();
+  const rows = await prisma.assessment.findMany({
+    where: {
+      offering: { groupId },
+      OR: [
+        { dueAt: { gte: range.from, lt: range.to } },
+        { dueAt: null, scheduledAt: { gte: range.from, lt: range.to } },
+      ],
+    },
+    select: {
+      id: true,
+      kind: true,
+      title: true,
+      dueAt: true,
+      scheduledAt: true,
+      room: true,
+      offering: { select: { id: true, discipline: { select: { title: true, shortTitle: true } } } },
+      results: { where: { studentId }, select: { id: true }, take: 1 },
+    },
+  });
+  return rows
+    .map((a) => ({
+      id: a.id,
+      kind: a.kind,
+      title: a.title,
+      at: (a.dueAt ?? a.scheduledAt)!,
+      deadline: !!a.dueAt, // срок сдачи работы, а не событие со временем начала
+      room: a.room,
+      done: a.results.length > 0,
+      offeringId: a.offering.id,
+      discipline: a.offering.discipline.shortTitle ?? a.offering.discipline.title,
+    }))
+    .sort((x, y) => x.at.getTime() - y.at.getTime());
+}
+export type StudyEvent = Awaited<ReturnType<typeof getMyStudyEvents>>[number];
+
+/** Текущий семестр группы студента (или ближайший прошедший): границы занятий и сессии для быстрых переходов. */
+export async function getMyTerm(now = new Date()) {
+  const { groupId } = await requireStudent();
+  return prisma.academicTerm.findFirst({
+    where: { startsOn: { lte: now }, offerings: { some: { groupId } } },
+    orderBy: { startsOn: "desc" },
+    select: { title: true, startsOn: true, endsOn: true, sessionStartsOn: true, sessionEndsOn: true },
+  });
+}

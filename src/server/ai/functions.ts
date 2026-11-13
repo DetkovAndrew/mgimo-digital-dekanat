@@ -1,4 +1,5 @@
 import "server-only";
+import { findHref, parseFind } from "@/lib/campus/find";
 import type { ChatFunction } from "./gigachat";
 
 // Функции, которые модель может вызвать. Только чтение: изменить что-либо в кабинете модель не может.
@@ -31,10 +32,14 @@ export function formatFreeRooms(r: FreeRooms): string {
   if ("error" in r) return `${r.error}. Посмотрите [аудитории](/rooms).`;
   const date = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", weekday: "long", day: "numeric", month: "long" }).format(new Date(`${r.day}T12:00:00+03:00`));
   const when = [r.after && `после ${r.after}`, r.before && `до ${r.before}`].filter(Boolean).join(" ");
+  // Быстрая бронь на это время, если студент назвал начало (минуты — по сетке брони): /rooms/find сам перепроверит.
+  const q = r.after ? findHref(parseFind({ d: r.day, t: r.after, m: String(r.minMinutes), ...(r.building ? { b: r.building } : {}) })) : null;
+  const quick = q && q.includes(`t=${encodeURIComponent(r.after!)}`) ? q : null;
   if (!r.rooms.length) return `${date[0].toUpperCase()}${date.slice(1)}${when ? ` ${when}` : ""} свободных аудиторий для брони нет. Попробуйте другой день: [аудитории](/rooms).`;
   return [
     `Свободно ${date}${when ? ` ${when}` : ""}:`,
     ...r.rooms.map((x) => `- [${x.number} ${x.name === x.kind ? KIND[x.kind] ?? "аудитория" : x.name}](${x.link}) (${x.building}, ${x.capacity} мест): ${x.free.join(", ")}`),
     "Откройте аудиторию, выберите время и нажмите «Забронировать».",
+    ...(quick ? [`Или сразу: [найти и забронировать на это время](${quick}).`] : []),
   ].join("\n");
 }

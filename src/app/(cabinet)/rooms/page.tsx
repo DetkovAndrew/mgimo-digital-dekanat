@@ -1,4 +1,4 @@
-import { Building2, ChevronRight, DoorOpen } from "lucide-react";
+import { Building2, ChevronRight, DoorOpen, Search } from "lucide-react";
 import Link from "next/link";
 import { ROOM_KIND_STYLE } from "@/components/campus-map";
 import { Disclosure, List, PageTitle, Section } from "@/components/ui";
@@ -14,6 +14,20 @@ export default async function RoomsPage() {
   return (
     <>
       <PageTitle sub="Коворкинги и переговорные: схема корпуса, расписание аудитории и бронь">Аудитории</PageTitle>
+
+      {/* Быстрая бронь: когда и на сколько → свободные → забронировать (без поиска по схеме). */}
+      <Link
+        href="/rooms/find"
+        transitionTypes={["nav-forward"]}
+        className="mb-6 flex min-h-14 items-center gap-3 rounded-2xl bg-brand-fill px-4 text-on-brand transition active:scale-[0.99]"
+      >
+        <Search aria-hidden className="size-5 shrink-0" />
+        <span className="flex-1">
+          <span className="block font-semibold">Найти свободную аудиторию</span>
+          <span className="block text-sm text-on-brand">Выберите время, забронируйте в два касания</span>
+        </span>
+        <ChevronRight aria-hidden className="size-5 shrink-0" />
+      </Link>
 
       {mine.length > 0 && (
         <Section title="Мои брони">

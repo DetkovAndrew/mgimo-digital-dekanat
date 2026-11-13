@@ -286,8 +286,8 @@ export async function findFreeRooms(args: unknown, now = new Date()) {
         .map(([a, b]) => [Math.ceil(Math.max(a, lo) / ROOM_RULES.stepMin) * ROOM_RULES.stepMin, Math.floor(Math.min(b, hi) / ROOM_RULES.stepMin) * ROOM_RULES.stepMin] as const)
         .filter(([a, b]) => b - a >= minMinutes)
         .map(([a, b]) => `${fmt(a)}–${fmt(b)}`);
-      return { number: r.number, name: r.title ?? r.kind, kind: r.kind, building: r.building.title, capacity: r.capacity, free: ranges, link: `/rooms/${r.buildingId}?room=${r.number}&d=${day}` };
+      return { id: r.id, number: r.number, name: r.title ?? r.kind, kind: r.kind, building: r.building.title, capacity: r.capacity, free: ranges, link: `/rooms/${r.buildingId}?room=${r.number}&d=${day}` };
     })
     .filter((r) => r.free.length);
-  return { day, after: after ?? null, before: before ?? null, rooms };
+  return { day, after: after ?? null, before: before ?? null, minMinutes, building: building ?? null, rooms };
 }
