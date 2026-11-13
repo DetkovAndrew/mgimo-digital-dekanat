@@ -12,9 +12,12 @@
 
 ## Что нужно
 
-- VPS с публичным IPv4, x86-64, Ubuntu 24.04 или Debian 12/13. Хостинг с хорошей связностью из РФ:
+- VPS с публичным IPv4, x86-64, Ubuntu 22.04/24.04 или Debian 12/13 (проверено 14.11 на Ubuntu 22.04:
+  пакеты `docker.io` 29.1 и `docker-compose-v2` 2.40). Хостинг с хорошей связностью из РФ:
   жюри открывает сайт без VPN, с домашнего и мобильного интернета.
-- 2 vCPU, 2 ГБ RAM (сборке Next нужно до 2 ГБ: при меньшем объёме добавьте swap, шаг 2), 15 ГБ диска.
+- 1 vCPU, 2 ГБ RAM, 15 ГБ диска. Замер 13.11: сборка на одном ядре — 82 с и до ~1,8 ГБ памяти в пике
+  (на ядре VPS дольше); работающий сайт — Node ~90 МБ, страницы отвечают за 25–45 мс. Узкое место — память
+  при сборке, а не ядра. С 1 ГБ RAM тоже можно, но только со swap (шаг 2), и сборка будет заметно дольше.
 - Домен: A-запись на IP сервера. AAAA не создавайте, если IPv6 на сервере не настроен,
   иначе Let's Encrypt может не выдать сертификат.
 
@@ -29,10 +32,12 @@
    sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
    echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
    ```
-3. **Код:**
+3. **Код.** Репозиторий пока приватный, поэтому код приезжает архивом коммита с машины разработчика —
+   токен GitHub на сервер не кладём:
    ```bash
-   git clone https://github.com/DetkovAndrew/mgimo-digital-dekanat.git dekanat && cd dekanat
+   git archive --format=tar HEAD | ssh root@СЕРВЕР 'mkdir -p /opt/dekanat && tar -x -C /opt/dekanat'
    ```
+   Когда репозиторий станет открытым: `git clone https://github.com/DetkovAndrew/mgimo-digital-dekanat.git /opt/dekanat`.
 4. **Переменные окружения** — файл `.env` рядом с `compose.yaml`, в git не попадает:
    ```bash
    cp deploy/env.production.example .env && chmod 600 .env
@@ -61,8 +66,16 @@
 ## Обновление
 
 ```bash
-git pull && sudo docker compose up -d --build
+git archive --format=tar HEAD | ssh root@СЕРВЕР 'tar -x -C /opt/dekanat'   # или git pull в открытом репозитории
+ssh root@СЕРВЕР 'cd /opt/dekanat && docker compose up -d --build'
 ```
+
+## Смена домена
+
+Пока своего домена нет, сайт работает на `IP-через-дефисы.sslip.io` (публичный DNS отвечает IP из имени, Caddy
+получает на это имя настоящий сертификат). Для своего домена: A-запись на IP сервера, затем в `.env` на сервере
+`DOMAIN="новый.домен"` и `docker compose up -d` — пересоздаются `app` (новый `BETTER_AUTH_URL`) и `caddy`
+(новый сертификат). Вошедшим пользователям придётся войти заново: cookies привязаны к домену.
 
 Миграции применяются автоматически (`migrate`), данные остаются. Аудитории со схем после изменения
 `src/lib/campus/plans.ts` переносятся без стирания: `sudo docker compose run --rm tools npm run db:rooms`.
