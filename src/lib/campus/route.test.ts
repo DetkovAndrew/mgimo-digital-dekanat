@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 import { PLANS, planFor, rectOf, walkRects, type Pt, type Rect } from "./plans";
 import { findRoute } from "./route";
 
+// Тесты ниже строят сотни маршрутов: на нагруженной машине 5 секунд по умолчанию не хватает.
+const HEAVY = 30_000;
+
 const inRect = (r: Rect, [x, y]: Pt, pad = 0) => x > r[0] - pad && x < r[2] + pad && y > r[1] - pad && y < r[3] + pad;
 
 /** Точки отрезков маршрута (кроме концов у дверей): каждая в проходе и не в помещении или проёме. */
@@ -41,7 +44,7 @@ describe("маршрут внутри корпуса", () => {
       expect(r!.steps.at(-1)!.text).toContain(room.number);
       expect(standOk(plan.buildingId, room.floor, r!.steps.at(-1)!.path[0]), `${room.number}: место у двери`).toBe(true);
     }
-  });
+  }, HEAVY);
 
   it.each(PLANS.map((p) => [p.short, p] as const))("%s: путь идёт только по коридорам и холлам", (_, plan) => {
     for (const room of plan.rooms) {
@@ -52,7 +55,7 @@ describe("маршрут внутри корпуса", () => {
         expect(offPath(plan.buildingId, leg.floor, pts), `${room.number}, ${leg.floor} этаж`).toEqual([]);
       });
     }
-  });
+  }, HEAVY);
 
   it.each(PLANS.map((p) => [p.short, p] as const))("%s: из аудитории в аудиторию финиш напротив двери внутри прохода", (_, plan) => {
     // Из каждой аудитории — в соседнюю по списку и в аудиторию на другом конце (оба направления коридора).
@@ -63,7 +66,7 @@ describe("маршрут внутри корпуса", () => {
         expect(standOk(plan.buildingId, room.floor, r.steps.at(-1)!.path[0]), `${other.number} → ${room.number}`).toBe(true);
       }
     });
-  });
+  }, HEAVY);
 
   it("финиш через коридор (М: 1227 → 1226): попутчик на оси коридора напротив середины двери", () => {
     const r = findRoute("lom-m", { kind: "room", number: "1227" }, { kind: "room", number: "1226" })!;

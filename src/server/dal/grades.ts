@@ -104,9 +104,15 @@ export async function getMyStudyEvents(range: { from: Date; to: Date }) {
       scheduledAt: true,
       room: true,
       offering: { select: { id: true, discipline: { select: { title: true, shortTitle: true } } } },
-      results: { where: { studentId }, select: { id: true }, take: 1 },
+      results: { where: { studentId }, orderBy: { attempt: "desc" }, take: 1, select: { grade: true, passed: true } },
     },
   });
+  // Итог по последней попытке: экзамен и зачёт — «сдано»/«не сдано», работа — «проверено» (баллы смотрят в «Учёбе»).
+  const final = (kind: string, r?: { grade: number | null; passed: boolean | null }) => {
+    if (!r) return null;
+    if (kind !== "EXAM" && kind !== "CREDIT" && kind !== "GRADED_CREDIT") return "checked" as const;
+    return r.passed === true || (r.grade ?? 0) >= 3 ? ("passed" as const) : ("failed" as const);
+  };
   return rows
     .map((a) => ({
       id: a.id,
@@ -115,7 +121,7 @@ export async function getMyStudyEvents(range: { from: Date; to: Date }) {
       at: (a.dueAt ?? a.scheduledAt)!,
       deadline: !!a.dueAt, // срок сдачи работы, а не событие со временем начала
       room: a.room,
-      done: a.results.length > 0,
+      result: final(a.kind, a.results[0]),
       offeringId: a.offering.id,
       discipline: a.offering.discipline.shortTitle ?? a.offering.discipline.title,
     }))

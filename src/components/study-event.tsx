@@ -27,7 +27,7 @@ export function StudyEventRow({ event }: { event: StudyEvent }) {
       <span className="min-w-0 flex-1">
         <span className={`block text-xs font-semibold ${exam ? "text-bad" : "text-warn"}`}>
           {KIND[event.kind] ?? "Работа"}
-          {event.done && " · сдано"}
+          {event.result && ` · ${{ passed: "сдано", failed: "не сдано", checked: "проверено" }[event.result]}`}
         </span>
         <span className="block font-medium">{event.discipline}</span>
         <span className="block text-sm text-ink-2">

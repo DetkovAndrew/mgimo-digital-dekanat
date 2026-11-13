@@ -1,6 +1,6 @@
 import { Disclaimer } from "@/components/disclaimer";
 import { Assistant } from "@/components/assistant";
-import { Bell, Logo, Nav, ProfileLink } from "@/components/nav";
+import { Bell, Logo, Nav, PassLink, ProfileLink } from "@/components/nav";
 import { RouteMotion } from "@/components/route-motion";
 import { Toaster } from "@/components/toast";
 import { isAssistantConfigured } from "@/server/ai/gigachat";
@@ -24,6 +24,7 @@ export default async function CabinetLayout({ children }: LayoutProps<"/">) {
               University
             </span>
             <span className="flex items-center">
+              <PassLink />
               <Bell unread={unread} />
               <ProfileLink avatar={avatar} />
             </span>

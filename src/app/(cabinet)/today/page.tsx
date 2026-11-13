@@ -1,4 +1,4 @@
-import { ClipboardCheck, FileText, Footprints } from "lucide-react";
+import { ClipboardCheck, FileText, Footprints, QrCode } from "lucide-react";
 import Link from "next/link";
 import { Fragment } from "react";
 import { AskBar } from "@/components/assistant";
@@ -43,7 +43,23 @@ export default async function TodayPage() {
     // На широком экране две колонки: день слева, «требует внимания» справа; блок шире ленты остальных страниц.
     <div className="xl:-mx-40">
       <AutoRefresh />
-      <PageTitle sub={`${formatDay(now)} · ${profile.group}`}>Привет, {firstName}!</PageTitle>
+      <PageTitle
+        sub={`${formatDay(now)} · ${profile.group}`}
+        aside={
+          // Пропуск — на виду с главного экрана, без «Сервисов» и лишних нажатий (отзывы о my.itmo). На телефоне он
+          // в шапке на каждом экране (значок QR), здесь — на широком экране рядом с приветствием.
+          <Link
+            href="/pass"
+            transitionTypes={["nav-forward"]}
+            className="hidden min-h-11 items-center gap-2 rounded-xl bg-surface px-3.5 text-sm font-semibold text-brand ring-1 ring-hairline transition active:scale-95 md:inline-flex"
+          >
+            <QrCode aria-hidden className="size-4.5" />
+            Пропуск
+          </Link>
+        }
+      >
+        Привет, {firstName}!
+      </PageTitle>
 
       <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start xl:gap-x-8">
         <div className="xl:col-start-1">

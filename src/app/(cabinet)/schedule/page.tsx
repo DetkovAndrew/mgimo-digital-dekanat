@@ -90,8 +90,11 @@ function DayItems({ lessons, events }: { lessons: ScheduleLesson[]; events: Stud
 const MONTHS = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
 const MONTHS_SHORT = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн", "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
 const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-const isMonth = (v: unknown): v is string => typeof v === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(v);
-const isDay = (v: unknown): v is string => typeof v === "string" && /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(v);
+// Год в адресе — не дальше двух лет от текущего: календарь вуза, а не машина времени (и без Invalid Date).
+const yearOk = (v: string) => Math.abs(Number(v.slice(0, 4)) - Number(mskDayKey(new Date()).slice(0, 4))) <= 2;
+const isMonth = (v: unknown): v is string => typeof v === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(v) && yearOk(v);
+const isDay = (v: unknown): v is string =>
+  typeof v === "string" && /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(v) && yearOk(v) && mskDayKey(new Date(`${v}T12:00:00+03:00`)) === v;
 const shiftMonth = (m: string, n: number) => {
   const [y, mo] = m.split("-").map(Number);
   const t = y * 12 + (mo - 1) + n;
@@ -168,7 +171,7 @@ async function MonthView({ m, d }: { m: unknown; d: unknown }) {
         {termMonths.map((x) => chip(href({ m: x }), MONTHS_SHORT[Number(x.slice(5)) - 1], x === month))}
       </nav>
 
-      <section aria-label={`${MONTHS[mo - 1]} ${y}`} className="rounded-3xl bg-surface p-2 ring-1 ring-hairline md:p-3">
+      <section aria-label={`${MONTHS[mo - 1]} ${y}`} className="-mx-2 rounded-3xl bg-surface px-1 py-2 ring-1 ring-hairline md:mx-0 md:p-3">
         <div className="flex items-center justify-between">
           {arrow(-1, "Предыдущий месяц", ChevronLeft)}
           <h2 className="text-lead font-semibold">
@@ -184,7 +187,7 @@ async function MonthView({ m, d }: { m: unknown; d: unknown }) {
           ))}
         </div>
         <ViewTransition key={month} enter="fade-in" exit="fade-out" default="none">
-          <ol className="grid grid-cols-7 gap-0.5">
+          <ol className="grid grid-cols-7">
             {cells.map((c) => {
               const count = c.lessons.filter((l) => l.status !== "CANCELLED" && l.source === "lesson").length;
               const sport = c.lessons.some((l) => l.source === "sport");
@@ -312,7 +315,7 @@ async function WeekView({ week }: { week: unknown }) {
 
       {/* Полоса дней: число пар точками, нажатие прокручивает к дню. На пустой неделе не нужна. */}
       {(lessons.length > 0 || events.length > 0) && (
-        <nav aria-label="Дни недели" className="mb-6 grid auto-cols-fr grid-flow-col gap-1.5">
+        <nav aria-label="Дни недели" className="mb-6 grid auto-cols-fr grid-flow-col gap-0.5">
           {days.map((d) => {
             const on = d.key === todayKey;
             const count = d.lessons.filter((l) => l.status !== "CANCELLED").length + d.events.length;

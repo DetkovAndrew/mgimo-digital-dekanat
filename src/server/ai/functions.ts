@@ -1,5 +1,5 @@
 import "server-only";
-import { findHref, parseFind } from "@/lib/campus/find";
+import { FIND_DURATIONS, findHref, parseFind } from "@/lib/campus/find";
 import type { ChatFunction } from "./gigachat";
 
 // Функции, которые модель может вызвать. Только чтение: изменить что-либо в кабинете модель не может.
@@ -33,7 +33,9 @@ export function formatFreeRooms(r: FreeRooms): string {
   const date = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", weekday: "long", day: "numeric", month: "long" }).format(new Date(`${r.day}T12:00:00+03:00`));
   const when = [r.after && `после ${r.after}`, r.before && `до ${r.before}`].filter(Boolean).join(" ");
   // Быстрая бронь на это время, если студент назвал начало (минуты — по сетке брони): /rooms/find сам перепроверит.
-  const q = r.after ? findHref(parseFind({ d: r.day, t: r.after, m: String(r.minMinutes), ...(r.building ? { b: r.building } : {}) })) : null;
+  // Длительность — вверх до ближайшей из быстрой брони (45 мин → 60), чтобы ссылка не меняла смысл вопроса.
+  const m = FIND_DURATIONS.find((x) => x >= r.minMinutes) ?? FIND_DURATIONS.at(-1)!;
+  const q = r.after ? findHref(parseFind({ d: r.day, t: r.after, m: String(m), ...(r.building ? { b: r.building } : {}) })) : null;
   const quick = q && q.includes(`t=${encodeURIComponent(r.after!)}`) ? q : null;
   if (!r.rooms.length) return `${date[0].toUpperCase()}${date.slice(1)}${when ? ` ${when}` : ""} свободных аудиторий для брони нет. Попробуйте другой день: [аудитории](/rooms).`;
   return [

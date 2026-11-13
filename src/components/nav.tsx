@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell as BellIcon, CalendarDays, CircleUserRound, DoorOpen, Dumbbell, FileText, GraduationCap, House, LogOut, type LucideIcon } from "lucide-react";
+import { Bell as BellIcon, CalendarDays, CircleUserRound, DoorOpen, Dumbbell, FileText, GraduationCap, House, LogOut, type LucideIcon, QrCode } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ViewTransition } from "react";
@@ -18,6 +18,7 @@ const items: { href: string; label: string; icon: LucideIcon }[] = [
 const desktopItems = [
   ...items,
   { href: "/rooms", label: "Аудитории", icon: DoorOpen },
+  { href: "/pass", label: "Пропуск", icon: QrCode },
   { href: "/notifications", label: "Уведомления", icon: BellIcon },
   { href: "/profile", label: "Профиль", icon: CircleUserRound },
 ];
@@ -132,6 +133,15 @@ export function SignOut({ className }: { className?: string }) {
       <LogOut aria-hidden className="size-4.5" />
       Выйти
     </button>
+  );
+}
+
+/** Пропуск (QR) из шапки телефона: проходка всегда в одно касание. */
+export function PassLink() {
+  return (
+    <Link href="/pass" transitionTypes={["nav-forward"]} aria-label="Пропуск, QR-код" className="grid size-11 place-items-center rounded-full text-ink-2 transition-colors hover:bg-fill">
+      <QrCode aria-hidden className="size-5.5" />
+    </Link>
   );
 }
 

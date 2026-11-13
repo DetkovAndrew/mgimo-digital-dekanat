@@ -98,7 +98,7 @@ export default async function FindRoomPage({ searchParams }: PageProps<"/rooms/f
                     </p>
                   </div>
                 </div>
-                <QuickBook roomId={r.id} day={q.d} start={q.t} minutes={q.m} label={`с ${q.t} до ${end}`} />
+                <QuickBook key={`${r.id}-${q.d}-${q.t}-${q.m}`} roomId={r.id} day={q.d} start={q.t} minutes={q.m} label={`с ${q.t} до ${end}`} />
               </li>
             ))}
           </ul>
