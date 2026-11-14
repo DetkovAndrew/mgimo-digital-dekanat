@@ -85,19 +85,25 @@ ssh root@СЕРВЕР 'cd /opt/dekanat && docker compose up -d --build'
 
 - База лежит в томе `pgdata` и переживает `restart`, `down`, `up --build` и перезагрузку сервера
   (`restart: unless-stopped`). Стирает её только `docker compose down -v` — не запускайте.
-- Резервная копия — **вне каталога проекта** (дамп содержит сессии; всё в каталоге проекта уходит в контекст сборки):
+- Резервные копии — `deploy/backup.sh`: сжатый дамп в `/root/backups` (**вне каталога проекта**: дамп содержит сессии,
+  а всё в каталоге проекта уходит в контекст сборки), каждые 6 часов, хранятся 7 дней. Скрипт проверяет архив
+  и завершённость дампа; оборванный дамп не сохраняется. Установка таймера (один раз, после выкладки кода):
   ```bash
-  mkdir -p ~/backups && chmod 700 ~/backups
-  sudo docker compose exec -T db pg_dump -U dekanat dekanat > ~/backups/dekanat-$(date +%F).sql
+  sudo cp /opt/dekanat/deploy/dekanat-backup.{service,timer} /etc/systemd/system/
+  sudo systemctl daemon-reload && sudo systemctl enable --now dekanat-backup.timer
+  sudo systemctl start dekanat-backup.service   # первая копия сразу
+  systemctl list-timers dekanat-backup.timer; journalctl -u dekanat-backup.service -n 5
   ```
+  Копии лежат на том же сервере и не спасут при потере самой ВМ: перед важным моментом (сдача, показ)
+  скачайте свежую: `scp root@СЕРВЕР:/root/backups/dekanat-ДАТА.sql.gz .` (файл с сессиями — не в репозиторий).
 - Восстановление — в пустую базу при остановленном приложении. Цепочка `&&` обрывается на первой ошибке:
   приложение не запустится на частично восстановленной базе.
   ```bash
-  DUMP=~/backups/dekanat-ДАТА.sql
-  test -s "$DUMP" \
+  DUMP=/root/backups/dekanat-ДАТА.sql.gz
+  test -s "$DUMP" && gzip -t "$DUMP" \
     && sudo docker compose stop app \
     && sudo docker compose exec -T db psql -U dekanat -d postgres -c 'DROP DATABASE dekanat WITH (FORCE)' -c 'CREATE DATABASE dekanat OWNER dekanat' \
-    && sudo docker compose exec -T db psql -v ON_ERROR_STOP=1 -U dekanat dekanat < "$DUMP" \
+    && gunzip -c "$DUMP" | sudo docker compose exec -T db psql -v ON_ERROR_STOP=1 -U dekanat dekanat \
     && sudo docker compose start app
   ```
   Если цепочка оборвалась, приложение остаётся остановленным: разберитесь с ошибкой и повторите.
