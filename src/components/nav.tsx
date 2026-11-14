@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ViewTransition } from "react";
 import { authClient } from "@/lib/auth-client";
+import { UniversityMark } from "./university-mark";
 
 // Нижнее меню телефона — 6 разделов: ядро ТЗ, спорт (решение капитана 14.11: своя вкладка, даже если меню
 // придётся листать) и «Сервисы» (аудитории, пропуск, Wi-Fi, печать). Уведомления и профиль — в шапке.
@@ -123,11 +124,7 @@ export function Nav({ unread, avatar }: { unread: number; avatar: string | null 
 /** Собственный знак University: буква U на «фундаменте» — без символики реальных вузов. */
 export function Logo({ size = 36 }: { size?: number }) {
   return (
-    <svg aria-hidden width={size} height={size} viewBox="0 0 36 36" className="shrink-0">
-      <rect width="36" height="36" rx="11" className="fill-brand-fill" />
-      <path d="M12 9.5v8.25a6 6 0 0 0 12 0V9.5" fill="none" strokeWidth="3.4" strokeLinecap="round" className="stroke-on-brand" />
-      <path d="M10.5 27h15" strokeWidth="3.4" strokeLinecap="round" className="stroke-on-brand" />
-    </svg>
+    <UniversityMark size={size} />
   );
 }
 

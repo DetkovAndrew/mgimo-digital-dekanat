@@ -9,6 +9,13 @@ const onest = Onest({ variable: "--font-onest", subsets: ["latin", "cyrillic"] }
 export const metadata: Metadata = {
   title: "Деканат University",
   description: "Концепт личного кабинета студента. Не является официальным сервисом какого-либо вуза.",
+  icons: {
+    icon: [
+      { url: "/brand/mark.svg", type: "image/svg+xml", sizes: "any" },
+      { url: "/brand/icon-32.png", type: "image/png", sizes: "32x32" },
+    ],
+    apple: [{ url: "/brand/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
 
 // Цвет панели браузера: метатег принимает только литерал, поэтому значения повторяют --surface из globals.css. ds-allow-hardcode

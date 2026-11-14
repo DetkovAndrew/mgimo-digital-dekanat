@@ -34,8 +34,9 @@ const text = (min: number, max: number) =>
 const isoDate = z.iso.date("Укажите дату");
 const isoMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Укажите месяц");
 
+// В прототипе документ не выдаётся: меняется только статус заявки (аудит вымышленности NursuUwU, 11.11).
 const formats = [
-  { value: "electronic", label: "Электронная (PDF с подписью)" },
+  { value: "electronic", label: "Электронная (PDF, в демо не выдаётся)" },
   { value: "paper", label: "Бумажная, забрать в деканате" },
 ] as const;
 
