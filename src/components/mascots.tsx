@@ -84,7 +84,7 @@ export function InvictusFace() {
 
 /**
  * Волосы Инвиктии — кружочки вокруг головы, отдельно от неё (как на наброске). Координаты головы.
- * Каждый кружок покачивается по-своему (.mascot-hair, своя амплитуда, длительность и задержка) — волосы «живые».
+ * Каждый кружок покачивается по-своему (.mascot-hair-x/-y, своя амплитуда, темп и задержка) — волосы «живые».
  */
 const HAIR: { el: React.ReactElement; dx: number; dy: number; dur: number; delay: number }[] = [
   { el: <ellipse cx={-8.9} cy={-6.2} rx={2.2} ry={2.9} transform="rotate(35 -8.9 -6.2)" />, dx: -0.63, dy: -0.9, dur: 3.2, delay: 0 },
@@ -99,12 +99,11 @@ export function InvictusHair() {
   return (
     <g className="fill-brand-fill">
       {HAIR.map((h, i) => (
-        <g
-          key={i}
-          className="mascot-hair"
-          style={{ "--hx": `${h.dx}px`, "--hy": `${h.dy}px`, animationDuration: `${h.dur}s`, animationDelay: `${h.delay}s` } as React.CSSProperties}
-        >
-          {h.el}
+        // Горизонталь и вертикаль качаются с разным темпом: кружок описывает мягкую петлю, а не ходит туда-обратно.
+        <g key={i} className="mascot-hair-x" style={{ "--hx": `${h.dx}px`, animationDuration: `${h.dur * 1.6}s`, animationDelay: `${h.delay}s` } as React.CSSProperties}>
+          <g className="mascot-hair-y" style={{ "--hy": `${h.dy}px`, animationDuration: `${h.dur * 2.1}s`, animationDelay: `${h.delay * 1.7}s` } as React.CSSProperties}>
+            {h.el}
+          </g>
         </g>
       ))}
     </g>

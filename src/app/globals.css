@@ -425,9 +425,14 @@ body {
   }
 }
 /* Волосы Инвиктии: каждый кружок медленно покачивается в свою сторону (амплитуда — --hx/--hy, темп — в разметке). */
-@keyframes mascot-hair {
+@keyframes mascot-hair-x {
   50% {
-    translate: var(--hx) var(--hy);
+    translate: var(--hx) 0;
+  }
+}
+@keyframes mascot-hair-y {
+  50% {
+    translate: 0 var(--hy);
   }
 }
 /* Превью маскотов (окно выбора попутчика, окно помощника) — без движения: это портреты, а не персонаж в деле. */
@@ -436,10 +441,12 @@ body {
   animation: none !important;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .mascot-hair {
-    animation: mascot-hair 2.6s ease-in-out infinite;
-    transform-box: fill-box;
-    transform-origin: 50% 50%;
+  /* Синусоидальное сглаживание: без рывка в крайних точках. */
+  .mascot-hair-x {
+    animation: mascot-hair-x 4s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  }
+  .mascot-hair-y {
+    animation: mascot-hair-y 5s cubic-bezier(0.37, 0, 0.63, 1) infinite;
   }
   .mascot-walk {
     animation: mascot-bob 0.36s ease-in-out infinite;
