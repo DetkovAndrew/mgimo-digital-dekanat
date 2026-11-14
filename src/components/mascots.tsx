@@ -60,7 +60,7 @@ export function InvictusFace() {
       <path d={STAR_EYE} transform="translate(0 -5.6) scale(0.42)" className="mascot-star fill-on-brand" />
       <g className="mascot-eyes-open">
         {[-1, 1].map((side) => (
-          <g key={side} transform={`translate(${side * 3.3} 0.8) scale(${-side * 1.3} 1.3)`}>
+          <g key={side} transform={`translate(${side * 3.3} 1.8) scale(${-side * 1.3} 1.3)`}>
             <g className="mascot-eye">
               <path d={EYE} className="fill-m-ic-glyph" />
               <g data-pupil data-flip={-side} className="transition-transform duration-300 ease-(--ease-out)">
@@ -75,8 +75,8 @@ export function InvictusFace() {
         ))}
       </g>
       <g className="mascot-eyes-happy">
-        <path d="M-5.6 1.6Q-3.5 -1.4 -1.4 1.6M1.4 1.6Q3.5 -1.4 5.6 1.6" strokeWidth={1.2} strokeLinecap="round" className="fill-none stroke-m-pupil" />
-        <path d="M-5.2 1Q-5.7 0.6 -6.1 0.2M-5.6 1.6Q-6.1 1.55 -6.5 1.35M5.2 1Q5.7 0.6 6.1 0.2M5.6 1.6Q6.1 1.55 6.5 1.35" strokeWidth={0.55} strokeLinecap="round" className="fill-none stroke-m-pupil" />
+        <path d="M-5.6 2.6Q-3.5 -0.4 -1.4 2.6M1.4 2.6Q3.5 -0.4 5.6 2.6" strokeWidth={1.2} strokeLinecap="round" className="fill-none stroke-m-pupil" />
+        <path d="M-5.2 2Q-5.7 1.6 -6.1 1.2M-5.6 2.6Q-6.1 2.55 -6.5 2.35M5.2 2Q5.7 1.6 6.1 1.2M5.6 2.6Q6.1 2.55 6.5 2.35" strokeWidth={0.55} strokeLinecap="round" className="fill-none stroke-m-pupil" />
       </g>
     </>
   );
@@ -84,7 +84,7 @@ export function InvictusFace() {
 
 /**
  * Волосы Инвиктии — кружочки вокруг головы, отдельно от неё (как на наброске). Координаты головы.
- * Каждый кружок плавает по-своему (.mascot-hair, своя амплитуда, длительность и задержка) — волосы «живые».
+ * Каждый кружок покачивается по-своему (.mascot-hair, своя амплитуда, длительность и задержка) — волосы «живые».
  */
 const HAIR: { el: React.ReactElement; dx: number; dy: number; dur: number; delay: number }[] = [
   { el: <ellipse cx={-8.9} cy={-6.2} rx={2.2} ry={2.9} transform="rotate(35 -8.9 -6.2)" />, dx: -0.63, dy: -0.9, dur: 3.2, delay: 0 },
@@ -232,10 +232,13 @@ function Figure({ id }: { id: MascotId }) {
   }
 }
 
-/** Превью для окна выбора и кнопки: отдельный маленький SVG. */
+/** Рамка превью: у Инвиктии без тела — плотнее, чтобы голова с волосами заполняла значок. */
+const ICON_VIEWBOX: Partial<Record<MascotId, string>> = { invictus: "-12.5 -11.5 25 25" };
+
+/** Превью для окна выбора, кнопки «Попутчик» и окна помощника: отдельный SVG, неподвижный (.mascot-still). */
 export function MascotIcon({ id, size = 40 }: { id: MascotId; size?: number }) {
   return (
-    <svg aria-hidden width={size} height={size} viewBox="-16 -18 32 32" className="shrink-0 overflow-visible">
+    <svg aria-hidden width={size} height={size} viewBox={ICON_VIEWBOX[id] ?? "-16 -18 32 32"} className="mascot-still shrink-0 overflow-visible">
       <MascotFigure id={id} />
     </svg>
   );

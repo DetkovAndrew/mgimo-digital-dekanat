@@ -126,12 +126,12 @@ function MascotPicker({ current, unlocked, done, onChoose, onClose }: { current:
                     onChoose(m.id);
                     ref.current?.close();
                   }}
-                  className={`flex h-full min-h-16 w-full items-center gap-2 rounded-2xl p-2 text-left ring-1 transition ${
+                  className={`flex h-full min-h-20 w-full items-center gap-3 rounded-2xl p-2 text-left ring-1 transition ${
                     on ? "bg-brand-soft ring-brand" : open ? "bg-page ring-hairline hover:bg-fill" : "bg-page ring-hairline"
                   }`}
                 >
                   <span className={open ? "" : "grayscale"}>
-                    <MascotIcon id={m.id} />
+                    <MascotIcon id={m.id} size={56} />
                   </span>
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold">{m.name}</span>
@@ -484,7 +484,7 @@ export function RoutePlayer({ target, fromEntrance, closeHref, origins, other }:
 
       {/* Попутчик: то же, что правая кнопка мыши по схеме, но доступно с клавиатуры и пальцем. */}
       <button type="button" onClick={ctx.openPicker} className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-xl text-sm font-medium text-brand">
-        <MascotIcon id={ctx.mascot} size={28} />
+        <MascotIcon id={ctx.mascot} size={40} />
         Попутчик: {MASCOTS.find((m) => m.id === ctx.mascot)!.name}
       </button>
 
