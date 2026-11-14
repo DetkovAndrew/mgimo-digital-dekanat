@@ -115,6 +115,16 @@ describe("POST /api/assistant", () => {
     expect((await res.json()).answer).toBe("См. [баллы](/grades), фишинг и чужое.");
   });
 
+  it("функции аудиторий — только при разговоре о брони; вызов, которого не давали, не выполняется (прогон 14.11)", async () => {
+    const day = new Date(Date.now() + 86_400_000 + 3 * 3_600_000).toISOString().slice(0, 10);
+    await as("timur.orlov");
+    vi.mocked(gigachatComplete).mockResolvedValueOnce({ content: "", functionCall: { name: "find_free_rooms", arguments: { day } } });
+    const res = await ask(question("Подбери физкультуру без пересечений с парами"));
+    expect(res.status).toBe(200);
+    expect(vi.mocked(gigachatComplete).mock.calls.at(-1)![1]).not.toHaveProperty("functions");
+    expect(((await res.json()) as { answer: string }).answer).not.toMatch(/Свободно|аудитор/i);
+  });
+
   it("функция find_free_rooms: ответ собирает сервер из точных интервалов, без чужих студентов и целей броней", async () => {
     const day = new Date(Date.now() + 86_400_000 + 3 * 3_600_000).toISOString().slice(0, 10);
     await as("alina.lebedeva");

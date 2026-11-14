@@ -6,6 +6,12 @@ import { requireStudent } from "../session";
 
 export const BUILDING_SCHEDULE_DAYS = 7;
 
+/** Корпуса для снимка помощника: название, адрес, метро — открытые данные, без личного. */
+export async function listBuildingsBrief() {
+  await requireStudent();
+  return prisma.building.findMany({ orderBy: { title: "asc" }, select: { id: true, title: true, address: true, metro: true } });
+}
+
 /** Корпус (общие данные) и занятия ТЕКУЩЕГО студента в нём на ближайшие дни. */
 export async function getBuilding(id: string) {
   const { groupId, studentId } = await requireStudent();

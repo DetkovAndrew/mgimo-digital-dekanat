@@ -6,6 +6,7 @@ import { getMyGrades } from "../dal/grades";
 import { listMyNotifications } from "../dal/notifications";
 import { getMyProfile } from "../dal/profile";
 import { getMyRequest, listMyRequests } from "../dal/requests";
+import { listBuildingsBrief } from "../dal/buildings";
 import { getMyPrintBalance } from "../dal/print";
 import { getMySchedule } from "../dal/schedule";
 import { bookableFreeRanges, listMyRoomBookings } from "../dal/rooms";
@@ -59,6 +60,11 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
   const out: string[] = [];
 
   out.push(`Сейчас: ${formatDay(now)} (дата ${mskDayKey(now)}), ${formatTime(now)} (Москва).`);
+  // «Завтра» модель путала с ближайшим учебным днём (прогон 14.11: понедельник назвала завтрашним в субботу).
+  out.push(`Завтра: ${formatDay(addDays(now, 1))} (дата ${mskDayKey(addDays(now, 1))}). Про другие дни говори день недели и дату, а не «завтра».`);
+  // Адреса и метро — из базы: без них модель выдумывала станции (прогон 14.11).
+  const buildings = await listBuildingsBrief();
+  out.push(`Корпуса (открытые данные): ${buildings.map((b) => `${b.title} — ${b.address}${b.metro ? `, м. ${b.metro}` : ""} [${link(`/buildings/${b.id}`)}]`).join("; ")}.`);
   out.push(
     `\n## Профиль [/profile]\n${profile.fullName}; ${profile.faculty}; ${profile.program}${profile.programProfile ? ` (${profile.programProfile})` : ""}; ${profile.course} курс; группа ${profile.group}.`,
   );
