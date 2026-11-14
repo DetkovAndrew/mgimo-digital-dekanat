@@ -80,7 +80,7 @@ export default async function ServicesPage() {
           {print.queued > 0 && ` · в очереди ${print.queued}`}
         </Tile>
         <Tile href="/rooms/find" icon={DoorOpen} tone="ok" title="Аудитории">
-          {bookings.length ? `Свободные и мои брони: ${bookings.length}` : "Найти свободную и забронировать"}
+          {bookings.length ? `Мои брони: ${bookings.length}. Найти свободную` : "Найти свободную и забронировать"}
         </Tile>
         <Tile href="/sport" icon={Dumbbell} tone="warn" title="Физкультура">
           {sport.progress.total} из {sport.rules.total} {plural(sport.rules.total, "балла", "баллов", "баллов")}
