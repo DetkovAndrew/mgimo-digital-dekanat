@@ -1,6 +1,6 @@
 import { ChevronRight, MapPin, Navigation, Route, UserRound } from "lucide-react";
 import Link from "next/link";
-import { addDays, formatDay, formatTime, lessonKindLabel, mskDayKey, mskStartOfDay } from "@/lib/format";
+import { addDays, formatDay, formatTime, lessonKindLabel, mskDayKey, mskStartOfDay, shortName } from "@/lib/format";
 import { yandexRouteUrl } from "@/lib/geo";
 import type { ScheduleLesson } from "@/server/dal/schedule";
 
@@ -11,12 +11,6 @@ function startsIn(d: Date, now: Date) {
   if (mskDayKey(d) === mskDayKey(addDays(now, 1))) return "завтра";
   return formatDay(d);
 }
-
-/** «Садыков Ренат Ильдарович» → «Садыков Р. И.»: на карточке важна фамилия. */
-const shortName = (full: string) => {
-  const [last, ...rest] = full.split(" ");
-  return [last, ...rest.map((p) => `${p[0]}.`)].join(" ");
-};
 
 const plural = (n: number, one: string, few: string, many: string) =>
   n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many;
@@ -30,9 +24,16 @@ function DayStrip({ lessons, next, now }: { lessons: ScheduleLesson[]; next: Sch
   const to = Math.max(20 * 60, Math.ceil(lastEnd / 60) * 60);
   const pos = (m: number) => `${((m - from) / (to - from)) * 100}%`;
   const nowMin = mskDayKey(now) === mskDayKey(next.startsAt) ? min(now) : null;
+  // Засечки каждые два часа: по ним видно, где утро, обед и вечер, и сколько длится окно между парами.
+  const hours: number[] = [];
+  for (let h = Math.ceil(from / 120) * 2; h * 60 <= to; h += 2) hours.push(h);
+  // Подписи реже засечек: не ближе 4 часов друг к другу, считая от конца дня — иначе на 360 px слипаются.
+  const labeled = new Set<number>();
+  for (const h of [...hours].reverse()) if (!labeled.size || Math.min(...labeled) - h >= 4) labeled.add(h);
 
   return (
-    <div aria-hidden className="relative mt-5 h-2.5">
+    <div aria-hidden className="mt-5">
+    <div className="relative h-2.5">
       <span className="absolute inset-0 rounded-full bg-on-brand/20" />
       {lessons.map((l) => (
         <span
@@ -44,6 +45,19 @@ function DayStrip({ lessons, next, now }: { lessons: ScheduleLesson[]; next: Sch
       {nowMin !== null && nowMin > from && nowMin < to && (
         <span className="absolute -inset-y-1.5 w-0.75 -translate-x-1/2 rounded-full bg-on-brand ring-2 ring-brand-fill" style={{ left: pos(nowMin) }} />
       )}
+    </div>
+    <div className="relative mt-1 h-5 text-micro font-medium tabular-nums text-on-brand/80">
+      {hours.map((h, i) => (
+        <span
+          key={h}
+          className={`absolute top-0 flex flex-col ${i === 0 && h * 60 === from ? "items-start" : h * 60 === to ? "-translate-x-full items-end" : "-translate-x-1/2 items-center"}`}
+          style={{ left: pos(h * 60) }}
+        >
+          <span className="h-1 w-px bg-on-brand/50" />
+          {labeled.has(h) && `${h}:00`}
+        </span>
+      ))}
+    </div>
     </div>
   );
 }

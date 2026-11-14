@@ -36,6 +36,22 @@ const owner: Record<string, string> = {
   pass: "/services",
 };
 
+/**
+ * Колокольчик работает как переключатель: на открытых уведомлениях повторное нажатие закрывает их —
+ * возвращает на предыдущий экран (или на «Сегодня», если уведомления открыли по прямой ссылке).
+ */
+function useCloseNotifications() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const open = pathname === "/notifications";
+  return (e: React.MouseEvent) => {
+    if (!open) return;
+    e.preventDefault();
+    if (window.history.length > 1) router.back();
+    else router.replace("/today");
+  };
+}
+
 export function Nav({ unread, avatar }: { unread: number; avatar: string | null }) {
   const pathname = usePathname();
   const section = owner[pathname.split("/")[1]] ?? pathname;
@@ -44,6 +60,7 @@ export function Nav({ unread, avatar }: { unread: number; avatar: string | null 
   const own = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const ownItem = desktopItems.find((i) => own(i.href));
   const deskActive = (href: string) => (ownItem ? ownItem.href === href : active(href));
+  const closeNotifications = useCloseNotifications();
 
   return (
     <>
@@ -100,6 +117,7 @@ export function Nav({ unread, avatar }: { unread: number; avatar: string | null 
                 <Link
                   href={href}
                   transitionTypes={["nav-tab"]}
+                  onClick={href === "/notifications" ? closeNotifications : undefined}
                   aria-current={on ? "page" : undefined}
                   className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
                     on ? "bg-brand-soft font-semibold text-brand" : "text-ink-2 hover:bg-fill"
@@ -156,12 +174,15 @@ export function PassLink() {
 
 /** Колокольчик уведомлений для шапки на телефоне. */
 export function Bell({ unread }: { unread: number }) {
+  const close = useCloseNotifications();
+  const open = usePathname() === "/notifications";
   return (
     <Link
       href="/notifications"
       transitionTypes={["nav-tab"]}
-      aria-label={unread ? `Уведомления: ${unread} новых` : "Уведомления"}
-      className="relative grid size-11 place-items-center rounded-full text-ink-2 transition-colors hover:bg-fill"
+      onClick={close}
+      aria-label={open ? "Закрыть уведомления" : unread ? `Уведомления: ${unread} новых` : "Уведомления"}
+      className={`relative grid size-11 place-items-center rounded-full transition-colors hover:bg-fill ${open ? "bg-brand-soft text-brand" : "text-ink-2"}`}
     >
       <BellIcon aria-hidden className="size-5.5" />
       {unread > 0 && (

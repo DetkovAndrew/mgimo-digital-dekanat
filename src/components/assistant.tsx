@@ -7,7 +7,7 @@ import { bookFromAssistantAction } from "@/app/(cabinet)/rooms/actions";
 import { parseInline } from "@/lib/assistant/answer";
 import type { BookingProposal } from "@/server/dal/rooms";
 import { ASKED_KEY, writeLocal } from "./local-store";
-import { MascotFigure, MascotIcon } from "./mascots";
+import { HEAD, InvictusFace, MascotFigure, MascotIcon } from "./mascots";
 import { authClient } from "@/lib/auth-client";
 
 // Помощник GigaChat — кружок в углу любого экрана кабинета. Живёт в layout: разговор не теряется при переходах,
@@ -337,7 +337,7 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
 export function Assistant({ configured, owner }: { configured: boolean; owner: string }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const fab = useRef<HTMLButtonElement>(null);
-  const star = useRef<HTMLSpanElement>(null);
+  const face = useRef<HTMLSpanElement>(null);
   const [open, setOpen] = useState(false);
   const close = () => dialog.current?.close();
   // Layout переживает переходы, поэтому сессию сверяем сами: если в другой вкладке вошли под другим аккаунтом
@@ -357,7 +357,7 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
     setOpen(true);
   };
 
-  // Звёздочка следит за курсором, когда он рядом с кнопкой: сдвиг до 7 px и лёгкий наклон в его сторону.
+  // Инвиктус смотрит на курсор, когда он рядом с кнопкой: лицо сдвигается до 5 px и чуть наклоняется в его сторону.
   // Только мышь и только без prefers-reduced-motion; стиль меняется напрямую, без перерисовки React.
   useEffect(() => {
     const motion = window.matchMedia("(pointer: fine) and (prefers-reduced-motion: no-preference)");
@@ -367,13 +367,13 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const btn = fab.current?.getBoundingClientRect();
-        if (!btn || !star.current) return;
+        if (!btn || !face.current) return;
         const dx = e.clientX - (btn.left + btn.width / 2);
         const dy = e.clientY - (btn.top + btn.height / 2);
         const dist = Math.hypot(dx, dy);
         const pull = Math.max(0, 1 - dist / 260); // ближе 260 px — тянется, дальше — на месте
-        const k = dist ? (7 * Math.min(1, dist / 40) * pull) / dist : 0; // у самого центра сдвиг плавно гаснет
-        star.current.style.transform = `translate(${dx * k}px, ${dy * k}px) rotate(${Math.max(-1, Math.min(1, dx / 80)) * 20 * pull}deg) scale(${1 + 0.12 * pull})`;
+        const k = dist ? (5 * Math.min(1, dist / 40) * pull) / dist : 0; // у самого центра сдвиг плавно гаснет
+        face.current.style.transform = `translate(${dx * k}px, ${dy * k}px) rotate(${Math.max(-1, Math.min(1, dx / 80)) * 10 * pull}deg)`;
       });
     };
     window.addEventListener("pointermove", onMove, { passive: true });
@@ -408,8 +408,11 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
         aria-expanded={open}
         className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-brand-fill text-on-brand ring-4 ring-page transition duration-200 hover:scale-105 active:scale-95 motion-reduce:transition-none md:right-6 md:bottom-6 ${open ? "pointer-events-none scale-75 opacity-0" : ""}`}
       >
-        <span ref={star} aria-hidden className="block transition-transform duration-300 ease-(--ease-out)">
-          <Sparkles className="size-6" />
+        {/* Кнопка — голова Инвиктуса: звезда на лбу и глаза-миндалины (тот же рисунок, что у фигурки). */}
+        <span ref={face} aria-hidden className="block transition-transform duration-300 ease-(--ease-out)">
+          <svg viewBox={`${-HEAD.r} ${HEAD.cy - HEAD.r} ${HEAD.r * 2} ${HEAD.r * 2}`} className="size-12 overflow-visible">
+            <InvictusFace />
+          </svg>
         </span>
       </button>
       <dialog

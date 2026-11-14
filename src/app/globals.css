@@ -60,7 +60,8 @@
   --m-ic-sport: #18935a;
   --m-ic-book: #a86f15;
   --m-ic-glyph: #ffffff;
-  --m-lamp: #2bd47a; /* глаз Инвиктуса «загорается» на финише маршрута */
+  --m-lamp: #2bd47a; /* звезда Инвиктуса «загорается» на финише маршрута */
+  --m-pupil: #161a33; /* радужка и «^ ^» Инвиктуса: тёмные в обеих темах, на белом белке */
   --focus: #3b4cca;
   --focus-on-brand: #ffffff; /* фокус на брендовой заливке */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -123,6 +124,7 @@
   --m-ic-book: #a86f15;
   --m-ic-glyph: #ffffff;
   --m-lamp: #5ff2a0;
+  --m-pupil: #161a33;
   --focus: #a3adff;
   --focus-on-brand: #ffffff;
 }
@@ -198,6 +200,7 @@
   --color-m-ic-book: var(--m-ic-book);
   --color-m-ic-glyph: var(--m-ic-glyph);
   --color-m-lamp: var(--m-lamp);
+  --color-m-pupil: var(--m-pupil);
   --color-focus: var(--focus);
   --color-focus-on-brand: var(--focus-on-brand);
   --font-sans: var(--font-onest);
@@ -472,13 +475,21 @@ body {
 .mascot-sticker {
   filter: drop-shadow(0 0 0.6px var(--m-floor)) drop-shadow(0 0 0.6px var(--m-floor));
 }
-/* Финиш: звезда-глаз Инвиктуса загорается зелёным и светится. */
-.mascot-lit .mascot-eye {
+/* Глаза Инвиктуса: обычно открыты, на финише — «^ ^». */
+.mascot-eyes-happy,
+.mascot-lit .mascot-eyes-open {
+  display: none;
+}
+.mascot-lit .mascot-eyes-happy {
+  display: inline;
+}
+/* Финиш: звезда на лбу Инвиктуса загорается зелёным и светится. */
+.mascot-lit .mascot-star {
   fill: var(--m-lamp);
   filter: drop-shadow(0 0 1.5px var(--m-lamp));
 }
 @media (prefers-reduced-motion: no-preference) {
-  .mascot-lit .mascot-eye {
+  .mascot-lit .mascot-star {
     animation:
       mascot-lamp-on 0.5s 0.3s ease-out backwards,
       mascot-lamp 1.6s 0.8s ease-in-out infinite;

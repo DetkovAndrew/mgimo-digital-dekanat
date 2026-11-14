@@ -8,7 +8,7 @@ import { PLANS, roomKindLabel, type RoomKind } from "@/lib/campus/plans";
 import { ROOM_RULES, roomDayKeys } from "@/lib/campus/rules";
 import { findFreeRooms } from "@/server/dal/rooms";
 import { QuickBook } from "./quick-book";
-import { ScrollToCurrent } from "./scroll-to-current";
+import { FilterMenu } from "./filter-menu";
 
 // «Найти свободную»: как в боте, которым студенты бронировали аудитории: выбрал когда и на сколько, получил
 // список свободных и забронировал прямо из него. Все параметры здесь ссылки, каждый тап сразу даёт результат.
@@ -21,31 +21,6 @@ const nowMin = () => {
   const p = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
   return Number(p.find((x) => x.type === "hour")!.value) * 60 + Number(p.find((x) => x.type === "minute")!.value);
 };
-
-function Chips({ label, items }: { label: string; items: { href: string; text: string; on: boolean; sub?: string }[] }) {
-  return (
-    <nav aria-label={label} className="mb-3">
-      <p className="mb-1.5 text-xs font-semibold text-ink-2">{label}</p>
-      <ScrollToCurrent className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-        {items.map((i) => (
-          <Link
-            key={i.href}
-            href={i.href}
-            replace
-            scroll={false}
-            aria-current={i.on ? "true" : undefined}
-            className={`inline-flex min-h-11 shrink-0 flex-col items-center justify-center rounded-xl px-3 text-sm font-medium tabular-nums transition-colors ${
-              i.on ? "bg-brand-fill text-on-brand" : "bg-surface text-ink ring-1 ring-hairline hover:bg-fill/70"
-            }`}
-          >
-            {i.sub && <span className={`text-micro leading-none ${i.on ? "text-on-brand" : "text-ink-3"}`}>{i.sub}</span>}
-            {i.text}
-          </Link>
-        ))}
-      </ScrollToCurrent>
-    </nav>
-  );
-}
 
 export default async function FindRoomPage({ searchParams }: PageProps<"/rooms/find">) {
   const q = parseFind(await searchParams);
@@ -69,13 +44,18 @@ export default async function FindRoomPage({ searchParams }: PageProps<"/rooms/f
         Найти свободную
       </PageTitle>
 
-      <Chips label="День" items={roomDayKeys().map((d, i) => ({ href: at({ d }), text: i === 0 ? "Сегодня" : i === 1 ? "Завтра" : dayNum.format(noon(d)), sub: i > 1 ? weekday.format(noon(d)) : undefined, on: d === q.d }))} />
-      <Chips label="Начало" items={starts.map((t) => ({ href: at({ t }), text: t, on: t === q.t }))} />
-      <Chips label="Сколько" items={FIND_DURATIONS.map((m) => ({ href: at({ m, t: findStarts(m).includes(q.t) ? q.t : findStarts(m).at(-1)! }), text: dur(m), on: m === q.m }))} />
-      <Chips label="Корпус" items={[{ href: at({ b: null }), text: "Любой", on: !q.b }, ...PLANS.map((p) => ({ href: at({ b: p.buildingId }), text: p.title, on: q.b === p.buildingId }))]} />
-      <Chips label="Мест не меньше" items={FIND_CAPACITIES.map((c) => ({ href: at({ c }), text: c ? String(c) : "Неважно", on: c === q.c }))} />
+      {/* Параметры поиска — на своей подложке, каждый свёрнут в меню: видно, что выбрано, без пяти рядов кнопок. */}
+      <section aria-label="Параметры поиска" className="mb-6 grid grid-cols-2 gap-2 rounded-2xl bg-brand-soft p-2 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="col-span-2 sm:col-span-1">
+          <FilterMenu label="День" items={roomDayKeys().map((d, i) => ({ href: at({ d }), text: i === 0 ? "Сегодня" : i === 1 ? "Завтра" : dayNum.format(noon(d)), sub: i > 1 ? weekday.format(noon(d)) : undefined, on: d === q.d }))} />
+        </div>
+        <FilterMenu label="Начало" items={starts.map((t) => ({ href: at({ t }), text: t, on: t === q.t }))} />
+        <FilterMenu label="Сколько" align="right" items={FIND_DURATIONS.map((m) => ({ href: at({ m, t: findStarts(m).includes(q.t) ? q.t : findStarts(m).at(-1)! }), text: dur(m), on: m === q.m }))} />
+        <FilterMenu label="Корпус" items={[{ href: at({ b: null }), text: "Любой", on: !q.b }, ...PLANS.map((p) => ({ href: at({ b: p.buildingId }), text: p.title, on: q.b === p.buildingId }))]} />
+        <FilterMenu label="Мест не меньше" align="right" items={FIND_CAPACITIES.map((c) => ({ href: at({ c }), text: c ? String(c) : "Неважно", on: c === q.c }))} />
+      </section>
 
-      <Section title={`Свободно с ${q.t} до ${end}`} className="mt-4">
+      <Section title={`Свободно с ${q.t} до ${end}`}>
         {"error" in found ? (
           <Empty>{found.error}</Empty>
         ) : rooms.length ? (

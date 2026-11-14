@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Fragment, ViewTransition } from "react";
+import { kindStyle } from "@/components/kind";
 import { LessonCard } from "@/components/lesson-card";
 import { StudyEventRow } from "@/components/study-event";
 import { TransferNote } from "@/components/transfer-note";
@@ -189,7 +190,8 @@ async function MonthView({ m, d }: { m: unknown; d: unknown }) {
         <ViewTransition key={month} enter="fade-in" exit="fade-out" default="none">
           <ol className="grid grid-cols-7">
             {cells.map((c) => {
-              const count = c.lessons.filter((l) => l.status !== "CANCELLED" && l.source === "lesson").length;
+              const held = c.lessons.filter((l) => l.status !== "CANCELLED" && l.source === "lesson");
+              const count = held.length;
               const sport = c.lessons.some((l) => l.source === "sport");
               const exam = c.events.some(isExam);
               const due = c.events.some((e) => !isExam(e));
@@ -218,12 +220,14 @@ async function MonthView({ m, d }: { m: unknown; d: unknown }) {
                     }`}
                   >
                     <span>{Number(c.key.slice(8))}</span>
-                    <span aria-hidden className="flex h-1.5 items-center gap-0.5">
-                      {Array.from({ length: Math.min(count, 3) }, (_, i) => (
-                        <span key={i} className={`size-1.5 rounded-full ${on ? "bg-on-brand" : "bg-brand"}`} />
+                    {/* Пара — точка цвета своего типа (как полоска на карточке): день читается без открытия. */}
+                    <span aria-hidden className="flex h-2 items-center gap-0.5">
+                      {held.slice(0, 3).map((l) => (
+                        <span key={l.id} className={`size-2 rounded-full ${on ? "bg-on-brand" : kindStyle(l.kind).bar}`} />
                       ))}
-                      {sport && <span className={`size-1.5 rounded-full ${on ? "bg-on-brand" : "bg-k-sport"}`} />}
-                      {due && <span className={`size-1.5 rounded-full ${on ? "bg-on-brand" : "bg-warn"}`} />}
+                      {count > 3 && <span className={`text-micro leading-none font-bold ${on ? "text-on-brand" : "text-ink-2"}`}>+{count - 3}</span>}
+                      {sport && <span className={`size-2 rounded-[2px] ${on ? "bg-on-brand" : "bg-k-sport"}`} />}
+                      {due && <span className={`size-2 rounded-full ring-2 ring-inset ${on ? "ring-on-brand" : "ring-warn"}`} />}
                       {exam && <span className={`size-2 rotate-45 rounded-[1px] ${on ? "bg-on-brand" : "bg-bad-fill"}`} />}
                     </span>
                   </Link>
@@ -234,19 +238,27 @@ async function MonthView({ m, d }: { m: unknown; d: unknown }) {
         </ViewTransition>
         <ul aria-label="Обозначения" className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1 px-1 text-xs text-ink-2">
           <li className="flex items-center gap-1">
-            <span aria-hidden className="size-1.5 rounded-full bg-brand" />
-            пары
+            <span aria-hidden className="size-2 rounded-full bg-k-lecture" />
+            лекция
+          </li>
+          <li className="flex items-center gap-1">
+            <span aria-hidden className="size-2 rounded-full bg-k-practice" />
+            практика, семинар
+          </li>
+          <li className="flex items-center gap-1">
+            <span aria-hidden className="size-2 rounded-full bg-k-language" />
+            язык
           </li>
           <li className="flex items-center gap-1">
             <span aria-hidden className="size-2 rotate-45 rounded-[1px] bg-bad-fill" />
             экзамен, зачёт
           </li>
           <li className="flex items-center gap-1">
-            <span aria-hidden className="size-1.5 rounded-full bg-warn" />
+            <span aria-hidden className="size-2 rounded-full ring-2 ring-warn ring-inset" />
             срок работы
           </li>
           <li className="flex items-center gap-1">
-            <span aria-hidden className="size-1.5 rounded-full bg-k-sport" />
+            <span aria-hidden className="size-2 rounded-[2px] bg-k-sport" />
             физкультура
           </li>
         </ul>
@@ -318,7 +330,8 @@ async function WeekView({ week }: { week: unknown }) {
         <nav aria-label="Дни недели" className="mb-6 grid auto-cols-fr grid-flow-col gap-0.5">
           {days.map((d) => {
             const on = d.key === todayKey;
-            const count = d.lessons.filter((l) => l.status !== "CANCELLED").length + d.events.length;
+            const held = d.lessons.filter((l) => l.status !== "CANCELLED");
+            const count = held.length + d.events.length;
             return (
               <a
                 key={d.key}
@@ -330,10 +343,11 @@ async function WeekView({ week }: { week: unknown }) {
               >
                 <span className={`text-micro ${on ? "text-on-brand" : "text-ink-3"}`}>{weekdayShort.format(d.date)}</span>
                 <span className="text-lead leading-none font-semibold tabular-nums">{dayNum.format(d.date)}</span>
-                <span aria-hidden className="flex h-1.5 gap-0.5">
-                  {Array.from({ length: Math.min(count, 4) }, (_, i) => (
-                    <span key={i} className={`size-1 rounded-full ${on ? "bg-on-brand" : "bg-brand"}`} />
+                <span aria-hidden className="flex h-2 items-center gap-0.5">
+                  {held.slice(0, 4).map((l) => (
+                    <span key={l.id} className={`size-1.5 rounded-full ${on ? "bg-on-brand" : kindStyle(l.kind).bar}`} />
                   ))}
+                  {d.events.length > 0 && held.length < 4 && <span className={`size-1.5 rounded-full ring-[1.5px] ring-inset ${on ? "ring-on-brand" : "ring-warn"}`} />}
                 </span>
               </a>
             );
