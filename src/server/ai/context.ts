@@ -71,6 +71,15 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
 
   out.push(`\n## Расписание [/schedule]: сегодня и ещё ${SCHEDULE_DAYS - 1} дн. (Дальше этих дней данных в снимке нет.)`);
   if (!lessons.length) out.push("Занятий нет.");
+  // Ближайшее занятие считает сервер: в длинном списке модель брала не ту пару (прогон 14.11, сценарий 1).
+  const next = lessons.find((l) => l.source === "lesson" && l.status !== "CANCELLED" && l.endsAt > now);
+  if (next) {
+    const where = next.online ? "онлайн" : [next.room, next.building?.title].filter(Boolean).join(", ") || "место не указано";
+    const when = next.startsAt <= now ? "идёт сейчас" : mskDayKey(next.startsAt) === mskDayKey(now) ? "сегодня" : mskDayKey(next.startsAt) === mskDayKey(addDays(now, 1)) ? "завтра" : formatDay(next.startsAt);
+    out.push(
+      `Ближайшее занятие (на «следующую пару» отвечай этой строкой): ${when}, ${formatDay(next.startsAt)} ${formatTime(next.startsAt)}–${formatTime(next.endsAt)}, ${lessonKindLabel[next.kind] ?? next.kind}: ${clip(next.title, 80)}; ${where} [${link(next.href)}]`,
+    );
+  }
   let day = "";
   for (const l of lessons.slice(0, 60)) {
     const d = formatDay(l.startsAt);
