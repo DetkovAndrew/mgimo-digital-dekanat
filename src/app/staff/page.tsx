@@ -1,6 +1,7 @@
 import { FileText } from "lucide-react";
 import Link from "next/link";
-import { Badge, Empty, List, PageTitle, RowLink } from "@/components/ui";
+import { ThemePicker } from "@/components/theme-picker";
+import { Badge, Empty, List, PageTitle, RowLink, Section } from "@/components/ui";
 import { formatDateTime, requestStatusLabel } from "@/lib/format";
 import { formatRequestNumber, isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { staffFilters } from "@/lib/staff/requests";
@@ -40,6 +41,9 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
           })}
         </List>
       ) : <Empty>В этой очереди пока нет заявок.</Empty>}
+      <Section title="Оформление" className="mt-10">
+        <ThemePicker />
+      </Section>
     </>
   );
 }

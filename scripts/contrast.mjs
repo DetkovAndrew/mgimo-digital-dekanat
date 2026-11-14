@@ -19,8 +19,7 @@ function blockAfter(start) {
 const vars = (body) => Object.fromEntries([...body.matchAll(/--([\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
 
 const lightBody = blockAfter(/^:root\s*\{/m);
-const darkMedia = blockAfter(/@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)\s*\{/);
-const darkBody = darkMedia && /:root\s*\{([\s\S]*)\}/.exec(darkMedia)?.[1];
+const darkBody = blockAfter(/^:root\[data-theme="dark"\]\s*\{/m);
 if (!lightBody || !darkBody) {
   console.error("Не найден блок :root светлой или тёмной темы в globals.css");
   process.exit(1);

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Onest } from "next/font/google";
+import { themeScript } from "@/lib/theme";
 import "./globals.css";
 
 // Onest (OFL) — гротеск, нарисованный в первую очередь для кириллицы: ровный кернинг русского текста и табличные цифры.
@@ -22,7 +23,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ru" data-scroll-behavior="smooth" className={`${onest.variable} h-full antialiased`}>
+    // data-theme ставит скрипт темы до гидрации — React не должен считать это расхождением.
+    <html lang="ru" data-scroll-behavior="smooth" className={`${onest.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        {/* Тема до первой отрисовки (src/lib/theme.ts): без вспышки светлой страницы в тёмной теме. */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-full font-sans">{children}</body>
     </html>
   );

@@ -1,16 +1,12 @@
-import { DoorOpen, FileCheck2, FilePen, MessageCircleQuestion, Plus } from "lucide-react";
+import { DoorOpen, Plus } from "lucide-react";
 import Link from "next/link";
+import { requestGroup } from "@/components/request-groups";
 import { Badge, Disclosure, Empty, IconTile, List, PageTitle, RowLink, Section } from "@/components/ui";
 import { formatDateTime, requestStatusLabel } from "@/lib/format";
 import { formatRequestNumber, isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { listMyRequests } from "@/server/dal/requests";
 
 const DONE = new Set(["DONE", "REJECTED", "CANCELLED"]);
-const CATEGORY = {
-  certificate: { icon: FileCheck2, tone: "info" },
-  application: { icon: FilePen, tone: "brand" },
-  question: { icon: MessageCircleQuestion, tone: "warn" },
-} as const;
 
 export default async function RequestsPage() {
   const requests = await listMyRequests();
@@ -19,7 +15,7 @@ export default async function RequestsPage() {
 
   const row = (r: (typeof requests)[number]) => {
     const s = requestStatusLabel[r.status];
-    const c = CATEGORY[isRequestType(r.type) ? requestCatalog[r.type].category : "question"];
+    const c = requestGroup(isRequestType(r.type) ? requestCatalog[r.type].category : "question");
     return (
       <RowLink key={r.id} href={`/requests/${r.id}`}>
         <span className="flex items-center gap-3">

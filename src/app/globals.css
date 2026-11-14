@@ -66,65 +66,65 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Тёмная тема спроектирована, а не инвертирована: глубина — светлее поверхность, а не тень. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --page: #0d0f17;
-    --surface: #161925;
-    --fill: #212536;
-    --ink: #eceef2;
-    --ink-2: #a7aec4;
-    --ink-3: #8b93ab;
-    --hairline: #2a2f42;
-    --field: #6b7482;
-    --brand: #a3adff;
-    --brand-fill: #4b5bd8;
-    --on-brand: #ffffff;
-    --brand-soft: #222849;
-    --accent: #4cc3f2;
-    --ok: #6fd6a3;
-    --ok-soft: #13291e;
-    --warn: #f0bd5e;
-    --warn-soft: #2d2412;
-    --bad: #ff978d;
-    --bad-soft: #351a1a;
-    --bad-fill: #d23b35;
-    --info: #94bcff;
-    --info-soft: #172640;
-    --k-lecture: #b4b9ff;
-    --k-lecture-soft: #23264a;
-    --k-practice: #6fe0cf;
-    --k-practice-soft: #12302c;
-    --k-language: #ff9cc6;
-    --k-language-soft: #3a1729;
-    --k-consult: #cbb2ff;
-    --k-consult-soft: #2a1f47;
-    --k-sport: #7fe3a2;
-    --k-sport-soft: #14301e;
-    --m-ground: #0e1016;
-    --m-floor: #272c39;
-    --m-wall: #7d879b;
-    --m-room: #1c2029;
-    --m-hall: #39321c;
-    --m-cowork: #1b3122;
-    --m-meet: #2c2340;
-    --m-food: #3d281b;
-    --m-wc: #33213d;
-    --m-quiet: #1e2f20;
-    --m-yard: #18261a;
-    --m-ic-stairs: #7c8594;
-    --m-ic-wc: #9b2bd8;
-    --m-ic-food: #e85c14;
-    --m-ic-coat: #1f7ddc;
-    --m-ic-exit: #5b6474;
-    --m-ic-sport: #18935a;
-    --m-ic-book: #a86f15;
-    --m-ic-glyph: #ffffff;
-    --m-lamp: #5ff2a0;
-    --focus: #a3adff;
-    --focus-on-brand: #ffffff;
-  }
+/* Тёмная тема спроектирована, а не инвертирована: глубина — светлее поверхность, а не тень.
+   Включается атрибутом data-theme="dark" на <html>: его ставит скрипт темы в <head> до первой отрисовки —
+   по выбору в профиле или, по умолчанию, по настройке устройства (src/lib/theme.ts). */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0f17;
+  --surface: #161925;
+  --fill: #212536;
+  --ink: #eceef2;
+  --ink-2: #a7aec4;
+  --ink-3: #8b93ab;
+  --hairline: #2a2f42;
+  --field: #6b7482;
+  --brand: #a3adff;
+  --brand-fill: #4b5bd8;
+  --on-brand: #ffffff;
+  --brand-soft: #222849;
+  --accent: #4cc3f2;
+  --ok: #6fd6a3;
+  --ok-soft: #13291e;
+  --warn: #f0bd5e;
+  --warn-soft: #2d2412;
+  --bad: #ff978d;
+  --bad-soft: #351a1a;
+  --bad-fill: #d23b35;
+  --info: #94bcff;
+  --info-soft: #172640;
+  --k-lecture: #b4b9ff;
+  --k-lecture-soft: #23264a;
+  --k-practice: #6fe0cf;
+  --k-practice-soft: #12302c;
+  --k-language: #ff9cc6;
+  --k-language-soft: #3a1729;
+  --k-consult: #cbb2ff;
+  --k-consult-soft: #2a1f47;
+  --k-sport: #7fe3a2;
+  --k-sport-soft: #14301e;
+  --m-ground: #0e1016;
+  --m-floor: #272c39;
+  --m-wall: #7d879b;
+  --m-room: #1c2029;
+  --m-hall: #39321c;
+  --m-cowork: #1b3122;
+  --m-meet: #2c2340;
+  --m-food: #3d281b;
+  --m-wc: #33213d;
+  --m-quiet: #1e2f20;
+  --m-yard: #18261a;
+  --m-ic-stairs: #7c8594;
+  --m-ic-wc: #9b2bd8;
+  --m-ic-food: #e85c14;
+  --m-ic-coat: #1f7ddc;
+  --m-ic-exit: #5b6474;
+  --m-ic-sport: #18935a;
+  --m-ic-book: #a86f15;
+  --m-ic-glyph: #ffffff;
+  --m-lamp: #5ff2a0;
+  --focus: #a3adff;
+  --focus-on-brand: #ffffff;
 }
 
 /* Шкала шрифта: отображение крупнее основного текста минимум в 2,5 раза (методика ux-ui-agent-skills). */

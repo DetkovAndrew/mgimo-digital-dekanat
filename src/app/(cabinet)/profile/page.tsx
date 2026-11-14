@@ -1,5 +1,6 @@
 import { SignOut } from "@/components/nav";
-import { Disclosure, List } from "@/components/ui";
+import { ThemePicker } from "@/components/theme-picker";
+import { Disclosure, List, Section } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import { getMyAvatarUrl } from "@/server/dal/avatar";
 import { getMyProfile } from "@/server/dal/profile";
@@ -45,6 +46,9 @@ export default async function ProfilePage() {
       <Disclosure title="Подробнее">
         <List>{rows(more)}</List>
       </Disclosure>
+      <Section title="Оформление">
+        <ThemePicker />
+      </Section>
       <SignOut className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-surface text-[15px] font-medium text-bad ring-1 ring-hairline transition active:scale-[0.98] md:hidden" />
     </>
   );
