@@ -1,11 +1,13 @@
 import "server-only";
 import { notFound } from "next/navigation";
 import type { Prisma } from "@/generated/prisma/client";
+import { formatDocumentNumber, issuesCertificate } from "@/lib/documents/certificate";
 import { requestStatusLabel } from "@/lib/format";
 import { formatRequestNumber, isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { changeRequestSchema, isStaffFilter, requestPriority, type StaffActionState } from "@/lib/staff/requests";
 import { prisma } from "../db";
 import { requireStaff } from "../session";
+import { certificateContentFor, issueCertificate } from "./documents";
 
 const facultyScope = (facultyCode: string) => ({
   student: { group: { faculty: { code: facultyCode } } },
@@ -33,6 +35,7 @@ export async function getFacultyRequest(id: string) {
     where: { id, ...facultyScope(facultyCode) },
     select: {
       ...listSelect, payload: true,
+      document: { select: { number: true, issuedAt: true } }, // без токена: ссылка проверки только у студента
       events: {
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         select: { id: true, actorType: true, fromStatus: true, toStatus: true, comment: true, createdAt: true },
@@ -65,8 +68,9 @@ export async function changeFacultyRequest(input: unknown): Promise<StaffActionS
     const current = await tx.request.findFirst({
       where,
       select: {
-        status: true, number: true, type: true,
+        status: true, number: true, type: true, payload: true,
         student: { select: { userId: true } },
+        document: { select: { number: true } },
         events: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1, select: { actorType: true, fromStatus: true, comment: true } },
       },
     });
@@ -81,21 +85,30 @@ export async function changeFacultyRequest(input: unknown): Promise<StaffActionS
       }
     }
 
+    // Электронная справка выпускается вместе с «Готово» (docs/plans/certificates.md). Снимок собирается и
+    // проверяется до любых записей: при неполном профиле статус не меняется. Повторно не выпускается.
+    const issue = toStatus === "READY" && issuesCertificate(current.type, current.payload) && !current.document;
+    const content = issue ? await certificateContentFor(tx, id) : null;
+    if (issue && !content) return { ok: false, message: "Не удалось выпустить справку: в профиле студента не хватает данных." };
+
+    const at = new Date();
     const updated = await tx.request.updateMany({ where: { ...where, status: fromStatus }, data: { status: toStatus } });
     if (updated.count !== 1) return { ok: false, message: "Статус уже изменился. Обновите страницу." };
     await tx.requestEvent.create({
-      data: { requestId: id, fromStatus, toStatus, actorType: "STAFF", actorUserId: userId, comment: comment || null },
+      data: { requestId: id, fromStatus, toStatus, actorType: "STAFF", actorUserId: userId, comment: comment || null, createdAt: at },
     });
+    const document = content ? await issueCertificate(tx, id, content, at) : null;
+    const issued = document ? ` Справка ${formatDocumentNumber(document.number)}: PDF в заявке.` : "";
     const title = isRequestType(current.type) ? requestCatalog[current.type].title : "Заявка";
     await tx.notification.create({
       data: {
         kind: "REQUEST_STATUS", requestId: id,
         title: `${title}: ${requestStatusLabel[toStatus].label.toLowerCase()}`,
-        body: `${formatRequestNumber(current.number)}: ${requestStatusLabel[toStatus].label}.${comment ? ` ${comment}` : ""}`,
+        body: `${formatRequestNumber(current.number)}: ${requestStatusLabel[toStatus].label}.${issued}${comment ? ` ${comment}` : ""}`,
         important: toStatus === "NEEDS_INFO" || toStatus === "READY",
         recipients: { create: { userId: current.student.userId } },
       },
     });
-    return { ok: true, message: "Статус сохранён. Студент получил уведомление." };
+    return { ok: true, message: document ? `Статус сохранён, справка ${formatDocumentNumber(document.number)} выпущена. Студент получил уведомление.` : "Статус сохранён. Студент получил уведомление." };
   });
 }

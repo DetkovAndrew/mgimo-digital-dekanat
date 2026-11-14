@@ -4,11 +4,12 @@
 // Запуск: `npm run db:seed`. Seed ПОЛНОСТЬЮ пересоздаёт данные (демо-сброс).
 // Оценки ставятся только за точки, срок которых прошёл к моменту запуска, — поэтому перед
 // показом жюри seed запускают заново, и картина «как у меня дела» остаётся живой.
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { betterAuth } from "better-auth";
 import { username } from "better-auth/plugins";
 import type { Prisma } from "../src/generated/prisma/client";
+import { CertificateContent, issuesCertificate } from "../src/lib/documents/certificate";
 import { requestCatalog, type RequestType } from "../src/lib/requests/catalog";
 import { checkSlot, type BusyItem } from "../src/lib/sport/availability";
 import { baseAuthOptions } from "../src/server/auth-options";
@@ -685,7 +686,7 @@ async function seedRequests(s: StudentSeed, studentId: string, userId: string, s
           submittedAt: "2026-10-20T11:15:00+03:00",
           steps: [
             { status: "IN_PROGRESS", at: "2026-10-20T15:00:00+03:00" },
-            { status: "READY", at: "2026-10-21T12:30:00+03:00", comment: "Демонстрационная справка подготовлена. Файл и электронная подпись в прототипе не выдаются." },
+            { status: "READY", at: "2026-10-21T12:30:00+03:00", comment: "Справка выпущена: PDF с QR-кодом проверки можно скачать в заявке." },
             { status: "DONE", at: "2026-10-21T12:31:00+03:00" },
           ],
         },
@@ -764,8 +765,36 @@ async function seedRequests(s: StudentSeed, studentId: string, userId: string, s
       });
       status = step.status;
     }
+    const ready = r.steps.find((step) => step.status === "READY");
+    if (ready && issuesCertificate(r.type, r.input)) await seedCertificate(request.id, new Date(ready.at));
     await prisma.request.update({ where: { id: request.id }, data: { status } });
   }
+}
+
+/** Электронная справка к демо-заявке — тем же снимком, что собирает certificateContentFor при «Готово». */
+async function seedCertificate(requestId: string, issuedAt: Date) {
+  const r = await prisma.request.findUniqueOrThrow({
+    where: { id: requestId },
+    select: {
+      payload: true,
+      student: {
+        select: {
+          studyForm: true, funding: true, enrolledAt: true,
+          user: { select: { name: true } },
+          group: { select: { code: true, course: true, program: true, profile: true, level: true, faculty: { select: { title: true } } } },
+        },
+      },
+    },
+  });
+  const s = r.student;
+  const content = CertificateContent.parse({
+    v: 1, fullName: s.user.name, faculty: s.group.faculty.title, program: s.group.program, profile: s.group.profile,
+    level: s.group.level, course: s.group.course, group: s.group.code, studyForm: s.studyForm, funding: s.funding,
+    enrolledAt: s.enrolledAt.toISOString().slice(0, 10), destination: (r.payload as { destination: string }).destination,
+  });
+  await prisma.issuedDocument.create({
+    data: { requestId, kind: "study_certificate", verifyToken: randomBytes(16).toString("base64url"), content, issuedAt },
+  });
 }
 
 async function seedAnnouncements() {

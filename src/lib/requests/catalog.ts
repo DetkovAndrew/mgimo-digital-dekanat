@@ -35,8 +35,13 @@ const isoDate = z.iso.date("Укажите дату");
 const isoMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Укажите месяц");
 
 // В прототипе документ не выдаётся: меняется только статус заявки (аудит вымышленности NursuUwU, 11.11).
+// Исключение — справка об обучении: электронный PDF с QR-проверкой (docs/plans/certificates.md).
 const formats = [
   { value: "electronic", label: "Электронная (PDF, в демо не выдаётся)" },
+  { value: "paper", label: "Бумажная, забрать в деканате" },
+] as const;
+const studyFormats = [
+  { value: "electronic", label: "Электронная: PDF с QR-кодом проверки" },
   { value: "paper", label: "Бумажная, забрать в деканате" },
 ] as const;
 
@@ -48,7 +53,7 @@ export const requestCatalog = {
     slaDays: 2,
     fields: [
       { name: "destination", label: "Куда предоставить", kind: "text", hint: "Например: по месту работы" },
-      { name: "format", label: "Формат", kind: "select", options: formats },
+      { name: "format", label: "Формат", kind: "select", options: studyFormats },
       { name: "copies", label: "Количество экземпляров", kind: "number", hint: "От 1 до 5" },
     ],
     schema: z.object({
