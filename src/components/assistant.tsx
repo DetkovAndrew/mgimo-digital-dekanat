@@ -7,7 +7,7 @@ import { bookFromAssistantAction } from "@/app/(cabinet)/rooms/actions";
 import { parseInline } from "@/lib/assistant/answer";
 import type { BookingProposal } from "@/server/dal/rooms";
 import { ASKED_KEY, writeLocal } from "./local-store";
-import { HEAD, InvictusFace, MascotFigure, MascotIcon } from "./mascots";
+import { InvictusFace, InvictusHair, MascotFigure, MascotIcon } from "./mascots";
 import { authClient } from "@/lib/auth-client";
 
 // Помощник GigaChat — кружок в углу любого экрана кабинета. Живёт в layout: разговор не теряется при переходах,
@@ -339,6 +339,9 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
   const fab = useRef<HTMLButtonElement>(null);
   const face = useRef<HTMLSpanElement>(null);
   const [open, setOpen] = useState(false);
+  const [joy, setJoy] = useState(false); // нажали на кнопку: Инвиктус весело жмурится «^ ^», потом открывается окно
+  const joyTimer = useRef(0);
+  useEffect(() => () => clearTimeout(joyTimer.current), []);
   const close = () => dialog.current?.close();
   // Layout переживает переходы, поэтому сессию сверяем сами: если в другой вкладке вошли под другим аккаунтом
   // или вышли, разговор прежнего владельца не показываем, а перезагружаем страницу (сервер отрисует нужного студента).
@@ -357,8 +360,9 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
     setOpen(true);
   };
 
-  // Инвиктус смотрит на курсор, когда он рядом с кнопкой: лицо сдвигается до 5 px и чуть наклоняется в его сторону.
-  // Только мышь и только без prefers-reduced-motion; стиль меняется напрямую, без перерисовки React.
+  // Инвиктус следит за курсором почти по всему экрану (до 900 px от кнопки): лицо сдвигается до 5 px и чуть
+  // наклоняется, зрачки дополнительно смещаются внутри глаз. Только мышь и только без prefers-reduced-motion;
+  // стиль меняется напрямую, без перерисовки React.
   useEffect(() => {
     const motion = window.matchMedia("(pointer: fine) and (prefers-reduced-motion: no-preference)");
     if (!motion.matches) return;
@@ -371,9 +375,13 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
         const dx = e.clientX - (btn.left + btn.width / 2);
         const dy = e.clientY - (btn.top + btn.height / 2);
         const dist = Math.hypot(dx, dy);
-        const pull = Math.max(0, 1 - dist / 260); // ближе 260 px — тянется, дальше — на месте
-        const k = dist ? (5 * Math.min(1, dist / 40) * pull) / dist : 0; // у самого центра сдвиг плавно гаснет
-        face.current.style.transform = `translate(${dx * k}px, ${dy * k}px) rotate(${Math.max(-1, Math.min(1, dx / 80)) * 10 * pull}deg)`;
+        const pull = Math.max(0, 1 - dist / 900) ** 0.5 * Math.min(1, dist / 40); // далеко — слабее, у центра — гаснет
+        const [ux, uy] = dist ? [dx / dist, dy / dist] : [0, 0];
+        face.current.style.transform = `translate(${ux * 5 * pull}px, ${uy * 5 * pull}px) rotate(${ux * 10 * pull}deg)`;
+        // Зрачки — в координатах глаза (правый глаз зеркальный, поэтому data-flip).
+        for (const p of face.current.querySelectorAll<SVGGElement>("[data-pupil]")) {
+          p.style.transform = `translate(${ux * 0.6 * pull * Number(p.dataset.flip)}px, ${uy * 0.5 * pull}px)`;
+        }
       });
     };
     window.addEventListener("pointermove", onMove, { passive: true });
@@ -401,16 +409,27 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
       <button
         type="button"
         ref={fab}
-        onClick={() => void show()}
+        onClick={() => {
+          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return void show();
+          setJoy(true);
+          clearTimeout(joyTimer.current);
+          joyTimer.current = window.setTimeout(() => {
+            setJoy(false);
+            void show();
+          }, 380);
+        }}
         data-assistant-fab
         aria-label="Спросить Инвиктуса, помощника по кабинету"
         aria-haspopup="dialog"
         aria-expanded={open}
         className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-brand-fill text-on-brand ring-4 ring-page transition duration-200 hover:scale-105 active:scale-95 motion-reduce:transition-none md:right-6 md:bottom-6 ${open ? "pointer-events-none scale-75 opacity-0" : ""}`}
       >
-        {/* Кнопка — голова Инвиктуса: звезда на лбу и глаза-миндалины (тот же рисунок, что у фигурки). */}
-        <span ref={face} aria-hidden className="block transition-transform duration-300 ease-(--ease-out)">
-          <svg viewBox={`${-HEAD.r} ${HEAD.cy - HEAD.r} ${HEAD.r * 2} ${HEAD.r * 2}`} className="size-12 overflow-visible">
+        {/* Кнопка — голова Инвиктуса: волосы-кружочки вокруг круга, звезда на лбу, глаза с ресницами. */}
+        <svg aria-hidden viewBox="-8 -8 16 16" className="pointer-events-none absolute inset-0 size-full overflow-visible">
+          <InvictusHair />
+        </svg>
+        <span ref={face} aria-hidden className={`block size-full transition-transform duration-300 ease-(--ease-out) ${joy ? "mascot-joy" : ""}`}>
+          <svg viewBox="-8 -8 16 16" className="size-full overflow-visible">
             <InvictusFace />
           </svg>
         </span>

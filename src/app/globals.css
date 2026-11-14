@@ -475,12 +475,14 @@ body {
 .mascot-sticker {
   filter: drop-shadow(0 0 0.6px var(--m-floor)) drop-shadow(0 0 0.6px var(--m-floor));
 }
-/* Глаза Инвиктуса: обычно открыты, на финише — «^ ^». */
+/* Глаза Инвиктуса: обычно открыты; на финише (.mascot-lit) и при нажатии на кнопку (.mascot-joy) — «^ ^». */
 .mascot-eyes-happy,
-.mascot-lit .mascot-eyes-open {
+.mascot-lit .mascot-eyes-open,
+.mascot-joy .mascot-eyes-open {
   display: none;
 }
-.mascot-lit .mascot-eyes-happy {
+.mascot-lit .mascot-eyes-happy,
+.mascot-joy .mascot-eyes-happy {
   display: inline;
 }
 /* Финиш: звезда на лбу Инвиктуса загорается зелёным и светится. */

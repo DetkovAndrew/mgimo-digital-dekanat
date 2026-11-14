@@ -10,7 +10,7 @@ export type MascotId = "invictus" | "claude" | "codex" | "dot" | "owl" | "runner
 export type Unlock = keyof Achievements | "navigator" | "asked" | null;
 
 export const MASCOTS: { id: MascotId; name: string; about: string; unlock: Unlock; hint?: string }[] = [
-  { id: "invictus", name: "Инвиктус", about: "Наш помощник: звёзды в глазах, всегда знает дорогу", unlock: null },
+  { id: "invictus", name: "Инвиктус", about: "Наша помощница: звёзды в глазах, всегда знает дорогу", unlock: null },
   { id: "claude", name: "Искорка", about: "Оранжевая подружка Инвиктуса", unlock: "asked", hint: "задать вопрос Инвиктусу" },
   { id: "codex", name: "Терминал", about: "Командная строка на ножках", unlock: null },
   { id: "dot", name: "Точка", about: "Просто точка, без лишнего", unlock: null },
@@ -35,73 +35,83 @@ const Eyes = ({ y = -2, dx = 3.2, r = 1.3 }: { y?: number; dx?: number; r?: numb
   </>
 );
 
-/** Звезда Инвиктуса: четырёхлучевая, как на кнопке помощника. Сейчас — на лбу и на груди, маленькая — в зрачках. */
+/** Звезда Инвиктуса: четырёхлучевая, как на кнопке помощника. На лбу, маленькая — в зрачках. */
 export const STAR_EYE = "M0 -4.6Q0.7 -0.7 4.6 0Q0.7 0.7 0 4.6Q-0.7 0.7 -4.6 0Q-0.7 -0.7 0 -4.6Z";
 
 /** Глаз-«миндалина» (левый; правый — зеркально): острый кончик сверху снаружи и снизу у переносицы. */
 const EYE = "M-1.9 -2.9Q2.1 -2 1.5 2.6Q-2.3 2.1 -1.9 -2.9Z";
 const IRIS = "M-1.2 -1.9Q1.5 -1.2 1.1 2Q-1.6 1.5 -1.2 -1.9Z";
-
-/** Голова Инвиктуса: центр и радиус. По ним же рисуется лицо на кнопке помощника. */
-export const HEAD = { cy: -6, r: 8 };
+/** Подводка по внешнему краю глаза. */
+const LINER = "M-1.9 -2.9Q-2.25 -0.6 -1.75 0.9";
+/** Три ресницы-клинышка у верхнего кончика: широкие у глаза, острые на конце, чуть загнуты наружу. */
+const LASHES =
+  "M-2.05 -2.75Q-2.6 -3.3 -3.1 -4.1Q-2.3 -3.6 -1.75 -3.05Z" +
+  "M-2.2 -1.95Q-2.9 -2.2 -3.6 -2.6Q-3 -1.9 -2.15 -1.45Z" +
+  "M-2.25 -1Q-2.9 -1 -3.5 -1.05Q-2.9 -0.6 -2.2 -0.5Z";
 
 /**
- * Лицо Инвиктуса: звезда на лбу и глаза — открытые (белок, тёмная радужка, звезда-зрачок)
- * или «^ ^» для радости, их включает .mascot-lit.
+ * Лицо Инвиктуса в координатах головы (центр 0, 0; радиус 8): звезда на лбу и глаза — открытые
+ * (белок, тёмная радужка, звезда-зрачок, ресницы) или весёлые закрытые «^ ^» — их включают .mascot-lit и .mascot-joy.
+ * Зрачки помечены data-pupil: кнопка помощника сдвигает их к курсору (data-flip — зеркальный правый глаз).
  */
 export function InvictusFace() {
   return (
     <>
-      <path d={STAR_EYE} transform="translate(0 -11.3) scale(0.45)" className="mascot-star fill-on-brand" />
+      <path d={STAR_EYE} transform="translate(0 -5.6) scale(0.42)" className="mascot-star fill-on-brand" />
       <g className="mascot-eyes-open">
         {[-1, 1].map((side) => (
-          <g key={side} transform={`translate(${side * 3.3} -5.2) scale(${-side * 1.3} 1.3)`}>
+          <g key={side} transform={`translate(${side * 3.3} 0.8) scale(${-side * 1.3} 1.3)`}>
             <g className="mascot-eye">
               <path d={EYE} className="fill-m-ic-glyph" />
-              <path d={IRIS} className="mascot-pupil fill-m-pupil" />
-              <path d={STAR_EYE} transform="translate(0.1 0.1) scale(0.22)" className="mascot-pupil fill-m-ic-glyph" />
+              <g data-pupil data-flip={-side} className="transition-transform duration-300 ease-(--ease-out)">
+                <path d={IRIS} className="fill-m-pupil" />
+                <path d={STAR_EYE} transform="translate(0.1 0.1) scale(0.22)" className="fill-m-ic-glyph" />
+              </g>
+              <path d={LINER} strokeWidth={0.55} strokeLinecap="round" className="fill-none stroke-m-pupil" />
+              <path d={LASHES} strokeWidth={0.25} strokeLinejoin="round" className="fill-m-pupil stroke-m-pupil" />
             </g>
           </g>
         ))}
       </g>
       <g className="mascot-eyes-happy">
-        <path d="M-5.6 -4.4Q-3.5 -7.4 -1.4 -4.4M1.4 -4.4Q3.5 -7.4 5.6 -4.4" strokeWidth={1.3} strokeLinecap="round" className="fill-none stroke-m-pupil" />
+        <path d="M-5.6 1.6Q-3.5 -1.4 -1.4 1.6M1.4 1.6Q3.5 -1.4 5.6 1.6" strokeWidth={1.2} strokeLinecap="round" className="fill-none stroke-m-pupil" />
+        <path d="M-5.2 1Q-6 0.4 -6.6 -0.2M-5.6 1.6Q-6.4 1.5 -7 1.2M5.2 1Q6 0.4 6.6 -0.2M5.6 1.6Q6.4 1.5 7 1.2" strokeWidth={0.6} strokeLinecap="round" className="fill-none stroke-m-pupil" />
       </g>
     </>
   );
 }
 
+/** Волосы Инвиктуса — кружочки вокруг головы, отдельно от неё (как на наброске). Координаты головы. */
+export function InvictusHair() {
+  return (
+    <g className="fill-brand-fill">
+      <ellipse cx={-8.9} cy={-6.2} rx={2.2} ry={2.9} transform="rotate(35 -8.9 -6.2)" />
+      <ellipse cx={8.2} cy={-6.3} rx={1.6} ry={1.4} />
+      <circle cx={9.8} cy={-2.2} r={1.2} />
+      <ellipse cx={9.6} cy={0.9} rx={0.45} ry={0.6} />
+      <ellipse cx={-10.5} cy={-1.3} rx={1} ry={0.85} />
+      <ellipse cx={-10.1} cy={2.3} rx={0.55} ry={1} transform="rotate(-15 -10.1 2.3)" />
+    </g>
+  );
+}
+
 /**
- * Инвиктус — маскот помощника (docs/design/MASCOT.md, набросок NursuUwU 14.11): крупная синяя голова со звездой
- * на лбу, два глаза-миндалины со звёздами-зрачками, мини-тело со звездой на груди, ножки с белой полоской
- * и круглые ладошки, которые парят рядом с телом, не касаясь его.
+ * Инвиктус — маскот помощника (docs/design/MASCOT.md, набросок NursuUwU 14.11): синяя голова со звездой на лбу,
+ * глаза-миндалины с ресницами и звёздами-зрачками, волосы-кружочки вокруг. Только голова: тело — лишь там, где
+ * хватает места для полноценного арта. Голова парит над линией маршрута, низ — на y = 10, как ступни у остальных.
  */
 function Invictus() {
   return (
-    <g>
-      {/* Ножки: с белой полоской «кед» у ступни */}
-      <g className="mascot-leg-a">
-        <rect x={-3.5} y={6.4} width={3} height={4.2} rx={1.5} className="fill-brand-fill" />
-        <path d="M-3.3 9.2H-0.7" strokeWidth={0.6} strokeLinecap="round" className="stroke-on-brand" />
-      </g>
-      <g className="mascot-leg-b">
-        <rect x={0.5} y={6.4} width={3} height={4.2} rx={1.5} className="fill-brand-fill" />
-        <path d="M0.7 9.2H3.3" strokeWidth={0.6} strokeLinecap="round" className="stroke-on-brand" />
-      </g>
-      {/* Тело чуть ниже головы, с зазором-«шеей», как на наброске */}
-      <path d="M-2.9 3.2Q0 2.6 2.9 3.2Q4 5.2 3.4 7.6H-3.4Q-4 5.2 -2.9 3.2Z" className="fill-brand-fill" />
-      <path d={STAR_EYE} transform="translate(0 5.3) scale(0.36)" className="fill-on-brand" />
-      {/* Ладошки отдельно от тела */}
-      <circle cx={-6.6} cy={4.8} r={1.8} className="mascot-arm-a fill-brand-fill" />
-      <circle cx={6.6} cy={4.8} r={1.8} className="mascot-arm-b fill-brand-fill" />
-      <circle cy={HEAD.cy} r={HEAD.r} strokeWidth={1} className="fill-brand-fill stroke-m-floor" />
+    <g transform="translate(0 2)">
+      <InvictusHair />
+      <circle r={8} strokeWidth={1} className="fill-brand-fill stroke-m-floor" />
       <InvictusFace />
     </g>
   );
 }
 
 /** Рост фигурок выровнен: масштаб вокруг ступней (0, 10), чтобы все стояли на линии маршрута одинаково. */
-const SCALE: Record<MascotId, number> = { invictus: 0.98, claude: 0.94, codex: 1.15, dot: 1.3, owl: 0.94, runner: 1.15, rocket: 0.82, cat: 1, compass: 1.1 };
+const SCALE: Record<MascotId, number> = { invictus: 1.05, claude: 0.94, codex: 1.15, dot: 1.3, owl: 0.94, runner: 1.15, rocket: 0.82, cat: 1, compass: 1.1 };
 
 /** Фигурка попутчика. Анимация шага в классах mascot-*, их выключает prefers-reduced-motion (globals.css). */
 export function MascotFigure({ id }: { id: MascotId }) {
