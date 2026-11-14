@@ -117,6 +117,8 @@ model StudentProfile {
   sportExtra    SportExtraPoints[]
   roomBookings  RoomBooking[]
   avatar        StudentAvatar?
+  printJobs     PrintJob[]
+  wifi          WifiCredential?
 
   @@index([groupId])
   @@map("student_profile")
@@ -131,6 +133,45 @@ model StudentAvatar {
   updatedAt DateTime       @updatedAt @db.Timestamptz(6)
 
   @@map("student_avatar")
+}
+
+/// Печать по коду (docs/plans/services.md): задание без файла — в демо печатается задание, а не документ.
+/// Стоимость считает сервер; бюджет — месяц создания по МСК. Отмена и истечение срока возвращают страницы.
+model PrintJob {
+  id        String         @id @default(cuid())
+  studentId String
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  fileName  String
+  pages     Int
+  copies    Int
+  color     Boolean
+  duplex    Boolean
+  cost      Int
+  code      String // 6 цифр: вводится у принтера
+  status    PrintJobStatus @default(QUEUED)
+  printerId String? // src/lib/campus/printers.ts
+  createdAt DateTime       @default(now()) @db.Timestamptz(6)
+  expiresAt DateTime       @db.Timestamptz(6)
+  printedAt DateTime?      @db.Timestamptz(6)
+
+  @@index([studentId, createdAt])
+  @@map("print_job")
+}
+
+enum PrintJobStatus {
+  QUEUED
+  PRINTED
+  CANCELLED
+}
+
+/// Версия личного пароля Wi-Fi. Сам пароль не хранится: HMAC от секрета сервера, студента и версии.
+model WifiCredential {
+  studentId String         @id
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  version   Int            @default(1)
+  rotatedAt DateTime       @default(now()) @db.Timestamptz(6)
+
+  @@map("wifi_credential")
 }
 
 model StaffProfile {

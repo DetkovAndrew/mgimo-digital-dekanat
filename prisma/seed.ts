@@ -377,6 +377,7 @@ async function main() {
   const roomsSynced = await syncRooms();
   if (roomsSynced.unmatched) throw new Error(`Занятия без аудитории на схеме: ${roomsSynced.unmatched}`);
   await seedRoomBookings(STUDENTS[0].login);
+  await seedPrint(STUDENTS[0].login);
 
   const counts = {
     users: await prisma.user.count(),
@@ -1055,3 +1056,27 @@ main()
     process.exitCode = 1;
   })
   .finally(() => prisma.$disconnect());
+
+
+/** Печать по коду: одно напечатанное задание недавно — история не пустая, остаток уже не 100 (docs/plans/services.md). */
+async function seedPrint(login: string) {
+  const student = await prisma.studentProfile.findFirstOrThrow({ where: { user: { username: login } } });
+  const at = addDays(NOW, -2);
+  await prisma.printJob.create({
+    data: {
+      studentId: student.id,
+      fileName: "Лабораторная 2, органическая химия.pdf",
+      pages: 8,
+      copies: 1,
+      color: false,
+      duplex: true,
+      cost: 8,
+      code: "000000",
+      status: "PRINTED",
+      printerId: "kronv-atrium",
+      createdAt: at,
+      expiresAt: new Date(at.getTime() + 24 * 3_600_000),
+      printedAt: new Date(at.getTime() + 40 * 60_000),
+    },
+  });
+}

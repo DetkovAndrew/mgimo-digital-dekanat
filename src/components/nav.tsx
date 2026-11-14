@@ -1,22 +1,24 @@
 "use client";
 
-import { Bell as BellIcon, CalendarDays, CircleUserRound, DoorOpen, Dumbbell, FileText, GraduationCap, House, LogOut, type LucideIcon, QrCode } from "lucide-react";
+import { Bell as BellIcon, CalendarDays, CircleUserRound, DoorOpen, Dumbbell, FileText, GraduationCap, House, LayoutGrid, LogOut, type LucideIcon, QrCode } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ViewTransition } from "react";
 import { authClient } from "@/lib/auth-client";
 
-// Нижнее меню телефона — 5 главных разделов; уведомления и профиль — в шапке.
+// Нижнее меню телефона — 5 разделов: ядро ТЗ и «Сервисы» (спорт, аудитории, пропуск, Wi-Fi, печать).
+// Уведомления и профиль — в шапке.
 const items: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/today", label: "Сегодня", icon: House },
   { href: "/schedule", label: "Расписание", icon: CalendarDays },
   { href: "/grades", label: "Учёба", icon: GraduationCap },
-  { href: "/sport", label: "Спорт", icon: Dumbbell },
   { href: "/requests", label: "Заявки", icon: FileText },
+  { href: "/services", label: "Сервисы", icon: LayoutGrid },
 ];
 
 const desktopItems = [
   ...items,
+  { href: "/sport", label: "Спорт", icon: Dumbbell },
   { href: "/rooms", label: "Аудитории", icon: DoorOpen },
   { href: "/pass", label: "Пропуск", icon: QrCode },
   { href: "/notifications", label: "Уведомления", icon: BellIcon },
@@ -24,14 +26,24 @@ const desktopItems = [
 ];
 
 // Разделы, открытые изнутри вкладки (пара, дисциплина…), подсвечивают свою вкладку.
-const owner: Record<string, string> = { lessons: "/schedule", teachers: "/schedule", buildings: "/schedule", courses: "/grades", rooms: "/requests" };
+const owner: Record<string, string> = {
+  lessons: "/schedule",
+  teachers: "/schedule",
+  buildings: "/schedule",
+  courses: "/grades",
+  rooms: "/services",
+  sport: "/services",
+  pass: "/services",
+};
 
 export function Nav({ unread, avatar }: { unread: number; avatar: string | null }) {
   const pathname = usePathname();
   const section = owner[pathname.split("/")[1]] ?? pathname;
   const active = (href: string) => section === href || section.startsWith(`${href}/`);
-  // На десктопе у «Аудиторий» свой пункт меню, на телефоне они открываются из «Заявок».
-  const deskActive = (href: string) => (pathname.startsWith("/rooms") ? href === "/rooms" : active(href));
+  // На десктопе у спорта, аудиторий и пропуска свои пункты меню, на телефоне они открываются из «Сервисов».
+  const own = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const ownItem = desktopItems.find((i) => own(i.href));
+  const deskActive = (href: string) => (ownItem ? ownItem.href === href : active(href));
 
   return (
     <>
