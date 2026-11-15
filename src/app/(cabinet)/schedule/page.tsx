@@ -25,11 +25,12 @@ function weekLabel(offset: number) {
   return `${offset > 0 ? "+" : ""}${offset} нед.`;
 }
 
-// Расписание: «Месяц» — календарь с переходом к любой дате (прошлое и сессия в том числе), «Неделя» — список.
-// Сегодняшний день уже на «Сегодня», поэтому здесь по умолчанию месяц. Экзамены и сроки работ — в обоих видах.
+// Расписание: «Неделя» — список, «Месяц» — календарь с переходом к любой дате (прошлое и сессия в том числе).
+// По умолчанию неделя: студенту важнее, что у него на этой неделе (NursuUwU, 15.11). Экзамены и сроки работ — в обоих видах.
 export default async function SchedulePage({ searchParams }: PageProps<"/schedule">) {
   const sp = await searchParams;
-  const view = sp.view === "week" || (sp.view === undefined && sp.week !== undefined) ? "week" : "month";
+  // Ссылки календаря несут ?m= и ?d= без view — это месяц; всё остальное — неделя.
+  const view = sp.view === "month" || (sp.view === undefined && (sp.m !== undefined || sp.d !== undefined)) ? "month" : "week";
   return (
     // Широкий экран: месяц в две колонки (календарь и день), неделя — обычной лентой.
     <div className="xl:-mx-40">
@@ -37,8 +38,8 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
       <nav aria-label="Вид расписания" className="mb-4 grid grid-cols-2 gap-1 rounded-2xl bg-surface p-1 ring-1 ring-hairline xl:max-w-sm">
         {(
           [
-            ["month", "Месяц", "/schedule"],
-            ["week", "Неделя", "/schedule?view=week"],
+            ["week", "Неделя", "/schedule"],
+            ["month", "Месяц", "/schedule?view=month"],
           ] as const
         ).map(([v, label, href]) => (
           <Link
