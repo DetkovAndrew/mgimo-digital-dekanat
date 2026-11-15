@@ -60,7 +60,7 @@
 ## Как обновить артефакты
 
 `scripts/brand-assets.py` создаёт PNG/ICO из геометрии SVG.
-`scripts/render-report.py` создаёт PDF из `docs/submission/report.md`.
+`scripts/report/build.mjs` создаёт PDF из `docs/submission/report.md` (Chromium, шрифт Onest; запись 74 журнала).
 Нужны Python, Pillow и ReportLab (инструменты разработки, не зависимости приложения).
 После изменения отчёта перегенерировать PDF, отрендерить Poppler и проверить страницы.
 История этой работы: [промпт, результат, ошибки и проверки](ai-log/codex/12-nursu-deliverables.md).

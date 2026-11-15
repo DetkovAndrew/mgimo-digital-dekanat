@@ -1,0 +1,13 @@
+{
+  "name": "dekanat-report",
+  "private": true,
+  "type": "module",
+  "description": "Отчёт о работе с ИИ: скриншоты живого сайта и ранних версий, сборка Markdown → HTML → PDF в Chromium",
+  "scripts": {
+    "shots": "node shots.mjs",
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}
