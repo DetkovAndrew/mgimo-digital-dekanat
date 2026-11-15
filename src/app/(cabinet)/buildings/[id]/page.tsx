@@ -21,7 +21,7 @@ export default async function BuildingPage({ params }: PageProps<"/buildings/[id
       <div className="mb-6 flex gap-2">
         <a href={yandexRouteUrl(b, "mt")} target="_blank" rel="noopener noreferrer" className={`${button} bg-brand-fill text-on-brand`}>
           <Navigation aria-hidden className="size-4" />
-          Маршрут
+          Как доехать
         </a>
         <a href={yandexPointUrl(b)} target="_blank" rel="noopener noreferrer" className={`${button} bg-surface text-brand ring-1 ring-hairline`}>
           <MapIcon aria-hidden className="size-4" />

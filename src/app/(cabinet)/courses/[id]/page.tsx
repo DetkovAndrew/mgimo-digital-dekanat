@@ -28,7 +28,7 @@ export default async function CoursePage({ params }: PageProps<"/courses/[id]">)
     <>
       <BackLink href="/grades">Учёба</BackLink>
       <ViewTransition name={courseTitleName(c.id)} share="morph" default="none">
-        <h1 className="w-fit text-[28px] leading-tight font-bold tracking-tight">{c.discipline.title}</h1>
+        <h1 className="w-fit text-[1.75rem] leading-tight font-bold tracking-tight">{c.discipline.title}</h1>
       </ViewTransition>
       <p className="mt-1 mb-5 text-sm text-ink-2">
         {controlFormLabel[c.controlForm]}

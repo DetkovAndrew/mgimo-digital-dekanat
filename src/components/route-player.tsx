@@ -311,7 +311,7 @@ export function RoutePlayer({ target, fromEntrance, closeHref, origins, other }:
   };
 
   return (
-    <section data-route-player aria-label={`Маршрут до ${target}`} onKeyDown={onKey} className="mt-3 rounded-3xl bg-surface p-4 ring-1 ring-hairline md:p-5">
+    <section data-route-player aria-label={`Как пройти к аудитории ${target}`} onKeyDown={onKey} className="mt-3 rounded-3xl bg-surface p-4 ring-1 ring-hairline md:p-5">
       {/* Сразу под схемой: текущий шаг и кнопки, чтобы на телефоне схема, шаг и «Дальше» были на одном экране. */}
       <div className="flex items-start gap-3">
         {/* Живая область постоянная: диктор объявляет новый шаг; ключ для анимации — на содержимом. */}
@@ -372,8 +372,8 @@ export function RoutePlayer({ target, fromEntrance, closeHref, origins, other }:
       </div>
 
       <div className="mt-4 border-t border-hairline pt-3">
-        <h2 className="font-semibold">Маршрут до {target}</h2>
-        <p className="text-sm text-ink-2">Около {route.meters}&nbsp;м. Маршрут и расстояния примерные.</p>
+        <h2 className="font-semibold">Как пройти к аудитории {target}</h2>
+        <p className="text-sm text-ink-2">Около {route.meters}&nbsp;м. Путь и расстояния примерные.</p>
         {origins}
       </div>
 

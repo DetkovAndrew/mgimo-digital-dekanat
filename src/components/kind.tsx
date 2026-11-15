@@ -18,8 +18,8 @@ export function KindTime({ kind, start, end, struck }: { kind: string; start: st
   const k = kindStyle(kind);
   return (
     <span className={`flex w-14 shrink-0 flex-col items-center justify-center rounded-xl py-2 ${k.soft} ${k.text}`}>
-      <span className={`text-[15px] leading-tight font-bold tabular-nums ${struck ? "line-through" : ""}`}>{start}</span>
-      {end && <span className="text-[11px] leading-tight font-medium tabular-nums">{end}</span>}
+      <span className={`text-body leading-tight font-bold tabular-nums ${struck ? "line-through" : ""}`}>{start}</span>
+      {end && <span className="text-micro leading-tight font-medium tabular-nums">{end}</span>}
     </span>
   );
 }
