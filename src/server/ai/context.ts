@@ -2,6 +2,8 @@ import "server-only";
 import { addDays, mskDayKey, controlFormLabel, formatDate, formatDateTime, formatDay, formatShortDate, formatTime, lessonKindLabel, mskStartOfDay, requestStatusLabel } from "@/lib/format";
 import { assessmentDate, courseProgress, courseStatus, formatPoints, nextAssessment } from "@/lib/grading";
 import { formatRequestNumber, isRequestType, requestCatalog } from "@/lib/requests/catalog";
+import { requestGuide } from "@/lib/requests/guide";
+import { officeHref, officeSubject, SUPPORT_OFFICES } from "@/lib/support/offices";
 import { getMyGrades } from "../dal/grades";
 import { listMyNotifications } from "../dal/notifications";
 import { getMyProfile } from "../dal/profile";
@@ -20,7 +22,8 @@ import { ROOM_RULES } from "@/lib/campus/rules";
 
 export const SCHEDULE_DAYS = 7;
 export const SPORT_DAYS = 3;
-const MAX_CONTEXT_CHARS = 20_000;
+// Справочник служб и подсказки каталога (опрос 15.11) добавили ~6 тыс. символов: каталог в конце снимка не должен обрезаться.
+const MAX_CONTEXT_CHARS = 28_000;
 
 const clip = (s: string | null | undefined, n: number) => {
   const t = (s ?? "").replace(/\s+/g, " ").trim();
@@ -41,6 +44,7 @@ export const STATIC_LINKS = [
   "/services",
   "/services/wifi",
   "/services/print",
+  "/services/support",
   "/pass",
 ] as const;
 
@@ -201,14 +205,27 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
     out.push(`- ${formatDateTime(n.publishedAt)}${n.readAt ? "" : " (новое)"}: ${quote(n.title, 100)} ${quote(n.body, 240)}`);
   }
 
-  out.push("\n## Каталог заявок [/requests/new] (подать конкретную: ссылка у пункта; сроки демонстрационные)");
+  out.push("\n## Куда обратиться [/services/support] (службы университета, демо; адреса вымышленные)");
+  for (const o of SUPPORT_OFFICES) {
+    const reqs = o.requests.map((t) => requestCatalog[t].title).join(", ");
+    out.push(
+      `- ${o.title}: ${o.topics.join("; ")}. ${o.where}, ${o.hours}. Почта ${o.email}, тема письма: «${officeSubject(o, profile.group)}»` +
+        `${reqs ? `; заявки по теме: ${reqs}` : ""}${o.note ? `. ${o.note}` : ""} [${link(officeHref(o))}]`,
+    );
+  }
+
+  out.push("\n## Каталог заявок [/requests/new] (подать конкретную: ссылка у пункта; сроки и перечни «подготовить» демонстрационные)");
   for (const [key, spec] of Object.entries(requestCatalog)) {
+    const guide = requestGuide[key as keyof typeof requestGuide];
     // Поля для предзаполнения ссылки: имя и допустимые значения (тексты — свободные, до 100 символов).
     const fields = spec.fields
       .filter((f) => f.kind === "text" || f.kind === "select" || f.kind === "number")
       .map((f) => `${f.name} (${f.label.toLowerCase()}${f.kind === "select" ? `: ${f.options!.map((o) => o.value).join("|")}` : f.kind === "number" ? ": число" : ""})`)
       .join(", ");
-    out.push(`- ${spec.title}: ${clip(spec.description, 160)}; срок ≈ ${spec.slaDays} раб. дн.${fields ? `; поля: ${fields}` : ""} [${link(`/requests/new?type=${key}`)}]`);
+    out.push(
+      `- ${spec.title}: ${clip(spec.description, 160)}; ещё называют: ${guide.aka.join(", ")}; подготовить: ${guide.prepare.join("; ")}; срок ≈ ${spec.slaDays} раб. дн.` +
+        `${fields ? `; поля: ${fields}` : ""} [${link(`/requests/new?type=${key}`)}]`,
+    );
   }
 
   let text = out.join("\n");

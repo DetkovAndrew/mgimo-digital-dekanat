@@ -7,7 +7,8 @@ import { REQUEST_GROUPS, requestGroup } from "@/components/request-groups";
 import { Empty, IconTile, List, RowLink, Section } from "@/components/ui";
 import type { RequestCategory } from "@/lib/requests/catalog";
 
-export type PickerItem = { key: string; title: string; description: string; category: RequestCategory; slaDays: number };
+/** aka — как заявку называют своими словами (src/lib/requests/guide.ts): ищется, но не показывается. */
+export type PickerItem = { key: string; title: string; description: string; category: RequestCategory; slaDays: number; aka: string };
 
 const norm = (s: string) => s.toLowerCase().replaceAll("ё", "е");
 
@@ -27,11 +28,11 @@ function Row({ item }: { item: PickerItem }) {
   );
 }
 
-/** Каталог заявок: разделы и поиск по названию и описанию («военкомат», «отпуск», «пропуск»). */
+/** Каталог заявок: разделы и поиск по названию, описанию и бытовым названиям («академ», «повышенка», «вычет»). */
 export function RequestPicker({ items }: { items: PickerItem[] }) {
   const [query, setQuery] = useState("");
   const q = norm(useDeferredValue(query).trim());
-  const found = q ? items.filter((i) => norm(`${i.title} ${i.description}`).includes(q)) : [];
+  const found = q ? items.filter((i) => norm(`${i.title} ${i.description} ${i.aka}`).includes(q)) : [];
 
   return (
     <>
@@ -45,7 +46,7 @@ export function RequestPicker({ items }: { items: PickerItem[] }) {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Например: военкомат, отпуск, пропуск"
+          placeholder="Например: военкомат, академ, вычет"
           autoComplete="off"
           className="min-h-12 w-full rounded-xl border border-field bg-surface py-2.5 pr-12 pl-11 text-body outline-none [&::-webkit-search-cancel-button]:hidden focus:border-brand focus:ring-2 focus:ring-brand/20"
         />
