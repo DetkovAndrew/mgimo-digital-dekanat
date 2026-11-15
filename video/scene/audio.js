@@ -98,8 +98,10 @@ const hz = (name, octave) => 440 * 2 ** (("C C# D D# E F F# G G# A A# B".split("
  * Сведение под таймлайн ролика. plan: offset — время трека в момент 0 ролика (меньше нуля — музыка вступает позже),
  * root — тоника для «дзынь», endsNaturally — трек сам кончается к концу ролика (без нашего затухания),
  * T — моменты таймлайна (касание, вылет, посадка, одобрение, ночь, финал).
+ * full — полная версия (тизер + демонстрация): заставка, начало демонстрации, финал и акценты демонстрации; музыка
+ * после plan.loopFrom (время трека) повторяет фрагменты plan.loops — целые такты, без шва.
  */
-export async function mixScore(music, plan, T, duration) {
+export async function mixScore(music, plan, T, duration, full = null) {
   const ctx = new OfflineAudioContext(2, Math.ceil(duration * SR), SR);
   const out = ctx.createDynamicsCompressor(); // мягкий лимитер на выходе
   out.threshold.value = -4;
@@ -137,9 +139,30 @@ export async function mixScore(music, plan, T, duration) {
   high.type = "highshelf";
   high.frequency.value = 5000;
   high.gain.value = plan.highShelfDb ?? 0;
-  src.connect(low).connect(high).connect(lp).connect(gain).connect(out);
+  const bus = ctx.createGain();
+  bus.connect(low).connect(high).connect(lp).connect(gain).connect(out);
+  src.connect(bus);
   const startAt = Math.max(0, -plan.offset);
   src.start(startAt, Math.max(0, plan.offset));
+  if (full && plan.loops) {
+    // Трек дальше loopFrom не играет: по очереди повторяем фрагменты; на стыке 15 мс встречного затухания.
+    const xf = 0.015;
+    let at = plan.loopFrom - plan.offset;
+    src.stop(at + xf);
+    for (let i = 0; at < duration; i++) {
+      const [a, b] = plan.loops[i % plan.loops.length];
+      const part = ctx.createBufferSource();
+      part.buffer = music;
+      const pg = ctx.createGain();
+      pg.gain.setValueAtTime(0, at - xf);
+      pg.gain.linearRampToValueAtTime(1, at);
+      pg.gain.setValueAtTime(1, at + (b - a));
+      pg.gain.linearRampToValueAtTime(0, at + (b - a) + xf);
+      part.connect(pg).connect(bus);
+      part.start(at - xf, a - xf, b - a + 2 * xf);
+      at += b - a;
+    }
+  }
   const g = gain.gain;
   g.setValueAtTime(0, 0);
   g.linearRampToValueAtTime(base, startAt + (plan.fadeIn ?? (plan.offset > 0.5 ? 0.6 : 0.05)));
@@ -148,6 +171,11 @@ export async function mixScore(music, plan, T, duration) {
   g.linearRampToValueAtTime(base * 0.55, T.approve + 0.08);
   g.setValueAtTime(base * 0.55, T.approve + 0.5);
   g.linearRampToValueAtTime(base, T.approve + 1.1);
+  if (full) {
+    // Демонстрация: музыка тише — смотрят на экран и читают подписи.
+    g.setValueAtTime(base, full.demoFrom - 1.5);
+    g.linearRampToValueAtTime(base * (plan.demoGain ?? 0.7), full.demoFrom + 0.5);
+  }
   if (!plan.endsNaturally) {
     g.setValueAtTime(base, duration - 2.6);
     g.linearRampToValueAtTime(0, duration - 0.05);
@@ -160,8 +188,16 @@ export async function mixScore(music, plan, T, duration) {
   f.setValueAtTime(18000, 0);
   f.setValueAtTime(18000, T.dim[0]);
   f.exponentialRampToValueAtTime(plan.nightCutoff ?? 900, T.dim[1]);
-  f.setValueAtTime(plan.nightCutoff ?? 900, T.end);
-  f.exponentialRampToValueAtTime(3500, T.end + 1.2);
+  if (full) {
+    // Заставка: звук остаётся приглушённым, к демонстрации фильтр приоткрывается, но не до конца — фон мягче.
+    f.setValueAtTime(plan.nightCutoff ?? 900, full.demoFrom - 1);
+    f.exponentialRampToValueAtTime(plan.demoCutoff ?? 6000, full.demoFrom + 1);
+    f.setValueAtTime(plan.demoCutoff ?? 6000, full.end);
+    f.exponentialRampToValueAtTime(3500, full.end + 1.2);
+  } else {
+    f.setValueAtTime(plan.nightCutoff ?? 900, T.end);
+    f.exponentialRampToValueAtTime(3500, T.end + 1.2);
+  }
 
   // Акценты — через общую шину: их громкость подстраивается под громкость музыки.
   const sfx = ctx.createGain();
@@ -238,9 +274,34 @@ export async function mixScore(music, plan, T, duration) {
   // Свет гаснет: низкий спад.
   tone(170, T.dim[0], db(-17), 1.0, "sine", 48);
   hiss(T.dim[0], 0.9, db(-30), 1200, 200, 0.8, 0.2);
-  // Финальная карточка: мягкий низкий удар и воздух.
-  tone(70, T.end, db(-16), 0.9, "sine", 40);
-  hiss(T.end, 1.4, db(-32), 6000, 9000, 0.7, 0.4);
+  // Финальная карточка: мягкий низкий удар и воздух (в полной версии — заставка и своя карточка в конце).
+  const endAt = full ? full.end : T.end;
+  tone(70, endAt, db(-16), 0.9, "sine", 40);
+  hiss(endAt, 1.4, db(-32), 6000, 9000, 0.7, 0.4);
+  if (full) {
+    tone(110, full.bridge, db(-20), 0.8, "sine", 60);
+    hiss(full.bridge, 1.0, db(-34), 3000, 6000, 0.7, 0.3);
+    // Демонстрация: касания — тише, чем в тизере; щелчки мыши — сухой короткий «тик»; «дзынь» — справка готова
+    // и бронь оформлена; смена телефона и ноутбука — короткий «вжух».
+    for (const at of full.taps) {
+      tone(1500, at, db(-29), 0.03);
+      hiss(at, 0.025, db(-31), 4000, 2500, 2);
+    }
+    for (const at of full.clicks) {
+      tone(2600, at, db(-28), 0.015, "triangle");
+      hiss(at, 0.02, db(-30), 6000, 4000, 3);
+    }
+    for (const at of full.dings) {
+      for (const [fq, d] of [[r1, 0], [r2, 0.09]]) {
+        tone(fq, at + d, db(-20), 0.8);
+        tone(fq * 2, at + d, db(-31), 0.4);
+      }
+    }
+    for (const at of full.flashes) {
+      hiss(at - 0.25, 0.5, db(-27), 800, 3000, 0.9, 0.2);
+      tone(90, at, db(-22), 0.3, "sine", 50);
+    }
+  }
 
   return ctx.startRendering();
 }

@@ -1,17 +1,20 @@
 // Ролик «Цифровой деканат»: таймлайн, камера, рендер кадров и кодирование H.264 (WebCodecs) в MP4 (mp4-muxer).
 // Кадр t → состояние сцены считается заново, без накопления: любой кадр можно отрисовать отдельно (?stills=…).
-import { ArrayBufferTarget, Muxer } from "mp4-muxer";
+import { ArrayBufferTarget, Muxer, StreamTarget } from "mp4-muxer";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
 import { analyze, decode, encodeOpus, mixScore, SR, toWav } from "./audio.js";
 import { LAPTOP, laptopScreenPoint, makeCard, makeLaptop, makePhone, softShadow } from "./models.js";
-import { clamp01, drawBackground, drawBrand, drawCaption, drawEndCard, drawFade, drawFlash, smooth } from "./overlay.js";
+import { createDemo } from "./demo.js";
+import { clamp01, drawBackground, drawBrand, drawBridge, drawCaption, drawEndCard, drawFade, drawFlash, drawProgress, smooth } from "./overlay.js";
 import { frameUrl, image, LaptopScreen, PhoneScreen } from "./screens.js";
 
 const FPS = 60; // прокрутка текста при 30 к/с заметно дёргается
-const DURATION = 37;
 const q = new URLSearchParams(location.search);
+// teaser — промо-ролик 37 с; full — тизер, заставка и демонстрация сценария студента (scene/demo.js).
+const PROGRAM = q.get("program") ?? "teaser";
+let DURATION = 37;
 const SCALE = Number(q.get("scale") ?? 1);
 const W = Math.round((1920 * SCALE) / 2) * 2;
 const H = Math.round((1080 * SCALE) / 2) * 2;
@@ -35,6 +38,8 @@ const T = {
   reveal: [31.25, 32.05],
   end: 33.4,
 };
+// Полная версия: тизер до своей финальной карточки (T.end), заставка на тёмном, демонстрация с D0, финальная карточка.
+const FULL = { bridge: [T.end - 0.3, T.end + 0.2, 36.2, 36.9], d0: 36.6, tail: 0.8, card: 5.2 };
 const FEATURES = [
   { seq: "schedule", title: "Расписание", sub: "Неделя, аудитории и переносы" },
   { seq: "grades", title: "Успеваемость", sub: "Баллы, зачёты и сессия" },
@@ -152,7 +157,12 @@ let assets;
 let phoneCard;
 let deskCard;
 
-async function load() {
+let loading;
+const load = () => (loading ??= loadAll());
+let demo;
+let demoDuration = 0;
+
+async function loadAll() {
   await Promise.all([
     new FontFace("Onest", "url(/fonts/Onest-Regular.ttf)", { weight: "400" }).load(),
     new FontFace("Onest", "url(/fonts/Onest-SemiBold.ttf)", { weight: "600" }).load(),
@@ -174,6 +184,12 @@ async function load() {
   deskCard = makeCard(cardDesk, cardDesk.width / 2, cardDesk.height / 2);
   phoneScene.add(phoneCard);
   laptopScene.add(deskCard);
+  if (PROGRAM === "full") {
+    demo = createDemo({ phone, phoneShadow, phoneScreen, laptop, laptopScreen, laptopScene, key2, glow, laptopShadow, track });
+    demoDuration = await demo.load();
+    DURATION = FULL.d0 + demoDuration + FULL.tail + FULL.card;
+  }
+  window.programDuration = DURATION;
 }
 
 const PHONE_ITEMS = () => [
@@ -253,6 +269,7 @@ function laptopState(t) {
 }
 
 async function renderAt(t) {
+  if (PROGRAM === "full" && t >= T.end) return renderDemoAt(t);
   const usePhone = t < T.cut;
   const night = smooth(T.dim[0], T.dim[1], t);
   g.setTransform(W / 1920, 0, 0, H / 1080, 0, 0);
@@ -326,7 +343,36 @@ async function renderAt(t) {
   drawCaption(g, t, { start: T.toRequest + 0.7, end: T.dim[0] + 0.45, title: "На любом устройстве", align: "center", x: 960, y: 128, size: 72 });
   drawCaption(g, t, { start: T.reveal[0] + 0.4, end: T.end + 0.35, title: "И днём, и ночью", align: "center", x: 960, y: 128, size: 72, night: 1 });
   drawFlash(g, clamp01(1 - Math.abs(t - T.cut) / 0.17) ** 1.4);
-  drawEndCard(g, t, T.end);
+  if (PROGRAM === "full") drawBridge(g, t, FULL.bridge[0], bridgeAlpha(t));
+  else drawEndCard(g, t, T.end);
+  drawFade(g, smooth(DURATION - 0.7, DURATION, t));
+}
+
+const bridgeAlpha = (t) => smooth(FULL.bridge[0], FULL.bridge[1], t) * (1 - smooth(FULL.bridge[2], FULL.bridge[3], t));
+
+/** Полная версия после тизера: заставка, демонстрация, финальная карточка. */
+async function renderDemoAt(t) {
+  const bridge = bridgeAlpha(t);
+  const end = FULL.d0 + demoDuration + FULL.tail;
+  g.setTransform(W / 1920, 0, 0, H / 1080, 0, 0);
+  if (bridge >= 1) {
+    drawBridge(g, t, FULL.bridge[0], 1);
+    return;
+  }
+  const td = Math.max(0, Math.min(demoDuration - 1e-6, t - FULL.d0));
+  phoneCard.visible = false;
+  deskCard.visible = false;
+  phone.group.position.set(0, 0, 0);
+  const { scene } = await demo.update(td, camera, setCamera);
+  drawBackground(g, t, 0, scene);
+  renderer.render(scene === "laptop" ? laptopScene : phoneScene, camera);
+  g.drawImage(renderer.domElement, 0, 0, 1920, 1080);
+  const card = smooth(end, end + 0.7, t);
+  drawBrand(g, (scene === "laptop" ? 0 : 1) * (1 - card), 0);
+  demo.overlay(g, td, 1 - card);
+  drawProgress(g, td / demoDuration, (1 - bridge) * (1 - card));
+  drawBridge(g, t, FULL.bridge[0], bridge);
+  drawEndCard(g, t, end);
   drawFade(g, smooth(DURATION - 0.7, DURATION, t));
 }
 
@@ -349,24 +395,75 @@ window.renderStills = async (times) => {
   }
 };
 
+/** Звук полной версии: заставка, начало демонстрации, её касания и щелчки, финальная карточка. */
+function fullCues() {
+  return { bridge: FULL.bridge[0], demoFrom: FULL.d0, end: FULL.d0 + demoDuration + FULL.tail, ...demo.cues(FULL.d0) };
+}
+
+/** Упаковка по ходу кодирования: место под метаданные в начале файла резервируется по числу кадров и пакетов звука,
+ * части файла уходят в Node с позицией записи. Звук вставляется перед кадрами с тем же временем. */
+function streamMuxer(sound, frames) {
+  let writes = Promise.resolve();
+  const muxer = new Muxer({
+    target: new StreamTarget({
+      chunked: true,
+      onData: (data, position) => {
+        const part = data.slice();
+        writes = writes.then(() => sendAt(part, position, sound.name));
+      },
+    }),
+    video: { codec: "avc", width: W, height: H, frameRate: FPS },
+    ...(sound.chunks ? { audio: { codec: "opus", numberOfChannels: 2, sampleRate: SR } } : {}),
+    fastStart: { expectedVideoChunks: frames, expectedAudioChunks: sound.chunks?.length ?? 0 },
+  });
+  let k = 0;
+  const audioUntil = (ts) => {
+    while (sound.chunks && k < sound.chunks.length && sound.chunks[k].chunk.timestamp <= ts) muxer.addAudioChunk(sound.chunks[k].chunk, sound.chunks[k++].meta);
+  };
+  return {
+    add(chunk, meta) {
+      audioUntil(chunk.timestamp);
+      muxer.addVideoChunk(chunk, meta);
+    },
+    async finish() {
+      audioUntil(Infinity);
+      muxer.finalize();
+      await writes;
+    },
+  };
+}
+
+async function sendAt(bytes, position, name) {
+  const step = 1 << 21;
+  for (let i = 0; i < bytes.length; i += step) {
+    const part = bytes.subarray(i, i + step);
+    let s = "";
+    for (let j = 0; j < part.length; j += 0x8000) s += String.fromCharCode(...part.subarray(j, j + 0x8000));
+    await window.saveAt(name, btoa(s), position + i);
+  }
+}
+
 window.renderVideo = async ({ from = 0, to = DURATION, name = "video.mp4", bitrate = 24e6, variants = [] } = {}) => {
   await load();
   // Звук: для каждого варианта музыки — сведение, WAV рядом с роликом (для монтажа) и Opus для MP4.
   const sounds = [];
   for (const v of variants) {
-    const mix = await mixScore(await decode(v.url), v.plan, T, DURATION);
-    await sendBytes(toWav(mix), `${v.name}.wav`);
-    sounds.push({ name: `${v.name}.mp4`, chunks: await encodeOpus(mix) });
+    const mix = await mixScore(await decode(v.url), v.plan, T, DURATION, PROGRAM === "full" ? fullCues() : null);
+    const base = PROGRAM === "full" ? `${v.name}-full` : v.name;
+    await sendBytes(toWav(mix), `${base}.wav`);
+    sounds.push({ name: `${base}.mp4`, chunks: await encodeOpus(mix) });
   }
 
-  // Видео кодируется один раз; варианты отличаются только звуком.
-  const video = [];
-  let failure = null;
-  const encoder = new VideoEncoder({ output: (chunk, meta) => video.push({ chunk, meta }), error: (e) => (failure = e) });
-  // High 4.2 — уровень, на котором 1080p допускает 60 к/с (4.0 — только до 30).
-  encoder.configure({ codec: "avc1.64002A", width: W, height: H, bitrate, framerate: FPS, latencyMode: "quality", avc: { format: "avc" } });
+  // Видео кодируется один раз; варианты отличаются только звуком. Один вариант (или без звука) упаковывается сразу
+  // при кодировании и пишется на диск потоком: полная версия (~3 мин) не помещается в память вкладки целиком.
   const first = Math.round(from * FPS);
   const last = Math.round(to * FPS);
+  const live = sounds.length <= 1 ? streamMuxer(sounds[0] ?? { name, chunks: null }, last - first) : null;
+  const video = [];
+  let failure = null;
+  const encoder = new VideoEncoder({ output: (chunk, meta) => (live ? live.add(chunk, meta) : video.push({ chunk, meta })), error: (e) => (failure = e) });
+  // High 4.2 — уровень, на котором 1080p допускает 60 к/с (4.0 — только до 30).
+  encoder.configure({ codec: "avc1.64002A", width: W, height: H, bitrate, framerate: FPS, latencyMode: "quality", avc: { format: "avc" } });
   const started = performance.now();
   for (let i = first; i < last; i++) {
     if (failure) throw failure;
@@ -379,8 +476,9 @@ window.renderVideo = async ({ from = 0, to = DURATION, name = "video.mp4", bitra
   }
   await encoder.flush();
   if (failure) throw failure;
+  if (live) return live.finish();
 
-  for (const s of sounds.length ? sounds : [{ name, chunks: null }]) {
+  for (const s of sounds) {
     const muxer = new Muxer({
       target: new ArrayBufferTarget(),
       video: { codec: "avc", width: W, height: H, frameRate: FPS },
@@ -405,4 +503,5 @@ window.analyzeTracks = async (urls) => {
   return out;
 };
 
+await load();
 window.ready = true;

@@ -2,6 +2,7 @@
 //   node render.mjs stills 0.5,7,9,21,23.5,26,31.5,35     — кадры-проверки в out/stills/
 //   node render.mjs video [--scale 0.5] [--from 0 --to 37] — out/dekanat.mp4 (H.264, 60 к/с)
 //   node render.mjs video --music music.json [--only dekanat-hiphop] — по ролику и WAV на каждый вариант музыки
+//   --program full — полная версия: тизер, заставка и демонстрация (captures/demo); --to по умолчанию — до конца
 //   node render.mjs analyze                                  — темп, доли и громкость треков из music/
 //   node render.mjs frames dekanat.mp4 1,9,26               — кадры из готового ролика в out/frames/
 import fs from "node:fs";
@@ -45,6 +46,7 @@ const opt = (name, def) => {
   return i > 0 ? Number(process.argv[i + 1]) : def;
 };
 const scale = opt("scale", 1);
+const program = process.argv.includes("--program") ? process.argv[process.argv.indexOf("--program") + 1] : "teaser";
 
 fs.mkdirSync(path.join(OUT, "stills"), { recursive: true });
 const browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
@@ -56,24 +58,34 @@ try {
     const file = name.endsWith(".png") ? path.join(OUT, "stills", name) : path.join(OUT, name);
     (first ? fs.writeFileSync : fs.appendFileSync)(file, Buffer.from(b64, "base64"));
   });
+  // Запись по позиции — для потоковой упаковки MP4 (части приходят не по порядку: метаданные в начале — последними).
+  const files = new Map();
+  await page.exposeFunction("saveAt", (name, b64, position) => {
+    if (!files.has(name)) files.set(name, fs.openSync(path.join(OUT, name), "w"));
+    const buf = Buffer.from(b64, "base64");
+    fs.writeSync(files.get(name), buf, 0, buf.length, position);
+  });
   await page.exposeFunction("progress", (done, total, ms) => {
     const per = done ? ms / done : 0;
     console.log(`кадр ${done}/${total}, ${per.toFixed(0)} мс/кадр, осталось ~${Math.round((per * (total - done)) / 60000)} мин`);
   });
-  await page.goto(`http://127.0.0.1:${port}/?scale=${scale}`);
-  await page.waitForFunction(() => window.ready === true);
+  await page.goto(`http://127.0.0.1:${port}/?scale=${scale}&program=${program}`);
+  await page.waitForFunction(() => window.ready === true, null, { timeout: 120_000 });
+  const duration = await page.evaluate(() => window.programDuration);
+  console.log(`программа ${program}: ${duration.toFixed(2)} с`);
   if (mode === "stills") {
     const times = (arg ?? "1").split(",").map(Number);
     await page.evaluate((times) => window.renderStills(times), times);
     console.log("кадры в", path.join(OUT, "stills"));
   } else if (mode === "video") {
-    const name = process.argv.includes("--name") ? process.argv[process.argv.indexOf("--name") + 1] : "dekanat.mp4";
+    const name = process.argv.includes("--name") ? process.argv[process.argv.indexOf("--name") + 1] : program === "full" ? "dekanat-full.mp4" : "dekanat.mp4";
     const t0 = Date.now();
     // --music music.json — варианты звука (трек и привязка к таймлайну), на каждый свой MP4 и WAV.
     const musicArg = process.argv.includes("--music") ? process.argv[process.argv.indexOf("--music") + 1] : null;
     const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1].split(",") : null;
     const variants = (musicArg ? JSON.parse(fs.readFileSync(path.resolve(ROOT, musicArg), "utf8")) : []).filter((v) => !only || only.includes(v.name));
-    await page.evaluate((o) => window.renderVideo(o), { from: opt("from", 0), to: opt("to", 37), name, bitrate: opt("bitrate", 24e6), variants });
+    await page.evaluate((o) => window.renderVideo(o), { from: opt("from", 0), to: opt("to", duration), name, bitrate: opt("bitrate", 24e6), variants });
+    for (const fd of files.values()) fs.closeSync(fd);
     console.log(`готово: out/${name}, ${((Date.now() - t0) / 60000).toFixed(1)} мин`);
   } else if (mode === "analyze") {
     // Разбор треков из music/: темп, первая доля, громкость по секундам, тональный центр.

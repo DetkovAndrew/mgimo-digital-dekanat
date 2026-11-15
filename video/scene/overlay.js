@@ -135,3 +135,66 @@ export function drawFade(g, amount) {
   g.fillStyle = `rgba(0,0,0,${amount})`;
   g.fillRect(0, 0, 1920, 1080);
 }
+
+/**
+ * Подпись шага демонстрации: «Шаг n из of», заголовок и пояснение. Заголовок живёт весь шаг (stepStart..stepEnd),
+ * пояснение — свой отрезок (segStart..segEnd): при смене пояснения заголовок стоит на месте.
+ * top — раскладка над ноутбуком: всё в две строки сверху, пояснение в одну строку.
+ */
+export function drawStep(g, t, { n, of, title, sub, stepStart, stepEnd, segStart, segEnd, alpha = 1, top = false }) {
+  const show = (a, b) => easeOut((t - a) / 0.45) * (1 - smooth(b - 0.3, b, t));
+  const rise = (a) => (1 - easeOut((t - a) / 0.55)) * 28;
+  const ta = show(stepStart, stepEnd) * alpha;
+  const sa = show(segStart, segEnd) * alpha;
+  if (ta <= 0 && sa <= 0) return;
+  const x = 140;
+  const [labelY, titleY, subY, size, subSize, lead] = top ? [92, 158, 214, 54, 30, 40] : [356, 440, 520, 66, 34, 46];
+  g.save();
+  g.textAlign = "left";
+  g.textBaseline = "alphabetic";
+  g.globalAlpha = ta;
+  g.fillStyle = "#3b4cca";
+  g.font = "600 26px Onest";
+  g.fillText(`Шаг ${n} из ${of}`, x, labelY + rise(stepStart));
+  g.fillStyle = "#171b2b";
+  g.font = `600 ${size}px Onest`;
+  g.fillText(title, x, titleY + rise(stepStart));
+  g.globalAlpha = sa;
+  g.fillStyle = "#4c5570";
+  g.font = `400 ${subSize}px Onest`;
+  const lines = top ? [sub.replace(/\n/g, " ")] : sub.split("\n");
+  lines.forEach((line, i) => g.fillText(line, x, subY + rise(segStart + 0.06) + i * lead));
+  g.restore();
+}
+
+/** Тонкая полоса хода демонстрации внизу кадра. */
+export function drawProgress(g, p, alpha = 1) {
+  if (alpha <= 0) return;
+  g.save();
+  g.globalAlpha = alpha;
+  g.fillStyle = "rgba(23,27,43,0.08)";
+  g.fillRect(0, 1074, 1920, 6);
+  g.fillStyle = "rgba(59,76,202,0.7)";
+  g.fillRect(0, 1074, 1920 * clamp01(p), 6);
+  g.restore();
+}
+
+/** Заставка между тизером и демонстрацией: на тёмном фоне, a — непрозрачность. */
+export function drawBridge(g, t, start, a) {
+  if (a <= 0) return;
+  g.save();
+  g.globalAlpha = a;
+  g.fillStyle = "#06080f";
+  g.fillRect(0, 0, 1920, 1080);
+  const k = easeOut((t - start - 0.2) / 0.8);
+  g.globalAlpha = a * k;
+  const dy = (1 - k) * 26;
+  g.textAlign = "center";
+  g.fillStyle = "#eceef2";
+  g.font = "600 76px Onest";
+  g.fillText("Как студент пользуется кабинетом", 960, 500 + dy);
+  g.fillStyle = "#a7aec4";
+  g.font = "400 34px Onest";
+  g.fillText("Вход, расписание, оценки, заявка и её статус — с телефона", 960, 572 + dy);
+  g.restore();
+}

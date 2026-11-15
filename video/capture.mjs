@@ -7,26 +7,9 @@
 // Пароли — только из окружения (как в seed), в файлы и журнал не попадают.
 import fs from "node:fs/promises";
 import { chromium } from "playwright";
+import { along, BASE, DESK, FPS, PHONE, scrollTo, settle, signIn, stepAnimations } from "./lib.mjs";
 
-const BASE = process.env.BASE ?? "http://127.0.0.1:3000";
 const OUT = new URL("./captures/", import.meta.url).pathname;
-const FPS = 60; // как у ролика: прокрутка без рывков
-const PHONE = { width: 390, height: 800 }; // + строка состояния 44 px рисуется в сцене → экран 390×844
-const DESK = { width: 1280, height: 800 }; // 16:10, как у ноутбука в сцене
-
-const ease = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
-
-async function signIn(ctx, username, password) {
-  if (!password) throw new Error(`нет пароля для ${username} в окружении`);
-  const r = await ctx.request.post(`${BASE}/api/auth/sign-in/username`, { data: { username, password }, headers: { Origin: BASE } });
-  if (!r.ok()) throw new Error(`вход ${username}: ${r.status()}`);
-}
-
-async function settle(page) {
-  await page.waitForLoadState("networkidle");
-  await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(400);
-}
 
 /** Последовательность кадров: прокрутка по ключам [доля времени, y]. Пишет captures/phone/<name>/NNNN.jpg.
  * at — когда экран появляется в ролике: CSS-анимации (моргание, волосы) стоят на паузе, и на каждом кадре их время
@@ -38,34 +21,10 @@ async function sequence(page, name, seconds, keys, at = 0) {
   const n = Math.round(seconds * FPS);
   const scrolls = [];
   for (let i = 0; i < n; i++) {
-    const t = n > 1 ? i / (n - 1) : 0;
-    let y = keys[0][1];
-    for (let k = 1; k < keys.length; k++) {
-      const [t0, y0] = keys[k - 1];
-      const [t1, y1] = keys[k];
-      if (t >= t0 && t <= t1) y = y0 + (y1 - y0) * ease((t - t0) / (t1 - t0));
-      else if (t > t1) y = y1;
-    }
-    // Браузер прокручивает только на целые пиксели — на разгоне и торможении страница стояла бы и прыгала.
-    // Целую часть — прокруткой, дробную — сдвигом <main> (шапка, меню и Инвиктия вне него); снимок — после отрисовки.
-    const actual = await page.evaluate(
-      (y) =>
-        new Promise((r) => {
-          window.scrollTo({ top: Math.floor(y), behavior: "instant" });
-          const frac = Math.max(0, Math.min(0.999, y - window.scrollY));
-          const main = document.querySelector("main");
-          if (main) main.style.transform = frac ? `translateY(${-frac}px)` : "";
-          requestAnimationFrame(() => requestAnimationFrame(() => r(window.scrollY + (main ? frac : 0))));
-        }),
-      y,
-    );
+    const y = along(keys, n > 1 ? i / (n - 1) : 0);
+    const actual = await scrollTo(page, y);
     scrolls.push([Math.round(y * 100) / 100, Math.round(actual * 100) / 100]);
-    await page.evaluate((ms) => {
-      for (const a of document.getAnimations()) {
-        a.pause();
-        a.currentTime = ms;
-      }
-    }, (at + i / FPS) * 1000);
+    await stepAnimations(page, (at + i / FPS) * 1000);
     await page.screenshot({ path: `${dir}${String(i).padStart(4, "0")}.jpg`, type: "jpeg", quality: 92 });
   }
   // Смещения по кадрам: при движении не должно быть повторов и откатов.
