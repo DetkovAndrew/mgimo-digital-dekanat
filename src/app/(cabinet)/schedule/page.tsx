@@ -80,7 +80,7 @@ function DayHeading({ date, today, note }: { date: Date; today: boolean; note?: 
         {dayNum.format(date)}
       </span>
       <span className="min-w-0">
-        <span className="block text-lead leading-tight font-semibold">{cap(weekdayLong.format(date))}</span>
+        <span className="block text-title leading-tight font-bold">{cap(weekdayLong.format(date))}</span>
         <span className="block text-sm font-normal text-ink-2">
           {dayMonth.format(date)}
           {today && " · сегодня"}
@@ -206,7 +206,7 @@ async function MonthView({ m, d }: { m: unknown; d: unknown }) {
           </h2>
           {arrow(1, "Следующий месяц", ChevronRight)}
         </div>
-        <div aria-hidden className="mt-1 grid grid-cols-7 text-center text-xs font-semibold text-ink-2">
+        <div aria-hidden className="mt-1 grid grid-cols-7 text-center text-sm font-semibold text-ink-2">
           {WEEKDAYS.map((w) => (
             <span key={w} className="py-1">
               {w}
@@ -364,7 +364,7 @@ async function WeekView({ week }: { week: unknown }) {
                   on ? "bg-brand-fill text-on-brand" : "bg-surface text-ink ring-1 ring-hairline md:hover:bg-fill"
                 }`}
               >
-                <span className={`text-xs font-semibold ${on ? "text-on-brand" : "text-ink-2"}`}>{weekdayShort.format(d.date)}</span>
+                <span className={`text-sm font-semibold ${on ? "text-on-brand" : "text-ink-2"}`}>{weekdayShort.format(d.date)}</span>
                 <span className="text-title leading-none font-bold tabular-nums">{dayNum.format(d.date)}</span>
                 <span aria-hidden className="flex h-2 items-center gap-0.5">
                   {held.slice(0, 4).map((l) => (
