@@ -4,6 +4,7 @@ import { ArrayBufferTarget, Muxer } from "mp4-muxer";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
+import { analyze, decode, encodeOpus, mixScore, SR, toWav } from "./audio.js";
 import { LAPTOP, laptopScreenPoint, makeCard, makeLaptop, makePhone, softShadow } from "./models.js";
 import { clamp01, drawBackground, drawBrand, drawCaption, drawEndCard, drawFade, drawFlash, smooth } from "./overlay.js";
 import { frameUrl, image, LaptopScreen, PhoneScreen } from "./screens.js";
@@ -347,11 +348,20 @@ window.renderStills = async (times) => {
   }
 };
 
-window.renderVideo = async ({ from = 0, to = DURATION, name = "video.mp4", bitrate = 24e6 } = {}) => {
+window.renderVideo = async ({ from = 0, to = DURATION, name = "video.mp4", bitrate = 24e6, variants = [] } = {}) => {
   await load();
-  const muxer = new Muxer({ target: new ArrayBufferTarget(), video: { codec: "avc", width: W, height: H, frameRate: FPS }, fastStart: "in-memory" });
+  // Звук: для каждого варианта музыки — сведение, WAV рядом с роликом (для монтажа) и Opus для MP4.
+  const sounds = [];
+  for (const v of variants) {
+    const mix = await mixScore(await decode(v.url), v.plan, T, DURATION);
+    await sendBytes(toWav(mix), `${v.name}.wav`);
+    sounds.push({ name: `${v.name}.mp4`, chunks: await encodeOpus(mix) });
+  }
+
+  // Видео кодируется один раз; варианты отличаются только звуком.
+  const video = [];
   let failure = null;
-  const encoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => (failure = e) });
+  const encoder = new VideoEncoder({ output: (chunk, meta) => video.push({ chunk, meta }), error: (e) => (failure = e) });
   // High 4.2 — уровень, на котором 1080p допускает 60 к/с (4.0 — только до 30).
   encoder.configure({ codec: "avc1.64002A", width: W, height: H, bitrate, framerate: FPS, latencyMode: "quality", avc: { format: "avc" } });
   const first = Math.round(from * FPS);
@@ -367,8 +377,31 @@ window.renderVideo = async ({ from = 0, to = DURATION, name = "video.mp4", bitra
     if ((i - first) % 120 === 0) await window.progress(i - first, last - first, Math.round(performance.now() - started));
   }
   await encoder.flush();
-  muxer.finalize();
-  await sendBytes(new Uint8Array(muxer.target.buffer), name);
+  if (failure) throw failure;
+
+  for (const s of sounds.length ? sounds : [{ name, chunks: null }]) {
+    const muxer = new Muxer({
+      target: new ArrayBufferTarget(),
+      video: { codec: "avc", width: W, height: H, frameRate: FPS },
+      ...(s.chunks ? { audio: { codec: "opus", numberOfChannels: 2, sampleRate: SR } } : {}),
+      fastStart: "in-memory",
+    });
+    // Дорожки вперемешку по времени — так плееру не нужно прыгать по файлу.
+    let k = 0;
+    for (const v of video) {
+      while (s.chunks && k < s.chunks.length && s.chunks[k].chunk.timestamp <= v.chunk.timestamp) muxer.addAudioChunk(s.chunks[k].chunk, s.chunks[k++].meta);
+      muxer.addVideoChunk(v.chunk, v.meta);
+    }
+    while (s.chunks && k < s.chunks.length) muxer.addAudioChunk(s.chunks[k].chunk, s.chunks[k++].meta);
+    muxer.finalize();
+    await sendBytes(new Uint8Array(muxer.target.buffer), s.name);
+  }
+};
+
+window.analyzeTracks = async (urls) => {
+  const out = {};
+  for (const url of urls) out[url] = analyze(await decode(url));
+  return out;
 };
 
 window.ready = true;

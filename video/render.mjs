@@ -1,6 +1,8 @@
 // Рендер ролика: локальный сервер (сцена, снимки, шрифты Onest из assets/) + Chromium без окна.
 //   node render.mjs stills 0.5,7,9,21,23.5,26,31.5,35     — кадры-проверки в out/stills/
 //   node render.mjs video [--scale 0.5] [--from 0 --to 37] — out/dekanat.mp4 (H.264, 60 к/с)
+//   node render.mjs video --music music.json                — по ролику и WAV на каждый вариант музыки
+//   node render.mjs analyze                                  — темп, доли и громкость треков из music/
 //   node render.mjs frames dekanat.mp4 1,9,26               — кадры из готового ролика в out/frames/
 import fs from "node:fs";
 import http from "node:http";
@@ -10,7 +12,7 @@ import { chromium } from "playwright";
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
 const FONTS = path.resolve(ROOT, "../assets/fonts/onest");
 const OUT = path.join(ROOT, "out");
-const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mjs": "text/javascript", ".json": "application/json", ".jpg": "image/jpeg", ".png": "image/png", ".ttf": "font/ttf", ".mp4": "video/mp4" };
+const TYPES = { ".mp3": "audio/mpeg", ".wav": "audio/wav", ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mjs": "text/javascript", ".json": "application/json", ".jpg": "image/jpeg", ".png": "image/png", ".ttf": "font/ttf", ".mp4": "video/mp4" };
 
 const server = http.createServer((req, res) => {
   const url = decodeURIComponent(new URL(req.url, "http://x").pathname);
@@ -67,8 +69,20 @@ try {
   } else if (mode === "video") {
     const name = process.argv.includes("--name") ? process.argv[process.argv.indexOf("--name") + 1] : "dekanat.mp4";
     const t0 = Date.now();
-    await page.evaluate((o) => window.renderVideo(o), { from: opt("from", 0), to: opt("to", 37), name, bitrate: opt("bitrate", 24e6) });
+    // --music music.json — варианты звука (трек и привязка к таймлайну), на каждый свой MP4 и WAV.
+    const musicArg = process.argv.includes("--music") ? process.argv[process.argv.indexOf("--music") + 1] : null;
+    const variants = musicArg ? JSON.parse(fs.readFileSync(path.resolve(ROOT, musicArg), "utf8")) : [];
+    await page.evaluate((o) => window.renderVideo(o), { from: opt("from", 0), to: opt("to", 37), name, bitrate: opt("bitrate", 24e6), variants });
     console.log(`готово: out/${name}, ${((Date.now() - t0) / 60000).toFixed(1)} мин`);
+  } else if (mode === "analyze") {
+    // Разбор треков из music/: темп, первая доля, громкость по секундам, тональный центр.
+    const urls = fs.readdirSync(path.join(ROOT, "music")).filter((f) => f.endsWith(".mp3")).map((f) => `/music/${f}`);
+    const res = await page.evaluate((urls) => window.analyzeTracks(urls), urls);
+    fs.writeFileSync(path.join(OUT, "analysis.json"), JSON.stringify(res));
+    for (const [url, a] of Object.entries(res)) {
+      console.log(`${url}\n  ${a.duration} с, ${a.bpm} уд/мин (доля ${a.beat.toFixed(3)} с, первая ${a.firstBeat} с), тоны ${a.pitchClasses.join(" ")}`);
+      console.log(`  дБ по секундам: ${a.rmsDb.join(" ")}`);
+    }
   } else if (mode === "frames") {
     // Кадры из готового MP4 — проверка сжатия: node render.mjs frames dekanat.mp4 1,9,26
     const times = (process.argv[4] ?? "1").split(",").map(Number);

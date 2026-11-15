@@ -1,0 +1,26 @@
+[
+  {
+    "name": "dekanat-corporate",
+    "url": "/music/audiocopper-company-corporate-632428.mp3",
+    "note": "120 уд/мин: смена функций каждые 2 с = такт; концовка трека (стихает на 146.1 с) приходится на «свет гаснет»",
+    "plan": { "offset": 115.959, "root": "G" }
+  },
+  {
+    "name": "dekanat-funk",
+    "url": "/music/alexguz-funk-amp-breakbeat-upbeat-advertising-happy-cook-541097.mp3",
+    "note": "125 уд/мин; тихий финал трека (~117 с) — ночь, последний звук трека — конец ролика",
+    "plan": { "offset": 86.581, "root": "F#", "endsNaturally": true, "nightCutoff": 1600 }
+  },
+  {
+    "name": "dekanat-background",
+    "url": "/music/jonasblakewood-background-music-618629.mp3",
+    "note": "108 уд/мин; вступление нарастает под парение телефона, основная часть (7.9 с) — с первой функцией",
+    "plan": { "offset": -0.1, "root": "C" }
+  },
+  {
+    "name": "dekanat-hiphop",
+    "url": "/music/pumpupthemind-hip-hop-beat-hip-hop-beats-631168.mp3",
+    "note": "95 уд/мин; брейк трека (33.8 с) — ночь и финальная карточка",
+    "plan": { "offset": 3.5, "root": "G", "nightCutoff": 1400 }
+  }
+]

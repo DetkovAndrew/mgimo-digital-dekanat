@@ -34,16 +34,24 @@ s, e = find(data, [b"moov", b"mvhd"])
 version = data[s]
 timescale, duration = struct.unpack(">II", data[s + 12 : s + 20]) if version == 0 else struct.unpack(">IQ", data[s + 20 : s + 32])
 print(f"длительность: {duration / timescale:.2f} с")
-s, e = find(data, [b"moov", b"trak", b"mdia", b"minf", b"stbl", b"stsd"])
-entry = s + 8
-codec = data[entry + 4 : entry + 8].decode()
-width, height = struct.unpack(">HH", data[entry + 32 : entry + 36])
-print(f"кодек: {codec}, {width}×{height}")
-avcc = data.find(b"avcC", entry)
-profile, compat, level = data[avcc + 5], data[avcc + 6], data[avcc + 7]
-print(f"H.264 profile_idc={profile} (100 = High), level={level / 10}")
-s, e = find(data, [b"moov", b"trak", b"mdia", b"minf", b"stbl", b"stsz"])
-count = struct.unpack(">I", data[s + 8 : s + 12])[0]
-print(f"кадров: {count}")
-s, e = find(data, [b"moov", b"trak", b"mdia", b"minf", b"stbl", b"stss"])
-print(f"ключевых кадров: {struct.unpack('>I', data[s + 4 : s + 8])[0]}")
+moov = find(data, [b"moov"])
+for kind, ts, te in boxes(data, *moov):
+    if kind != b"trak":
+        continue
+    hs, _ = find(data, [b"mdia", b"hdlr"], ts, te)
+    handler = data[hs + 8 : hs + 12].decode()
+    ms, _ = find(data, [b"mdia", b"mdhd"], ts, te)
+    scale, dur = struct.unpack(">II", data[ms + 12 : ms + 20]) if data[ms] == 0 else struct.unpack(">IQ", data[ms + 20 : ms + 32])
+    ss, se = find(data, [b"mdia", b"minf", b"stbl", b"stsd"], ts, te)
+    entry = ss + 8
+    codec = data[entry + 4 : entry + 8].decode()
+    zs, _ = find(data, [b"mdia", b"minf", b"stbl", b"stsz"], ts, te)
+    count = struct.unpack(">I", data[zs + 8 : zs + 12])[0]
+    if handler == "vide":
+        width, height = struct.unpack(">HH", data[entry + 32 : entry + 36])
+        avcc = data.find(b"avcC", entry)
+        print(f"видео: {codec} {width}×{height}, профиль {data[avcc + 5]} (100 = High), уровень {data[avcc + 7] / 10}, кадров {count}, {dur / scale:.2f} с")
+    else:
+        channels = struct.unpack(">H", data[entry + 24 : entry + 26])[0]
+        rate = struct.unpack(">I", data[entry + 32 : entry + 36])[0]
+        print(f"звук: {codec}, {rate >> 16} Гц, каналов {channels}, фрагментов {count}, {dur / scale:.2f} с")

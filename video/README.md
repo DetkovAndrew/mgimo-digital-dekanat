@@ -21,8 +21,26 @@ PW_A=… PW_STAFF=… node capture.mjs flow  # ПИШЕТ В БД: Алина п
 node render.mjs stills 1,9,23.6,26.5,31.7,35   # → out/stills/
 node render.mjs video                           # → out/dekanat.mp4, ~8 мин на CPU
 node render.mjs frames dekanat.mp4 1,26.5       # кадры из готового MP4 → out/frames/
-python3 check-mp4.py out/dekanat.mp4            # кодек, размер, кадры, длительность
+python3 check-mp4.py out/dekanat.mp4            # дорожки: кодек, размер, кадры, длительность
+# 3. Музыка: треки в music/ (не в git), разбор и ролики со звуком
+node render.mjs analyze                         # темп, доли, громкость → out/analysis.json
+node render.mjs video --music music.json        # out/<вариант>.mp4 и .wav на каждый трек
 ```
+
+## Звук
+
+Варианты — в `music.json`: трек и привязка к таймлайну (`offset` — время трека в начале ролика, `root` — тоника
+для «дзынь»). Привязка подобрана по разбору (`analyze`): у корпоративного трека такт ровно 2 с — смена функций
+попадает в такт, его концовка совпадает с «свет гаснет»; у остальных — вступление, брейк или финал трека на
+ключевых моментах. Поверх музыки — синтезированные акценты (`scene/audio.js`): щелчок касания, «вжух» вылета,
+«тук» посадки, «дзынь» одобрения, спад света, низкий удар финала; ночью музыку закрывает фильтр.
+
+Звук в MP4 — Opus: AAC эта сборка Chromium не кодирует. Opus в MP4 играют браузеры, VLC, плеер Windows 11,
+YouTube/Rutube/VK; для старых плееров рядом лежит WAV сведения — его можно подложить в любом редакторе (AAC).
+
+Треки — с Pixabay (капитан, 15.11): AudioCopper «Company Corporate», alexguz «Funk & Breakbeat», JonasBlakewood
+«Background Music», pumpupthemind «Hip Hop Beat». Лицензия Pixabay: использование в ролике без указания авторства,
+но не распространение самих файлов — поэтому `music/` в `.gitignore`.
 
 ## Как устроено
 
