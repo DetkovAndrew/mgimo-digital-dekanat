@@ -10,7 +10,7 @@ import { chromium } from "playwright";
 
 const BASE = process.env.BASE ?? "http://127.0.0.1:3000";
 const OUT = new URL("./captures/", import.meta.url).pathname;
-const FPS = 30;
+const FPS = 60; // как у ролика: прокрутка без рывков
 const PHONE = { width: 390, height: 800 }; // + строка состояния 44 px рисуется в сцене → экран 390×844
 const DESK = { width: 1280, height: 800 }; // 16:10, как у ноутбука в сцене
 
@@ -34,6 +34,7 @@ async function sequence(page, name, seconds, keys) {
   await fs.rm(dir, { recursive: true, force: true });
   await fs.mkdir(dir, { recursive: true });
   const n = Math.round(seconds * FPS);
+  const scrolls = [];
   for (let i = 0; i < n; i++) {
     const t = n > 1 ? i / (n - 1) : 0;
     let y = keys[0][1];
@@ -43,11 +44,26 @@ async function sequence(page, name, seconds, keys) {
       if (t >= t0 && t <= t1) y = y0 + (y1 - y0) * ease((t - t0) / (t1 - t0));
       else if (t > t1) y = y1;
     }
-    await page.evaluate((y) => window.scrollTo({ top: y, behavior: "instant" }), y);
-    await page.waitForTimeout(16);
+    // Браузер прокручивает только на целые пиксели — на разгоне и торможении страница стояла бы и прыгала.
+    // Целую часть — прокруткой, дробную — сдвигом <main> (шапка, меню и Инвиктия вне него); снимок — после отрисовки.
+    const actual = await page.evaluate(
+      (y) =>
+        new Promise((r) => {
+          window.scrollTo({ top: Math.floor(y), behavior: "instant" });
+          const frac = Math.max(0, Math.min(0.999, y - window.scrollY));
+          const main = document.querySelector("main");
+          if (main) main.style.transform = frac ? `translateY(${-frac}px)` : "";
+          requestAnimationFrame(() => requestAnimationFrame(() => r(window.scrollY + (main ? frac : 0))));
+        }),
+      y,
+    );
+    scrolls.push([Math.round(y * 100) / 100, Math.round(actual * 100) / 100]);
     await page.screenshot({ path: `${dir}${String(i).padStart(4, "0")}.jpg`, type: "jpeg", quality: 92 });
   }
-  console.log(`${name}: ${n} кадров`);
+  // Смещения по кадрам: при движении не должно быть повторов и откатов.
+  const stalls = scrolls.filter(([want, got], i) => i > 0 && Math.abs(want - scrolls[i - 1][0]) > 0.02 && got === scrolls[i - 1][1]).length;
+  await fs.writeFile(`${dir}scroll.json`, JSON.stringify(scrolls));
+  console.log(`${name}: ${n} кадров, ${FPS} к/с, остановок при прокрутке: ${stalls}`);
   return n;
 }
 
@@ -65,17 +81,21 @@ async function phoneScreens(browser, only) {
   };
   // Частичная пересъёмка дополняет прежние метаданные.
   const meta = JSON.parse(await fs.readFile(`${OUT}phone/meta.json`, "utf8").catch(() => "{}"));
+  meta.fps = meta.fps ?? {};
 
   if (want("today")) {
     await open("/today");
+    meta.fps.today = FPS;
     meta.today = await sequence(page, "today", 5.5, [[0, 0], [0.15, 0], [0.85, 520], [1, 520]]);
   }
   if (want("schedule")) {
     await open("/schedule");
+    meta.fps.schedule = FPS;
     meta.schedule = await sequence(page, "schedule", 2.2, [[0, 0], [0.2, 0], [1, 340]]);
   }
   if (want("grades")) {
     await open("/grades");
+    meta.fps.grades = FPS;
     meta.grades = await sequence(page, "grades", 2.2, [[0, 0], [0.2, 0], [1, 300]]);
   }
   if (want("certificate")) {
@@ -83,10 +103,12 @@ async function phoneScreens(browser, only) {
     await open("/requests");
     const ready = await page.locator('a[href^="/requests/c"]').filter({ hasText: "Готова" }).first().getAttribute("href");
     await open(ready);
+    meta.fps.certificate = FPS;
     meta.certificate = await sequence(page, "certificate", 2.2, [[0, 0], [1, 0]]);
   }
   if (want("notifications")) {
     await open("/notifications");
+    meta.fps.notifications = FPS;
     meta.notifications = await sequence(page, "notifications", 2.2, [[0, 0], [0.2, 0], [1, 380]]);
   }
   if (want("assistant")) {
@@ -103,12 +125,14 @@ async function phoneScreens(browser, only) {
       return log && !log.querySelector('[role="status"]') && log.querySelectorAll(":scope > div").length >= 1;
     }, null, { timeout: 90_000 });
     await page.waitForTimeout(1500);
+    meta.fps.assistant = FPS;
     meta.assistant = await sequence(page, "assistant", 2.2, [[0, 0], [1, 0]]);
     await page.keyboard.press("Escape");
   }
   if (want("map")) {
     // Карта: схема корпуса с найденной аудиторией.
     await open("/rooms/kronv?room=1117");
+    meta.fps.map = FPS;
     meta.map = await sequence(page, "map", 2.2, [[0, 60], [0.2, 60], [1, 230]]);
   }
   if (want("form")) {
@@ -118,6 +142,7 @@ async function phoneScreens(browser, only) {
     await page.locator('input[name="format"]').first().check();
     await page.locator("#copies").fill("1");
     await page.evaluate(() => document.activeElement?.blur());
+    meta.fps.form = FPS;
     meta.form = await sequence(page, "form", 3.2, [[0, 0], [0.25, 0], [0.75, 260], [1, 260]]);
     meta.submitButton = await page.getByRole("button", { name: "Отправить в деканат" }).boundingBox();
   }

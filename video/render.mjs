@@ -1,6 +1,6 @@
 // Рендер ролика: локальный сервер (сцена, снимки, шрифты Onest из assets/) + Chromium без окна.
 //   node render.mjs stills 0.5,7,9,21,23.5,26,31.5,35     — кадры-проверки в out/stills/
-//   node render.mjs video [--scale 0.5] [--from 0 --to 37] — out/dekanat.mp4 (H.264, 30 к/с)
+//   node render.mjs video [--scale 0.5] [--from 0 --to 37] — out/dekanat.mp4 (H.264, 60 к/с)
 //   node render.mjs frames dekanat.mp4 1,9,26               — кадры из готового ролика в out/frames/
 import fs from "node:fs";
 import http from "node:http";
@@ -67,7 +67,7 @@ try {
   } else if (mode === "video") {
     const name = process.argv.includes("--name") ? process.argv[process.argv.indexOf("--name") + 1] : "dekanat.mp4";
     const t0 = Date.now();
-    await page.evaluate((o) => window.renderVideo(o), { from: opt("from", 0), to: opt("to", 37), name, bitrate: opt("bitrate", 16e6) });
+    await page.evaluate((o) => window.renderVideo(o), { from: opt("from", 0), to: opt("to", 37), name, bitrate: opt("bitrate", 24e6) });
     console.log(`готово: out/${name}, ${((Date.now() - t0) / 60000).toFixed(1)} мин`);
   } else if (mode === "frames") {
     // Кадры из готового MP4 — проверка сжатия: node render.mjs frames dekanat.mp4 1,9,26

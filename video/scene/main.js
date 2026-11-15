@@ -8,7 +8,7 @@ import { LAPTOP, laptopScreenPoint, makeCard, makeLaptop, makePhone, softShadow 
 import { clamp01, drawBackground, drawBrand, drawCaption, drawEndCard, drawFade, drawFlash, smooth } from "./overlay.js";
 import { frameUrl, image, LaptopScreen, PhoneScreen } from "./screens.js";
 
-const FPS = 30;
+const FPS = 60; // прокрутка текста при 30 к/с заметно дёргается
 const DURATION = 37;
 const q = new URLSearchParams(location.search);
 const SCALE = Number(q.get("scale") ?? 1);
@@ -184,7 +184,9 @@ const PHONE_ITEMS = () => [
 async function phoneImage(item, t) {
   if (item.still) return assets.submitted;
   const n = assets.phoneMeta[item.seq];
-  const i = Math.max(0, Math.min(n - 1, Math.floor((t - item.start) * FPS)));
+  const fps = assets.phoneMeta.fps?.[item.seq] ?? 30;
+  // round, не floor: t = кадр/FPS в дробях даёт 59.9999… — floor повторял бы кадр и пропускал следующий.
+  const i = Math.max(0, Math.min(n - 1, Math.round((t - item.start) * fps)));
   return image(frameUrl(item.seq, i));
 }
 
@@ -345,12 +347,13 @@ window.renderStills = async (times) => {
   }
 };
 
-window.renderVideo = async ({ from = 0, to = DURATION, name = "video.mp4", bitrate = 16e6 } = {}) => {
+window.renderVideo = async ({ from = 0, to = DURATION, name = "video.mp4", bitrate = 24e6 } = {}) => {
   await load();
   const muxer = new Muxer({ target: new ArrayBufferTarget(), video: { codec: "avc", width: W, height: H, frameRate: FPS }, fastStart: "in-memory" });
   let failure = null;
   const encoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => (failure = e) });
-  encoder.configure({ codec: "avc1.640028", width: W, height: H, bitrate, framerate: FPS, latencyMode: "quality", avc: { format: "avc" } });
+  // High 4.2 — уровень, на котором 1080p допускает 60 к/с (4.0 — только до 30).
+  encoder.configure({ codec: "avc1.64002A", width: W, height: H, bitrate, framerate: FPS, latencyMode: "quality", avc: { format: "avc" } });
   const first = Math.round(from * FPS);
   const last = Math.round(to * FPS);
   const started = performance.now();
@@ -361,7 +364,7 @@ window.renderVideo = async ({ from = 0, to = DURATION, name = "video.mp4", bitra
     encoder.encode(frame, { keyFrame: (i - first) % (FPS * 2) === 0 });
     frame.close();
     while (encoder.encodeQueueSize > 3) await new Promise((r) => encoder.addEventListener("dequeue", r, { once: true }));
-    if ((i - first) % 30 === 0) await window.progress(i - first, last - first, Math.round(performance.now() - started));
+    if ((i - first) % 120 === 0) await window.progress(i - first, last - first, Math.round(performance.now() - started));
   }
   await encoder.flush();
   muxer.finalize();
