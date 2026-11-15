@@ -1,0 +1,17 @@
+{
+  "name": "dekanat-video",
+  "private": true,
+  "type": "module",
+  "description": "Промо-ролик кабинета: снимки сайта (Playwright) → сцена three.js → H.264 MP4 через WebCodecs в Chromium",
+  "scripts": {
+    "capture": "node capture.mjs",
+    "render": "node render.mjs"
+  },
+  "dependencies": {
+    "mp4-muxer": "5.2.2",
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}

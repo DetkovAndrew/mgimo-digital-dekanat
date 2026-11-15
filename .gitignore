@@ -29,3 +29,7 @@ maps/
 # Кеш Python (скрипты отчёта и знака)
 __pycache__/
 *.pyc
+
+# Ролик: снимки сайта и готовое видео — генерируются (video/README.md)
+video/captures/
+video/out/

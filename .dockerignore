@@ -18,3 +18,5 @@ backup-*.sql
 backups
 .data
 .q.cjs
+# Исходники ролика — не часть приложения.
+video
