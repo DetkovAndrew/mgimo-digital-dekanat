@@ -421,6 +421,28 @@ export function Assistant({ configured, owner, skinId }: { configured: boolean; 
     };
   }, []);
 
+  // На телефоне кнопка прячется, пока страницу листают вниз, и возвращается при прокрутке вверх: с волосами она
+  // шире круга и закрывала край карточек, ссылок и вариантов в формах (360 px). На компьютере она вне колонки текста.
+  const [tucked, setTucked] = useState(false);
+  useEffect(() => {
+    const phone = window.matchMedia("(width < 48rem)");
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - last) < 8) return;
+      setTucked(phone.matches && y > last && y > 120);
+      last = y;
+    };
+    // Окно расширили до компьютерной ширины — кнопка снова видна, не дожидаясь прокрутки (ревью Codex 60).
+    const onWidth = () => !phone.matches && setTucked(false);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    phone.addEventListener("change", onWidth);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      phone.removeEventListener("change", onWidth);
+    };
+  }, []);
+
   useEffect(() => {
     const onOpen = () => void show();
     const onVisible = () => {
@@ -452,8 +474,9 @@ export function Assistant({ configured, owner, skinId }: { configured: boolean; 
         aria-label="Спросить Инвиктию, помощницу по кабинету"
         aria-haspopup="dialog"
         aria-expanded={open}
+        onFocus={() => setTucked(false)}
         style={skin.head ? { backgroundColor: skin.head } : undefined}
-        className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-brand-fill text-on-brand ring-4 ring-page transition duration-200 hover:scale-105 active:scale-95 motion-reduce:transition-none md:right-6 md:bottom-6 ${open ? "pointer-events-none scale-75 opacity-0" : ""}`}
+        className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-brand-fill text-on-brand ring-4 ring-page transition duration-200 hover:scale-105 active:scale-95 motion-reduce:transition-none md:right-6 md:bottom-6 ${open ? "pointer-events-none scale-75 opacity-0" : tucked ? "pointer-events-none translate-y-4 opacity-0" : ""}`}
       >
         {/* Кнопка — голова Инвиктии: волосы-кружочки вокруг круга, звезда на лбу, глаза с ресницами. */}
         <svg aria-hidden viewBox="-8 -8 16 16" className="pointer-events-none absolute inset-0 size-full overflow-visible">

@@ -49,15 +49,19 @@ export async function getMyAchievements(now = new Date()): Promise<Achievements>
   const excellent = finals.length > 0 && finals.every((a) => a.results[0]?.grade === 5);
 
   // Год без пересдач: в двух последних сессиях каждый экзамен и зачёт сдан с первой попытки.
-  // Меньше двух прошедших сессий (первокурсник осенью) — ещё нет.
+  // Меньше двух прошедших сессий (первокурсник осенью) — ещё нет. Итоги должны быть в каждой из двух сессий:
+  // сессия без заведённых аттестаций не считается сданной.
   let invicta = false;
   if (sessions.length === 2) {
     const yearFinals = await prisma.assessment.findMany({
       where: { kind: { in: ["EXAM", "CREDIT", "GRADED_CREDIT"] }, offering: { termId: { in: sessions.map((t) => t.id) }, groupId } },
-      select: { results: { where: { studentId }, orderBy: { attempt: "desc" }, take: 1, select: { attempt: true, grade: true, passed: true } } },
+      select: {
+        offering: { select: { termId: true } },
+        results: { where: { studentId }, orderBy: { attempt: "desc" }, take: 1, select: { attempt: true, grade: true, passed: true } },
+      },
     });
     invicta =
-      yearFinals.length > 0 &&
+      sessions.every((t) => yearFinals.some((a) => a.offering.termId === t.id)) &&
       yearFinals.every((a) => {
         const r = a.results[0];
         return r !== undefined && r.attempt === 1 && (r.grade !== null ? r.grade >= 3 : r.passed === true);

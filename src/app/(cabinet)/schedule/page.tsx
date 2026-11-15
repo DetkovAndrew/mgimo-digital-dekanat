@@ -313,7 +313,10 @@ async function MonthView({ m, d }: { m: unknown; d: unknown }) {
 
 // ─── Неделя ─────────────────────────────────────────────────────────────────────────────────────────────────
 async function WeekView({ week }: { week: unknown }) {
-  const offset = Math.max(-40, Math.min(40, Number.parseInt(String(week ?? "0"), 10) || 0));
+  // В воскресенье учебная неделя уже прошла: без ?week= открываем следующую (сегодняшнее — на «Сегодня»).
+  const sunday = new Date(`${mskDayKey(new Date())}T12:00:00Z`).getUTCDay() === 0;
+  const parsed = Number.parseInt(String(week ?? ""), 10);
+  const offset = Math.max(-40, Math.min(40, Number.isNaN(parsed) ? (sunday ? 1 : 0) : parsed));
   const start = addDays(mskWeekStart(new Date()), offset * 7);
   const [lessons, events] = await Promise.all([getMySchedule({ from: start, to: addDays(start, 7) }), getMyStudyEvents({ from: start, to: addDays(start, 7) })]);
   const todayKey = mskDayKey(new Date());

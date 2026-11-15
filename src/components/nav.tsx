@@ -3,7 +3,7 @@
 import { Bell as BellIcon, CalendarDays, CircleUserRound, DoorOpen, Dumbbell, FileText, GraduationCap, House, LayoutGrid, LogOut, type LucideIcon, MapPinned, QrCode } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ViewTransition } from "react";
+import { useEffect, ViewTransition } from "react";
 import { authClient } from "@/lib/auth-client";
 import { UniversityMark } from "./university-mark";
 
@@ -40,16 +40,25 @@ const owner: Record<string, string> = {
 
 /**
  * Колокольчик работает как переключатель: на открытых уведомлениях повторное нажатие закрывает их —
- * возвращает на предыдущий экран (или на «Сегодня», если уведомления открыли по прямой ссылке).
+ * возвращает на экран, с которого их открыли колокольчиком, иначе — на «Сегодня». Длину истории не проверяем:
+ * уведомления могли открыть ссылкой с другого сайта, и «назад» увёл бы туда (ревью Codex 60).
  */
+let openedByBell = false; // общий для колокольчика в шапке телефона и пункта меню на компьютере
+
 function useCloseNotifications() {
   const pathname = usePathname();
   const router = useRouter();
   const open = pathname === "/notifications";
+  useEffect(() => {
+    if (pathname !== "/notifications") openedByBell = false;
+  }, [pathname]);
   return (e: React.MouseEvent) => {
-    if (!open) return;
+    if (!open) {
+      openedByBell = true; // ссылка сейчас добавит /notifications поверх текущего экрана кабинета
+      return;
+    }
     e.preventDefault();
-    if (window.history.length > 1) router.back();
+    if (openedByBell) router.back();
     else router.replace("/today");
   };
 }
