@@ -203,6 +203,7 @@ function Chat({ configured, owner, skin, onClose }: { configured: boolean; owner
             Инвиктия
           </h2>
           <p className="truncate text-xs text-ink-2">Помощница на GigaChat</p>
+          <p className="text-xs text-ink-3">Ответы ИИ, сверяйтесь с разделами</p>
         </span>
         {messages.length > 0 && (
           <button type="button" onClick={restart} aria-label="Новый разговор" className="grid size-11 place-items-center rounded-full text-ink-2 transition-colors hover:bg-fill">
