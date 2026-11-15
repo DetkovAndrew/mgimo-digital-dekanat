@@ -400,13 +400,18 @@ body {
     rotate: 8deg;
   }
 }
+/* Моргание: два раза за 17 с с неравными паузами (8.9 и 8.1 с) — реже и живее, чем ровно каждые 4.5 с (капитан, 15.11);
+   само моргание ~0.27 с, как было. */
 @keyframes mascot-wink {
   0%,
-  92%,
+  46%,
+  47.6%,
+  98.4%,
   100% {
     scale: 1 1;
   }
-  95% {
+  46.8%,
+  99.2% {
     scale: 1 0.15;
   }
 }
@@ -450,7 +455,7 @@ body {
     animation: mascot-bob 1.8s ease-in-out infinite;
   }
   .mascot-eye {
-    animation: mascot-wink 4.5s ease-in-out infinite;
+    animation: mascot-wink 17s ease-in-out infinite;
     transform-box: fill-box;
     transform-origin: 50% 50%;
   }
