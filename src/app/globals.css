@@ -370,14 +370,9 @@ body {
   }
 }
 
-/* Попутчик на маршруте (src/components/mascots.tsx): шагает, прыгает на лестнице, радуется у двери. */
+/* Инвиктия на маршруте (src/components/mascots.tsx): идёт, прыгает на лестнице, радуется у двери. */
 @keyframes mascot-bob {
   50% {
-    translate: 0 -1.5px;
-  }
-}
-@keyframes mascot-leg {
-  to {
     translate: 0 -1.5px;
   }
 }
@@ -406,24 +401,6 @@ body {
     scale: 1 0.15;
   }
 }
-@keyframes mascot-blink {
-  50% {
-    opacity: 0;
-  }
-}
-@keyframes mascot-flame {
-  50% {
-    scale: 1 0.6;
-  }
-}
-@keyframes mascot-spin {
-  25% {
-    rotate: 25deg;
-  }
-  75% {
-    rotate: -25deg;
-  }
-}
 /* Волосы Инвиктии: каждый кружок медленно покачивается в свою сторону (амплитуда — --hx/--hy, темп — в разметке). */
 @keyframes mascot-hair-x {
   50% {
@@ -435,7 +412,7 @@ body {
     translate: 0 var(--hy);
   }
 }
-/* Превью маскотов (окно выбора попутчика, окно помощника) — без движения: это портреты, а не персонаж в деле. */
+/* Портреты Инвиктии в окне помощника — без движения: это портреты, а не персонаж в деле. */
 .mascot-still,
 .mascot-still * {
   animation: none !important;
@@ -450,18 +427,6 @@ body {
   }
   .mascot-walk {
     animation: mascot-bob 0.36s ease-in-out infinite;
-  }
-  .mascot-walk .mascot-leg-a {
-    animation: mascot-leg 0.18s ease-in-out infinite alternate;
-  }
-  .mascot-walk .mascot-leg-b {
-    animation: mascot-leg 0.18s ease-in-out 0.18s infinite alternate;
-  }
-  .mascot-walk .mascot-arm-a {
-    animation: mascot-leg 0.18s ease-in-out 0.18s infinite alternate;
-  }
-  .mascot-walk .mascot-arm-b {
-    animation: mascot-leg 0.18s ease-in-out infinite alternate;
   }
   .mascot-idle {
     animation: mascot-bob 1.8s ease-in-out infinite;
@@ -478,19 +443,6 @@ body {
     animation: mascot-cheer 0.9s ease-in-out infinite;
     transform-box: fill-box;
     transform-origin: 50% 100%;
-  }
-  .mascot-cursor {
-    animation: mascot-blink 1s steps(1) infinite;
-  }
-  .mascot-flame {
-    animation: mascot-flame 0.25s ease-in-out infinite;
-    transform-box: fill-box;
-    transform-origin: 50% 0;
-  }
-  .mascot-needle {
-    animation: mascot-spin 1.6s ease-in-out infinite;
-    transform-box: fill-box;
-    transform-origin: 50% 50%;
   }
 }
 

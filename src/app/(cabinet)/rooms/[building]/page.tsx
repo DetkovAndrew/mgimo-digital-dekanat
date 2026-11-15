@@ -12,14 +12,12 @@ import { findRoute, type RouteEnd } from "@/lib/campus/route";
 import { ROOM_RULES, roomDayKeys } from "@/lib/campus/rules";
 import { formatDay, formatTime, lessonKindLabel } from "@/lib/format";
 import { getCampusState, getRoomDay } from "@/server/dal/rooms";
-import { getMyAchievements, type Achievements } from "@/server/dal/achievements";
 import { getMyRouteStart } from "@/server/dal/schedule";
 import { BookForm, CancelRoomBooking } from "../booking";
 
 const weekday = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", weekday: "short" });
 const dayNum = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "numeric" });
 const noon = (key: string) => new Date(`${key}T12:00:00+03:00`);
-const NO_ACHIEVEMENTS: Achievements = { excellent: false, sport60: false, sport100: false, booker: false };
 
 export default async function CampusPage({ params, searchParams }: PageProps<"/rooms/[building]">) {
   const { building } = await params;
@@ -46,11 +44,10 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
   // С маршрутом этаж переключает плеер по шагам (на клиенте); сервер рисует схемы всех этажей.
   const floor = route ? route.startFloor : (selected?.floor ?? (plan.floors.includes(floorParam) ? floorParam : plan.floors[0]));
 
-  const [state, roomDay, lastRoom, achievements] = await Promise.all([
+  const [state, roomDay, lastRoom] = await Promise.all([
     getCampusState(building, day),
     selected ? getRoomDay(selected.id, day) : null,
     selected ? getMyRouteStart(building, new Date()) : null,
-    route ? getMyAchievements() : null, // попутчики на маршруте: какие открыты (только флаги)
   ]);
   const url = (p: { floor?: number | null; room?: string | null; d?: string; from?: string | null }) => {
     const q = new URLSearchParams();
@@ -145,7 +142,6 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
         key={route ? `${fromParam}-${selected?.number}` : "none"}
         route={route && { legs: route.legs, steps: route.steps, meters: route.meters }}
         views={views}
-        achievements={achievements ?? NO_ACHIEVEMENTS}
       >
       {route ? (
         <RouteFloorTabs floors={plan.floors} />

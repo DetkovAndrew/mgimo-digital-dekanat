@@ -2,12 +2,8 @@
 
 import { useSyncExternalStore } from "react";
 
-// Настройки одного браузера для пасхалки с попутчиками: localStorage. Без хранилища (приватный режим) значения живут
+// Настройки одного браузера (тема): localStorage. Без хранилища (приватный режим) значения живут
 // в памяти вкладки. На сервере и при гидрации — значения по умолчанию (useSyncExternalStore, без расхождений).
-export const MASCOT_KEY = "campus-mascot";
-export const DONE_KEY = "campus-routes-done";
-/** «Задавал вопрос Инвиктии»: ставит окно помощника, открывает Искорку. */
-export const ASKED_KEY = "campus-asked";
 
 const memory = new Map<string, string>();
 const listeners = new Set<() => void>();
