@@ -36,7 +36,7 @@ export default async function SupportPage() {
 
       <p className="mb-6 flex items-start gap-3 rounded-2xl bg-brand-soft px-4 py-3 text-sm text-ink">
         <Sparkles aria-hidden className="mt-0.5 size-5 shrink-0 text-brand" />
-        <span>Не знаете, какая служба нужна? Опишите ситуацию Инвиктусу — кружок в углу экрана: он подскажет службу, тему письма и нужную заявку.</span>
+        <span>Не знаете, какая служба нужна? Опишите ситуацию Инвиктии — кружок в углу экрана: она подскажет службу, тему письма и нужную заявку.</span>
       </p>
 
       <div className="space-y-3">

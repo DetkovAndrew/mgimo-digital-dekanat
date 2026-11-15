@@ -60,3 +60,9 @@ export const controlFormLabel: Record<string, string> = {
   CREDIT: "Зачёт",
   GRADED_CREDIT: "Зачёт с оценкой",
 };
+
+/** «Садыков Ренат Ильдарович» → «Садыков Р. И.»: на карточке важна фамилия. */
+export const shortName = (full: string) => {
+  const [last, ...rest] = full.split(" ").filter(Boolean);
+  return [last, ...rest.map((p) => `${p[0]}.`)].join(" ");
+};

@@ -6,7 +6,7 @@ import { useSyncExternalStore } from "react";
 // в памяти вкладки. На сервере и при гидрации — значения по умолчанию (useSyncExternalStore, без расхождений).
 export const MASCOT_KEY = "campus-mascot";
 export const DONE_KEY = "campus-routes-done";
-/** «Задавал вопрос Инвиктусу»: ставит окно помощника, открывает Искорку. */
+/** «Задавал вопрос Инвиктии»: ставит окно помощника, открывает Искорку. */
 export const ASKED_KEY = "campus-asked";
 
 const memory = new Map<string, string>();

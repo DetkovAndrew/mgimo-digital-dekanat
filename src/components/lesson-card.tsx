@@ -1,6 +1,7 @@
+import { MapPin, UserRound } from "lucide-react";
 import Link from "next/link";
 import { ViewTransition } from "react";
-import { formatDateTime, formatTime, lessonKindLabel } from "@/lib/format";
+import { formatDateTime, formatTime, lessonKindLabel, shortName } from "@/lib/format";
 import type { ScheduleLesson } from "@/server/dal/schedule";
 import { lessonTitleName } from "@/lib/view-transitions";
 import { KindTime, kindStyle } from "./kind";
@@ -28,10 +29,12 @@ export function LessonCard({ lesson }: { lesson: ScheduleLesson }) {
     <Link
       href={lesson.href}
       transitionTypes={["nav-forward"]}
-      className={`group flex items-center gap-3 rounded-2xl bg-surface p-2.5 pr-3.5 ring-1 transition active:scale-[0.99] md:hover:ring-brand/30 ${
+      className={`group relative flex items-center gap-3 overflow-hidden rounded-2xl bg-surface py-2.5 pr-3.5 pl-3.5 ring-1 transition active:scale-[0.99] md:hover:ring-brand/30 ${
         cancelled ? "ring-bad/30" : moved ? "ring-warn/40" : "ring-hairline"
       }`}
     >
+      {/* Полоска цвета типа занятия: тип читается с края карточки ещё до подписи. */}
+      <span aria-hidden className={`absolute inset-y-0 left-0 w-1 ${cancelled ? "bg-hairline" : kindStyle(lesson.kind).bar}`} />
       <KindTime kind={lesson.kind} start={formatTime(lesson.startsAt)} end={formatTime(lesson.endsAt)} struck={cancelled} />
       <span className="min-w-0 flex-1">
         <span className="mb-0.5 flex flex-wrap items-center gap-1.5">
@@ -46,10 +49,17 @@ export function LessonCard({ lesson }: { lesson: ScheduleLesson }) {
         ) : (
           <span className="block leading-snug font-semibold">{lesson.title}</span>
         )}
-        <span className="block truncate text-sm text-ink-2">
-          {place}
-          {lesson.teacher && ` · ${lesson.teacher}`}
+        {/* Место и преподаватель — каждый своей строкой и без обрезки: их ищут прямо в списке, не открывая пару. */}
+        <span className="mt-1 flex items-start gap-1.5 text-sm text-ink">
+          <MapPin aria-hidden className="mt-0.5 size-3.5 shrink-0 text-ink-2" />
+          <span className="min-w-0">{place || "Аудитория не указана"}</span>
         </span>
+        {lesson.teacher && (
+          <span className="flex items-start gap-1.5 text-sm text-ink-2">
+            <UserRound aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+            <span className="min-w-0">{shortName(lesson.teacher)}</span>
+          </span>
+        )}
         {summary && <span className="mt-1 block text-xs text-warn">{summary}</span>}
       </span>
       <Chevron />

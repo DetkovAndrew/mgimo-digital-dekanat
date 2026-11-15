@@ -15,7 +15,7 @@ export async function cancelRoomBookingAction(id: string): Promise<RoomActionRes
   return r;
 }
 
-/** Бронь из карточки Инвиктуса: сервер сверяет владельца разговора с сессией перед записью. */
+/** Бронь из карточки Инвиктии: сервер сверяет владельца разговора с сессией перед записью. */
 export async function bookFromAssistantAction(owner: string, input: { roomId: string; day: string; start: string; minutes: number; purpose: string }): Promise<RoomActionResult> {
   const r = await bookRoomAs(String(owner), input);
   revalidatePath("/rooms", "layout");

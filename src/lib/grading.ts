@@ -80,7 +80,6 @@ export function courseProgress(controlForm: string, assessments: AssessmentLike[
   );
 }
 
-const GRADE_LABEL: Record<number, string> = { 5: "отлично", 4: "хорошо", 3: "удовлетворительно", 2: "неудовлетворительно" };
 
 /** Выставленный итог аттестации: «зачтено/не зачтено» или оценка. Баллы без них — ещё не итог. */
 export function officialResult(controlForm: string, assessments: AssessmentLike[]) {
@@ -97,7 +96,10 @@ export function officialResult(controlForm: string, assessments: AssessmentLike[
 export function courseStatus(controlForm: string, assessments: AssessmentLike[], now = new Date()): { tone: Tone; text: string } {
   const official = officialResult(controlForm, assessments);
   if (official?.grade != null) {
-    return { tone: official.grade >= 4 ? "ok" : official.grade === 3 ? "info" : "bad", text: GRADE_LABEL[official.grade] ?? String(official.grade) };
+    // Цифрой, как в зачётке, и буквой ECTS по баллам — если буква согласуется с выставленной оценкой («5 · A»).
+    const band = bandFor(courseProgress(controlForm, assessments, now).earned);
+    const text = band.grade === official.grade ? `${official.grade} · ${band.ects}` : String(official.grade);
+    return { tone: official.grade >= 4 ? "ok" : official.grade === 3 ? "info" : "bad", text };
   }
   if (official) return official.passed ? { tone: "ok", text: "зачтено" } : { tone: "bad", text: "не зачтено" };
   const p = courseProgress(controlForm, assessments, now);

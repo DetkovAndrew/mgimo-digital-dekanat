@@ -7,7 +7,7 @@ import { bookFromAssistantAction } from "@/app/(cabinet)/rooms/actions";
 import { parseInline } from "@/lib/assistant/answer";
 import type { BookingProposal } from "@/server/dal/rooms";
 import { ASKED_KEY, writeLocal } from "./local-store";
-import { MascotFigure, MascotIcon } from "./mascots";
+import { InvictusFace, InvictusHair, MascotIcon } from "./mascots";
 import { authClient } from "@/lib/auth-client";
 
 // Помощник GigaChat — кружок в углу любого экрана кабинета. Живёт в layout: разговор не теряется при переходах,
@@ -62,7 +62,7 @@ function Answer({ text, onNavigate }: { text: string; onNavigate: () => void }) 
 }
 
 /**
- * Карточка брони от Инвиктуса: что, где, когда, для чего. Бронь создаёт только нажатие «Забронировать» —
+ * Карточка брони от Инвиктии: что, где, когда, для чего. Бронь создаёт только нажатие «Забронировать» —
  * обычная серверная бронь с сессией, проверкой правил и блокировками (как на схеме корпуса).
  */
 function BookingCard({ proposal: p, owner, onNavigate }: { proposal: BookingProposal; owner: string; onNavigate: () => void }) {
@@ -155,7 +155,7 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
     setMessages(history);
     setPending(true);
     setError(null);
-    writeLocal(ASKED_KEY, "1"); // пасхалка: вопрос Инвиктусу открывает попутчика Искорку
+    writeLocal(ASKED_KEY, "1"); // пасхалка: вопрос Инвиктии открывает попутчика Искорку
     try {
       const res = await fetch("/api/assistant", {
         method: "POST",
@@ -196,14 +196,14 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
   return (
     <div className="flex h-full flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:p-0">
       <header className="flex items-center gap-3 border-b border-hairline py-2 pr-2 pl-4">
-        <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-full bg-brand-soft">
-          <MascotIcon id="invictus" size={34} />
+        <span aria-hidden className="grid size-14 shrink-0 place-items-center rounded-full bg-brand-soft">
+          <MascotIcon id="invictus" size={48} />
         </span>
         <span className="min-w-0 flex-1">
           <h2 id="assistant-title" className="font-semibold">
-            Инвиктус
+            Инвиктия
           </h2>
-          <p className="truncate text-xs text-ink-2">Помощник на GigaChat · может ошибаться, сверяйтесь с разделами</p>
+          <p className="truncate text-xs text-ink-2">Помощница на GigaChat · может ошибаться, сверяйтесь с разделами</p>
         </span>
         {messages.length > 0 && (
           <button type="button" onClick={restart} aria-label="Новый разговор" className="grid size-11 place-items-center rounded-full text-ink-2 transition-colors hover:bg-fill">
@@ -236,7 +236,7 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
             {messages.length === 0 && (
               <section aria-label="Примеры вопросов">
-                <p className="mb-3 text-body text-ink-2">Спросите обычными словами: Инвиктус ответит по данным вашего кабинета и даст ссылку на нужный экран.</p>
+                <p className="mb-3 text-body text-ink-2">Спросите обычными словами: Инвиктия ответит по данным вашего кабинета и даст ссылку на нужный экран.</p>
                 <ul className="grid gap-2">
                   {SUGGESTIONS.map((s) => (
                     <li key={s}>
@@ -269,13 +269,8 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
               )}
               {pending && (
                 <p role="status" className="mr-auto flex w-fit items-center gap-2 rounded-2xl rounded-bl-md bg-page py-2 pr-4 pl-2 text-sm text-ink-2">
-                  {/* Инвиктус думает: переминается и моргает (без анимации при prefers-reduced-motion). */}
-                  <svg aria-hidden width={30} height={30} viewBox="-16 -18 32 32" className="shrink-0 overflow-visible">
-                    <g className="mascot-idle">
-                      <MascotFigure id="invictus" />
-                    </g>
-                  </svg>
-                  Инвиктус смотрит в кабинет…
+                  <MascotIcon id="invictus" size={40} />
+                  Инвиктия смотрит в кабинет…
                 </p>
               )}
               {error && (
@@ -337,8 +332,11 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
 export function Assistant({ configured, owner }: { configured: boolean; owner: string }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const fab = useRef<HTMLButtonElement>(null);
-  const star = useRef<HTMLSpanElement>(null);
+  const face = useRef<HTMLSpanElement>(null);
   const [open, setOpen] = useState(false);
+  const [joy, setJoy] = useState(false); // нажали на кнопку: Инвиктия весело жмурится «^ ^», потом открывается окно
+  const joyTimer = useRef(0);
+  useEffect(() => () => clearTimeout(joyTimer.current), []);
   const close = () => dialog.current?.close();
   // Layout переживает переходы, поэтому сессию сверяем сами: если в другой вкладке вошли под другим аккаунтом
   // или вышли, разговор прежнего владельца не показываем, а перезагружаем страницу (сервер отрисует нужного студента).
@@ -357,8 +355,9 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
     setOpen(true);
   };
 
-  // Звёздочка следит за курсором, когда он рядом с кнопкой: сдвиг до 7 px и лёгкий наклон в его сторону.
-  // Только мышь и только без prefers-reduced-motion; стиль меняется напрямую, без перерисовки React.
+  // Инвиктия следит за курсором почти по всему экрану (до 900 px от кнопки): лицо сдвигается до 5 px и чуть
+  // наклоняется, зрачки дополнительно смещаются внутри глаз. Только мышь и только без prefers-reduced-motion;
+  // стиль меняется напрямую, без перерисовки React.
   useEffect(() => {
     const motion = window.matchMedia("(pointer: fine) and (prefers-reduced-motion: no-preference)");
     if (!motion.matches) return;
@@ -367,13 +366,17 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         const btn = fab.current?.getBoundingClientRect();
-        if (!btn || !star.current) return;
+        if (!btn || !face.current) return;
         const dx = e.clientX - (btn.left + btn.width / 2);
         const dy = e.clientY - (btn.top + btn.height / 2);
         const dist = Math.hypot(dx, dy);
-        const pull = Math.max(0, 1 - dist / 260); // ближе 260 px — тянется, дальше — на месте
-        const k = dist ? (7 * Math.min(1, dist / 40) * pull) / dist : 0; // у самого центра сдвиг плавно гаснет
-        star.current.style.transform = `translate(${dx * k}px, ${dy * k}px) rotate(${Math.max(-1, Math.min(1, dx / 80)) * 20 * pull}deg) scale(${1 + 0.12 * pull})`;
+        const pull = Math.max(0, 1 - dist / 900) ** 0.5 * Math.min(1, dist / 40); // далеко — слабее, у центра — гаснет
+        const [ux, uy] = dist ? [dx / dist, dy / dist] : [0, 0];
+        face.current.style.transform = `translate(${ux * 5 * pull}px, ${uy * 5 * pull}px) rotate(${ux * 10 * pull}deg)`;
+        // Зрачки — в координатах глаза (правый глаз зеркальный, поэтому data-flip).
+        for (const p of face.current.querySelectorAll<SVGGElement>("[data-pupil]")) {
+          p.style.transform = `translate(${ux * 0.6 * pull * Number(p.dataset.flip)}px, ${uy * 0.5 * pull}px)`;
+        }
       });
     };
     window.addEventListener("pointermove", onMove, { passive: true });
@@ -401,15 +404,29 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
       <button
         type="button"
         ref={fab}
-        onClick={() => void show()}
+        onClick={() => {
+          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return void show();
+          setJoy(true);
+          clearTimeout(joyTimer.current);
+          joyTimer.current = window.setTimeout(() => {
+            setJoy(false);
+            void show();
+          }, 380);
+        }}
         data-assistant-fab
-        aria-label="Спросить Инвиктуса, помощника по кабинету"
+        aria-label="Спросить Инвиктию, помощницу по кабинету"
         aria-haspopup="dialog"
         aria-expanded={open}
         className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-brand-fill text-on-brand ring-4 ring-page transition duration-200 hover:scale-105 active:scale-95 motion-reduce:transition-none md:right-6 md:bottom-6 ${open ? "pointer-events-none scale-75 opacity-0" : ""}`}
       >
-        <span ref={star} aria-hidden className="block transition-transform duration-300 ease-(--ease-out)">
-          <Sparkles className="size-6" />
+        {/* Кнопка — голова Инвиктии: волосы-кружочки вокруг круга, звезда на лбу, глаза с ресницами. */}
+        <svg aria-hidden viewBox="-8 -8 16 16" className="pointer-events-none absolute inset-0 size-full overflow-visible">
+          <InvictusHair />
+        </svg>
+        <span ref={face} aria-hidden className={`block size-full transition-transform duration-300 ease-(--ease-out) ${joy ? "mascot-joy" : ""}`}>
+          <svg viewBox="-8 -8 16 16" className="size-full overflow-visible">
+            <InvictusFace />
+          </svg>
         </span>
       </button>
       <dialog
