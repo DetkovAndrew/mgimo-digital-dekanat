@@ -471,6 +471,55 @@ body {
 .mascot-joy .mascot-eyes-happy {
   display: inline;
 }
+/* Эмоции по нажатию на портрет в окне помощника (наброски NursuUwU): подмигивание и лёгкая грусть. */
+.mascot-wink-lid,
+.mascot-eyes-sad,
+.mascot-wink .mascot-eye-l,
+.mascot-sad .mascot-eyes-open {
+  display: none;
+}
+.mascot-wink .mascot-wink-lid,
+.mascot-sad .mascot-eyes-sad {
+  display: inline;
+}
+@keyframes mascot-pulse {
+  30% {
+    scale: 1.14;
+    translate: 0 -3px;
+  }
+  55% {
+    scale: 0.96;
+    translate: 0 0;
+  }
+  75% {
+    scale: 1.05;
+  }
+}
+@keyframes mascot-tilt {
+  35%,
+  70% {
+    rotate: 9deg;
+  }
+}
+@keyframes mascot-droop {
+  30%,
+  75% {
+    translate: 0 3px;
+    rotate: -7deg;
+    scale: 0.96;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mascot-react.mascot-joy {
+    animation: mascot-pulse 0.9s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+  .mascot-react.mascot-wink {
+    animation: mascot-tilt 1.2s ease-in-out;
+  }
+  .mascot-react.mascot-sad {
+    animation: mascot-droop 1.4s ease-in-out;
+  }
+}
 /* Финиш: звезда на лбу Инвиктии загорается зелёным и светится. */
 .mascot-lit .mascot-star {
   fill: var(--m-lamp);

@@ -21,7 +21,8 @@ const BASE = SKINS[0];
 
 /**
  * Лицо Инвиктии в координатах головы (центр 0, 0; радиус 8): звезда на лбу и глаза — открытые
- * (белок, тёмная радужка, звезда-зрачок, ресницы) или весёлые закрытые «^ ^» — их включают .mascot-lit и .mascot-joy.
+ * (белок, тёмная радужка, звезда-зрачок, ресницы) или эмоции с наброска NursuUwU: весёлые закрытые «^ ^»
+ * (.mascot-lit, .mascot-joy), подмигивание (.mascot-wink) и грустные опущенные веки с ресницами (.mascot-sad).
  * Зрачки помечены data-pupil: кнопка помощника сдвигает их к курсору (data-flip — зеркальный правый глаз).
  * Цвет звезды образа — атрибутом fill: на финише маршрута её всё равно зажигает .mascot-lit (CSS сильнее атрибута).
  */
@@ -36,7 +37,7 @@ export function InvictusFace({ skin = BASE }: { skin?: Skin }) {
       )}
       <g className="mascot-eyes-open">
         {[-1, 1].map((side) => (
-          <g key={side} transform={`translate(${side * 3.3} 1.8) scale(${-side * 1.3} 1.3)`}>
+          <g key={side} transform={`translate(${side * 3.3} 1.8) scale(${-side * 1.3} 1.3)`} className={side < 0 ? "mascot-eye-l" : undefined}>
             <g className="mascot-eye">
               <path d={EYE} className="fill-m-ic-glyph" />
               <g data-pupil data-flip={-side} className="transition-transform duration-300 ease-(--ease-out)">
@@ -53,6 +54,16 @@ export function InvictusFace({ skin = BASE }: { skin?: Skin }) {
       <g className="mascot-eyes-happy">
         <path d="M-5.6 2.6Q-3.5 -0.4 -1.4 2.6M1.4 2.6Q3.5 -0.4 5.6 2.6" strokeWidth={1.2} strokeLinecap="round" className="fill-none stroke-m-pupil" />
         <path d="M-5.2 2Q-5.7 1.6 -6.1 1.2M-5.6 2.6Q-6.1 2.55 -6.5 2.35M5.2 2Q5.7 1.6 6.1 1.2M5.6 2.6Q6.1 2.55 6.5 2.35" strokeWidth={0.55} strokeLinecap="round" className="fill-none stroke-m-pupil" />
+      </g>
+      {/* Подмигивание: левый глаз — весёлая дуга «^», правый открыт. */}
+      <g className="mascot-wink-lid">
+        <path d="M-5.6 2.6Q-3.5 -0.4 -1.4 2.6" strokeWidth={1.2} strokeLinecap="round" className="fill-none stroke-m-pupil" />
+        <path d="M-5.2 2Q-5.7 1.6 -6.1 1.2M-5.6 2.6Q-6.1 2.55 -6.5 2.35" strokeWidth={0.55} strokeLinecap="round" className="fill-none stroke-m-pupil" />
+      </g>
+      {/* Грусть: веки закрыты дугой вниз, ресницы опущены наружу — как на наброске. */}
+      <g className="mascot-eyes-sad">
+        <path d="M-5.6 1.8Q-3.5 4.2 -1.4 1.8M1.4 1.8Q3.5 4.2 5.6 1.8" strokeWidth={1.1} strokeLinecap="round" className="fill-none stroke-m-pupil" />
+        <path d="M-5.2 2.5Q-5.7 3 -6 3.5M-4.4 3.1Q-4.7 3.6 -4.8 4.1M5.2 2.5Q5.7 3 6 3.5M4.4 3.1Q4.7 3.6 4.8 4.1" strokeWidth={0.5} strokeLinecap="round" className="fill-none stroke-m-pupil" />
       </g>
     </>
   );
@@ -271,9 +282,10 @@ export function MascotFigure({ skin = BASE }: { skin?: Skin }) {
  * Портрет: отдельный SVG, неподвижный (.mascot-still). Плотная рамка — голова с волосами заполняет значок;
  * с убором рамка выше, чтобы шапочка и венок не обрезались.
  */
-export function MascotIcon({ skin = BASE, size = 40 }: { skin?: Skin; size?: number }) {
+export function MascotIcon({ skin = BASE, size = 40, alive = false }: { skin?: Skin; size?: number; alive?: boolean }) {
+  // alive — портрет в шапке окна помощника: моргает, волосы и убор качаются, как кнопка в углу.
   return (
-    <svg aria-hidden width={size} height={size} viewBox={skin.hat ? "-14 -14.5 28 28" : "-12.5 -11.5 25 25"} className="mascot-still shrink-0 overflow-visible">
+    <svg aria-hidden width={size} height={size} viewBox={skin.hat ? "-14 -14.5 28 28" : "-12.5 -11.5 25 25"} className={`${alive ? "" : "mascot-still"} shrink-0 overflow-visible`}>
       <MascotFigure skin={skin} />
     </svg>
   );

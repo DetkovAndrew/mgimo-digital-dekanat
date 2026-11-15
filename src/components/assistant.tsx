@@ -133,6 +133,42 @@ function fit(owner: string, full: Msg[]) {
   return h;
 }
 
+/** Пасхалка: эмоции Инвиктии по нажатию на портрет (наброски NursuUwU) — радость, подмигивание, лёгкая грусть. */
+const MOODS = ["mascot-joy", "mascot-wink", "mascot-sad"] as const;
+
+/**
+ * Портрет в шапке окна: живой, как кнопка в углу (моргает, волосы и убор покачиваются), при наведении чуть крупнее.
+ * Нажатие — случайная эмоция (не та же, что в прошлый раз), через мгновение обычный вид. Нигде не описана: пасхалка.
+ */
+function ReactivePortrait({ skin }: { skin: Skin }) {
+  const [mood, setMood] = useState<(typeof MOODS)[number] | null>(null);
+  const last = useRef(-1);
+  const timer = useRef(0);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  return (
+    <button
+      type="button"
+      aria-label="Инвиктия"
+      onClick={() => {
+        // Случайная, но не та же, что в прошлый раз: первое нажатие — из всех.
+        const first = last.current < 0;
+        let i = Math.floor(Math.random() * (first ? MOODS.length : MOODS.length - 1));
+        if (!first && i >= last.current) i++;
+        last.current = i;
+        const m = MOODS[i];
+        // Снять класс и вернуть в следующем кадре: анимация перезапускается и при быстрых нажатиях.
+        setMood(null);
+        clearTimeout(timer.current);
+        requestAnimationFrame(() => setMood(m));
+        timer.current = window.setTimeout(() => setMood(null), 1500);
+      }}
+      className={`mascot-react grid size-18 shrink-0 place-items-center rounded-full bg-brand-soft transition-[scale] duration-200 hover:scale-110 active:scale-95 motion-reduce:transition-none ${mood ?? ""}`}
+    >
+      <MascotIcon skin={skin} size={64} alive />
+    </button>
+  );
+}
+
 function Chat({ configured, owner, skin, onClose }: { configured: boolean; owner: string; skin: Skin; onClose: () => void }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
@@ -195,9 +231,7 @@ function Chat({ configured, owner, skin, onClose }: { configured: boolean; owner
   return (
     <div className="flex h-full flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:p-0">
       <header className="flex items-center gap-3 border-b border-hairline py-2 pr-2 pl-4">
-        <span aria-hidden className="grid size-18 shrink-0 place-items-center rounded-full bg-brand-soft">
-          <MascotIcon skin={skin} size={64} />
-        </span>
+        <ReactivePortrait skin={skin} />
         <span className="min-w-0 flex-1">
           <h2 id="assistant-title" className="font-semibold">
             Инвиктия
