@@ -91,6 +91,18 @@ describe("снимок кабинета", () => {
     expect(await prisma.lesson.count({ where: { id: { in: ids("/lessons/") }, offering: { groupId: { not: A.groupId } } } })).toBe(0);
     expect(await prisma.courseOffering.count({ where: { id: { in: ids("/courses/") }, groupId: { not: A.groupId } } })).toBe(0);
   });
+
+  it("справочник служб и подсказки каталога: целиком, с группой A в теме письма", async () => {
+    await as("alina.lebedeva");
+    const { text, links } = await buildMyContext();
+    const group = (await prisma.studentProfile.findUniqueOrThrow({ where: { id: A.studentId }, select: { group: { select: { code: true } } } })).group.code;
+    expect(text).toContain("## Куда обратиться [/services/support]");
+    expect(text).toContain(`тема письма: «<Тема вопроса>, группа ${group}»`);
+    expect(text).toContain("ещё называют: академ");
+    // Каталог стоит в конце снимка: обрезка съела бы именно его.
+    expect(text).not.toContain("снимок обрезан");
+    expect(links.has("/services/support#dean")).toBe(true);
+  });
 });
 
 describe("POST /api/assistant", () => {

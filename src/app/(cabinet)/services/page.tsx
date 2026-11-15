@@ -1,4 +1,4 @@
-import { ChevronRight, DoorOpen, Dumbbell, LifeBuoy, type LucideIcon, MapPinned, MessageCircleQuestion, Printer, QrCode, Ticket, Wifi } from "lucide-react";
+import { ChevronRight, DoorOpen, Dumbbell, LifeBuoy, type LucideIcon, MapPinned, MessageCircleQuestion, Printer, QrCode, Ticket, Users, Wifi } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { IconTile, List, PageTitle, RowLink, Section } from "@/components/ui";
@@ -96,6 +96,7 @@ export default async function ServicesPage() {
 
       <Section title="Помощь">
         <List>
+          <Row href="/services/support" icon={Users} tone="brand" title="Куда обратиться" sub="Службы университета: с чем идти, куда писать и с какой темой" />
           <Row href="/requests/new?type=it_support" icon={LifeBuoy} tone="info" title="IT-поддержка" sub="Не подключается Wi-Fi, не печатает, не входит в аккаунт" />
           <Row href="/requests/new?type=guest_pass" icon={Ticket} tone="brand" title="Гостевой пропуск" sub="Провести гостя в корпус на защиту или мероприятие" />
           <Row href="/requests/new?type=dean_question" icon={MessageCircleQuestion} tone="warn" title="Вопрос в деканат" sub="Ответ придёт в заявки и уведомления" />
