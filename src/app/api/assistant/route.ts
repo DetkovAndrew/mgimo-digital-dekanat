@@ -5,6 +5,7 @@ import { buildMyContext } from "@/server/ai/context";
 import { BOOK_ROOM, FIND_FREE_ROOMS, formatFreeRooms, formatPrepared } from "@/server/ai/functions";
 import { AssistantError, gigachatComplete, type ChatMessage } from "@/server/ai/gigachat";
 import { findFreeRooms, prepareBooking, type BookingProposal } from "@/server/dal/rooms";
+import { wantsRooms } from "@/lib/assistant/intent";
 import { takeStudentSlot, withProviderSlot } from "@/server/ai/limits";
 import { systemPrompt } from "@/server/ai/prompt";
 import { studentForApi } from "@/server/session";
@@ -103,8 +104,12 @@ export async function POST(req: Request) {
     let proposal: BookingProposal | null = null;
     const raw = await withProviderSlot(async () => {
       const messages: ChatMessage[] = [{ role: "system", content: systemPrompt(ctx) }, ...parsed.data.messages];
-      const opts = { maxTokens: 600, signal: abort.signal, functions: [FIND_FREE_ROOMS, BOOK_ROOM] };
+      // Функции аудиторий — только когда студент говорит о брони или свободном месте (src/lib/assistant/intent.ts).
+      const rooms = wantsRooms(parsed.data.messages);
+      const opts = { maxTokens: 600, signal: abort.signal, ...(rooms ? { functions: [FIND_FREE_ROOMS, BOOK_ROOM] } : {}) };
       const reply = await gigachatComplete(messages, opts);
+      // Вызов функции, которую модели не давали, не выполняем: отвечаем обычным текстом или просим уточнить.
+      if (reply.functionCall && !rooms) return reply.content || "Уточните, пожалуйста, вопрос: о чём именно рассказать?";
       // Функции ничего не пишут. Ответ по ним собирает сервер: модель путала интервалы при пересказе.
       if (reply.functionCall?.name === FIND_FREE_ROOMS.name) return formatFreeRooms(await findFreeRooms(reply.functionCall.arguments, ctx.asOf));
       if (reply.functionCall?.name === BOOK_ROOM.name) {

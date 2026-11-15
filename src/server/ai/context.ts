@@ -6,6 +6,7 @@ import { getMyGrades } from "../dal/grades";
 import { listMyNotifications } from "../dal/notifications";
 import { getMyProfile } from "../dal/profile";
 import { getMyRequest, listMyRequests } from "../dal/requests";
+import { listBuildingsBrief } from "../dal/buildings";
 import { getMyPrintBalance } from "../dal/print";
 import { getMySchedule } from "../dal/schedule";
 import { bookableFreeRanges, listMyRoomBookings } from "../dal/rooms";
@@ -59,12 +60,26 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
   const out: string[] = [];
 
   out.push(`Сейчас: ${formatDay(now)} (дата ${mskDayKey(now)}), ${formatTime(now)} (Москва).`);
+  // «Завтра» модель путала с ближайшим учебным днём (прогон 14.11: понедельник назвала завтрашним в субботу).
+  out.push(`Завтра: ${formatDay(addDays(now, 1))} (дата ${mskDayKey(addDays(now, 1))}). Про другие дни говори день недели и дату, а не «завтра».`);
+  // Адреса и метро — из базы: без них модель выдумывала станции (прогон 14.11).
+  const buildings = await listBuildingsBrief();
+  out.push(`Корпуса (открытые данные): ${buildings.map((b) => `${b.title} — ${b.address}${b.metro ? `, м. ${b.metro}` : ""} [${link(`/buildings/${b.id}`)}]`).join("; ")}.`);
   out.push(
     `\n## Профиль [/profile]\n${profile.fullName}; ${profile.faculty}; ${profile.program}${profile.programProfile ? ` (${profile.programProfile})` : ""}; ${profile.course} курс; группа ${profile.group}.`,
   );
 
   out.push(`\n## Расписание [/schedule]: сегодня и ещё ${SCHEDULE_DAYS - 1} дн. (Дальше этих дней данных в снимке нет.)`);
   if (!lessons.length) out.push("Занятий нет.");
+  // Ближайшее занятие считает сервер: в длинном списке модель брала не ту пару (прогон 14.11, сценарий 1).
+  const next = lessons.find((l) => l.source === "lesson" && l.status !== "CANCELLED" && l.endsAt > now);
+  if (next) {
+    const where = next.online ? "онлайн" : [next.room, next.building?.title].filter(Boolean).join(", ") || "место не указано";
+    const when = next.startsAt <= now ? "идёт сейчас" : mskDayKey(next.startsAt) === mskDayKey(now) ? "сегодня" : mskDayKey(next.startsAt) === mskDayKey(addDays(now, 1)) ? "завтра" : formatDay(next.startsAt);
+    out.push(
+      `Ближайшее занятие (на «следующую пару» отвечай этой строкой): ${when}, ${formatDay(next.startsAt)} ${formatTime(next.startsAt)}–${formatTime(next.endsAt)}, ${lessonKindLabel[next.kind] ?? next.kind}: ${clip(next.title, 80)}; ${where} [${link(next.href)}]`,
+    );
+  }
   let day = "";
   for (const l of lessons.slice(0, 60)) {
     const d = formatDay(l.startsAt);

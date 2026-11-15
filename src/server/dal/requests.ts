@@ -31,6 +31,8 @@ export async function getMyRequest(id: string) {
     select: {
       ...listSelect,
       payload: true,
+      // Токен проверки — только в своей заявке: в списке заявок и снимке помощника его нет.
+      document: { select: { number: true, issuedAt: true, verifyToken: true } },
       events: {
         orderBy: { createdAt: "asc" },
         select: { id: true, fromStatus: true, toStatus: true, actorType: true, comment: true, createdAt: true },

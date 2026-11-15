@@ -427,10 +427,26 @@ model Request {
 
   events        RequestEvent[]
   notifications Notification[]
+  document      IssuedDocument?
 
   @@index([studentId, createdAt])
   @@index([status])
   @@map("request")
+}
+
+/// Электронная справка (docs/plans/certificates.md): выпускается при переводе заявки в «Готово», одна на заявку.
+/// Владелец — через заявку. content — снимок данных на дату выдачи (схема в src/lib/documents/certificate.ts).
+model IssuedDocument {
+  id          String   @id @default(cuid())
+  number      Int      @unique @default(autoincrement()) // показывается как «С-000012»
+  requestId   String   @unique
+  request     Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  kind        String // study_certificate
+  verifyToken String   @unique // 16 случайных байт base64url: ссылка проверки из QR, секрет как пароль
+  content     Json
+  issuedAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("issued_document")
 }
 
 enum ActorType {

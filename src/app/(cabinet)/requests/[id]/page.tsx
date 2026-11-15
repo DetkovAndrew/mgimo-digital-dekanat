@@ -1,10 +1,14 @@
+import { Download, FileCheck2 } from "lucide-react";
 import { BackLink } from "@/components/back-link";
-import { Badge, Card, PageTitle } from "@/components/ui";
-import { formatDateTime, requestStatusLabel } from "@/lib/format";
+import { Badge, Card, IconTile, PageTitle } from "@/components/ui";
+import { formatDocumentNumber, issuesCertificate } from "@/lib/documents/certificate";
+import { formatDate, formatDateTime, requestStatusLabel } from "@/lib/format";
 import { formatRequestNumber, isRequestType, requestCatalog, type RequestTypeSpec } from "@/lib/requests/catalog";
+import { verifyUrlFor } from "@/server/dal/documents";
 import { getMyRequest } from "@/server/dal/requests";
 import { cancelRequest } from "../actions";
 import { AnswerForm } from "./answer-form";
+import { CopyLink } from "./copy-link";
 
 const actorLabel: Record<string, string> = { STUDENT: "Вы", STAFF: "Деканат", SYSTEM: "Система" };
 
@@ -41,6 +45,42 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
           <p className="mb-3 text-sm text-ink-2">{r.events.findLast((e) => e.toStatus === "NEEDS_INFO")?.comment}</p>
           <AnswerForm id={r.id} />
         </Card>
+      )}
+
+      {r.document ? (
+        <Card className="mb-4">
+          <div className="mb-4 flex items-center gap-3">
+            <IconTile icon={FileCheck2} tone="ok" />
+            <div className="min-w-0">
+              <h2 className="font-semibold">Справка готова</h2>
+              <p className="text-sm text-ink-2">
+                {formatDocumentNumber(r.document.number)} от {formatDate(r.document.issuedAt)}
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <a
+              href={`/api/requests/${r.id}/document`}
+              download
+              className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-fill px-4 text-body font-semibold text-on-brand"
+            >
+              <Download aria-hidden className="size-5" />
+              Скачать PDF
+            </a>
+            <CopyLink url={verifyUrlFor(r.document.verifyToken)} />
+          </div>
+          <p className="mt-3 text-sm text-ink-2">
+            Работодатель проверит справку по QR-коду. Страницу проверки откроет любой, у кого есть ссылка: отправляйте её
+            только тем, кому предоставляете справку. Документ демонстрационный.
+          </p>
+        </Card>
+      ) : (
+        issuesCertificate(r.type, r.payload) &&
+        (r.status === "READY" || r.status === "DONE") && (
+          <p className="mb-4 rounded-xl bg-fill px-3 py-2 text-sm text-ink-2">
+            PDF для этой заявки не выпускался: она выполнена до появления электронных справок.
+          </p>
+        )
       )}
 
       <Card className="mb-4">

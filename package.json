@@ -20,11 +20,13 @@
     "test:db": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "1.1.1",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "better-auth": "1.7.18",
     "lucide-react": "^1.72.0",
     "next": "16.4.5",
+    "pdf-lib": "1.17.1",
     "pg": "8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",

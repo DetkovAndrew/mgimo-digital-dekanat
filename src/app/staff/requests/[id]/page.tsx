@@ -1,6 +1,7 @@
 import { BackLink } from "@/components/back-link";
 import { Badge, Card, PageTitle, Section } from "@/components/ui";
-import { formatDateTime, requestStatusLabel } from "@/lib/format";
+import { formatDocumentNumber, issuesCertificate } from "@/lib/documents/certificate";
+import { formatDate, formatDateTime, requestStatusLabel } from "@/lib/format";
 import { formatRequestNumber, isRequestType, requestCatalog, type RequestTypeSpec } from "@/lib/requests/catalog";
 import { getFacultyRequest } from "@/server/dal/staff";
 import { requireStaff } from "@/server/session";
@@ -41,6 +42,17 @@ export default async function StaffRequestPage({ params, searchParams }: {
           </dl>
         </Card>
       </Section>
+      {(r.document || (issuesCertificate(r.type, payload) && r.status === "IN_PROGRESS")) && (
+        <Section title="Электронная справка">
+          <Card>
+            <p className="text-body">
+              {r.document
+                ? `Выпущена справка ${formatDocumentNumber(r.document.number)} от ${formatDate(r.document.issuedAt)}. Студент скачивает PDF в заявке.`
+                : "При переводе в «Готово» выпускается PDF с QR-кодом проверки. Данные берутся из профиля студента на этот момент."}
+            </p>
+          </Card>
+        </Section>
+      )}
       <Section title="Обработка">
         <Card><RequestActions key={`${r.id}:${r.status}:${r.updatedAt.toISOString()}`} id={r.id} status={r.status} /></Card>
       </Section>

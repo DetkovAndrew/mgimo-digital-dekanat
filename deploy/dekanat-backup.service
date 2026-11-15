@@ -1,0 +1,9 @@
+# Резервная копия базы: deploy/backup.sh. Установка — docs/DEPLOY.md, раздел «Данные и перезапуск».
+[Unit]
+Description=Dekanat database backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/dekanat/deploy/backup.sh

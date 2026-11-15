@@ -7,8 +7,16 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Сборка для Docker: .next/standalone с минимальным server.js и нужными файлами node_modules (docs/DEPLOY.md).
   output: "standalone",
-  // Сертификат Минцифры для TLS к GigaChat читается с диска во время запроса — трассировка его не видит.
-  outputFileTracingIncludes: { "/api/assistant": ["./certs/russian_trusted_root_ca.pem"] },
+  // Файлы, которые читаются с диска во время запроса, — трассировка их не видит: сертификат Минцифры для TLS
+  // к GigaChat и шрифт PDF-справки (src/server/documents/pdf.ts).
+  outputFileTracingIncludes: {
+    "/api/assistant": ["./certs/russian_trusted_root_ca.pem"],
+    "/api/requests/[id]/document": ["./assets/fonts/onest/*.ttf"],
+  },
+  // Токен справки в адресе страницы проверки не уходит на другие сайты; Caddy ставит свою политику только по умолчанию.
+  async headers() {
+    return [{ source: "/verify/:path*", headers: [{ key: "Referrer-Policy", value: "no-referrer" }] }];
+  },
   // Значок разработчика Next перекрывал нижнее меню на телефоне; ошибки сборки показываются и без него.
   devIndicators: false,
   // Самое большое тело — фото профиля (до 200 КиБ после сжатия в браузере) плюс разметка multipart.
