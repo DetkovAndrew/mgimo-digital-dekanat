@@ -195,14 +195,14 @@ function Chat({ configured, owner, skin, onClose }: { configured: boolean; owner
   return (
     <div className="flex h-full flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:p-0">
       <header className="flex items-center gap-3 border-b border-hairline py-2 pr-2 pl-4">
-        <span aria-hidden className="grid size-14 shrink-0 place-items-center rounded-full bg-brand-soft">
-          <MascotIcon skin={skin} size={48} />
+        <span aria-hidden className="grid size-18 shrink-0 place-items-center rounded-full bg-brand-soft">
+          <MascotIcon skin={skin} size={64} />
         </span>
         <span className="min-w-0 flex-1">
           <h2 id="assistant-title" className="font-semibold">
             Инвиктия
           </h2>
-          <p className="truncate text-xs text-ink-2">Помощница на GigaChat · может ошибаться, сверяйтесь с разделами</p>
+          <p className="truncate text-xs text-ink-2">Помощница на GigaChat</p>
         </span>
         {messages.length > 0 && (
           <button type="button" onClick={restart} aria-label="Новый разговор" className="grid size-11 place-items-center rounded-full text-ink-2 transition-colors hover:bg-fill">
