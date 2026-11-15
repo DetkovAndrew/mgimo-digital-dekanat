@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, FileUp, LoaderCircle, Minus, Plus, Sparkles } from "lucide-react";
+import { FileText, FileUp, LoaderCircle, Minus, Plus } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "@/components/toast";
 import { countPdfPages, PRINT_RULES, printCost } from "@/lib/services/print";
@@ -72,27 +72,12 @@ export function PrintForm({ left }: { left: number }) {
       className="space-y-4 rounded-2xl bg-surface p-4 ring-1 ring-hairline"
     >
       <div>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2 sm:max-w-xs">
           <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-brand-soft px-4 text-sm font-semibold text-brand has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus">
             {reading ? <LoaderCircle aria-hidden className="size-4 animate-spin motion-reduce:animate-none" /> : <FileUp aria-hidden className="size-4" />}
             {file ? "Другой файл" : "Выбрать PDF"}
             <input type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(e) => pick(e.target.files?.[0])} />
           </label>
-          {!file && (
-            <button
-              type="button"
-              onClick={() => {
-                pickSeq.current++;
-                setReading(false);
-                setFile({ name: "Конспект лекций (пример).pdf", detected: 12, note: "Пример для проверки: 12 страниц." });
-                setPages("12");
-              }}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium text-ink-2 ring-1 ring-hairline hover:bg-fill"
-            >
-              <Sparkles aria-hidden className="size-4" />
-              Попробовать на примере
-            </button>
-          )}
         </div>
         {file ? (
           <p className="mt-2 flex items-start gap-2 text-sm">

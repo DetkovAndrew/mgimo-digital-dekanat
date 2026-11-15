@@ -152,9 +152,10 @@ export function CampusMap({
             ) : (
               <path d={rectPath(bbox(d.pts))} className="fill-m-floor" />
             )}
-            {d.icon && <Badge icon={d.icon} at={[d.c[0], d.c[1] - (d.label ? 8 : 0)]} />}
-            {d.label && (
-              <text x={d.c[0]} y={d.c[1] + (d.icon ? 14 : 4)} textAnchor="middle" fontSize={labelSize(d.pts, d.label)} className="fill-ink-2">
+            {/* Значок или подпись, не оба: подписи повторяли названия значков (NursuUwU, 15.11); значки — в легенде. */}
+            {d.icon && <Badge icon={d.icon} at={d.c} />}
+            {d.label && !d.icon && (
+              <text x={d.c[0]} y={d.c[1] + 4} textAnchor="middle" fontSize={labelSize(d.pts, d.label)} className="fill-ink-2">
                 {d.label}
               </text>
             )}
@@ -169,9 +170,9 @@ export function CampusMap({
             <g key={`s${i}`}>
               <path d={rectPath(b)} className={spaceFill(d.icon)} />
               <path d={walls(d.pts, d.door)} strokeWidth={1} className="fill-none stroke-m-wall" />
-              {d.icon && <Badge icon={d.icon} at={[d.c[0], d.c[1] - (d.label && tall ? 8 : 0)]} />}
-              {d.label && tall && (
-                <text x={d.c[0]} y={d.c[1] + 14} textAnchor="middle" fontSize={labelSize(d.pts, d.label)} className="fill-ink-2 text-m-floor" {...HALO}>
+              {d.icon && <Badge icon={d.icon} at={d.c} />}
+              {d.label && !d.icon && tall && (
+                <text x={d.c[0]} y={d.c[1] + 4} textAnchor="middle" fontSize={labelSize(d.pts, d.label)} className="fill-ink-2 text-m-floor" {...HALO}>
                   {d.label}
                 </text>
               )}
@@ -254,7 +255,8 @@ export function MapLegend() {
     ["COWORKING", "Коворкинг"],
     ["MEETING", "Переговорная"],
   ];
-  const icons: DecorIcon[] = ["stairs", "toilet", "coat", "food"];
+  // Все значки: подписи у помещений со значком не выводятся, их смысл — только здесь.
+  const icons: DecorIcon[] = ["entrance", "stairs", "toilet", "coat", "food", "book", "sport"];
   return (
     <ul aria-label="Обозначения" className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-ink-2">
       {kinds.map(([k, text]) => (
