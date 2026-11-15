@@ -30,7 +30,7 @@ export default async function NotificationsPage() {
           unread > 0 && (
             <form action={markAll}>
               <button className="min-h-11 rounded-xl px-3 text-sm font-medium whitespace-nowrap text-brand transition hover:bg-brand-soft active:scale-95">
-                Прочитать все
+                Отметить всё как прочитанное
               </button>
             </form>
           )

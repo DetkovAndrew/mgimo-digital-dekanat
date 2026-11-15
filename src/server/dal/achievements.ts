@@ -4,8 +4,8 @@ import { prisma } from "../db";
 import { requireStudent } from "../session";
 import { SPORT_RULES } from "./sport";
 
-// Ачивки для пасхалки с попутчиками на маршруте (src/components/mascots.tsx). Только флаги «открыто», без самих
-// оценок и баллов; считаются по данным владельца сессии.
+// Ачивки: только флаги «открыто», без самих оценок и баллов; считаются по данным владельца сессии.
+// Раньше открывали попутчиков на маршруте (убраны 15.11); на них же будут открываться образы Инвиктии.
 export type Achievements = { excellent: boolean; sport60: boolean; sport100: boolean; booker: boolean };
 
 export async function getMyAchievements(now = new Date()): Promise<Achievements> {

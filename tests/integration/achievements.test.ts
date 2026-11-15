@@ -1,4 +1,4 @@
-// Ачивки для попутчиков на маршруте: только флаги и только по своим данным (A/B).
+// Ачивки (для будущих образов Инвиктии): только флаги и только по своим данным (A/B).
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/server/db";
 import { getMyAchievements } from "@/server/dal/achievements";
