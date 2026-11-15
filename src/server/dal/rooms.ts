@@ -292,7 +292,7 @@ export async function findFreeRooms(args: unknown, now = new Date()) {
   return { day, after: after ?? null, before: before ?? null, minMinutes, building: building ?? null, rooms };
 }
 
-// ─── Бронь через помощника (Инвиктус) ─────────────────────────────────────────────────────────────────────
+// ─── Бронь через помощника (Инвиктия) ─────────────────────────────────────────────────────────────────────
 // Модель только готовит бронь: этот разбор ничего не пишет. Бронирует студент нажатием «Забронировать» в карточке —
 // это обычный bookRoom с сессией, zod и блокировками (решение капитана 13.11; docs/plans/assistant.md).
 const PrepareInput = z.object({
@@ -377,6 +377,6 @@ export async function prepareBooking(
  */
 export async function bookRoomAs(owner: string, input: unknown): Promise<RoomActionResult> {
   const { userId } = await requireStudent();
-  if (typeof owner !== "string" || owner !== userId) return { ok: false, error: "Вы вошли под другим аккаунтом. Начните новый разговор с Инвиктусом." };
+  if (typeof owner !== "string" || owner !== userId) return { ok: false, error: "Вы вошли под другим аккаунтом. Начните новый разговор с Инвиктией." };
   return bookRoom(input);
 }

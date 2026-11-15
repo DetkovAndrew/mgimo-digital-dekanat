@@ -126,9 +126,11 @@ describe("статус дисциплины (ревью Codex 10)", () => {
     });
     expect(courseStatus("EXAM", [final({ points: 95, passed: null, grade: 2 })], now)).toEqual({
       tone: "bad",
-      text: "неудовлетворительно",
+      text: "2",
     });
-    expect(courseStatus("EXAM", [final({ points: null, passed: null, grade: 4 })], now)).toEqual({ tone: "ok", text: "хорошо" });
+    expect(courseStatus("EXAM", [final({ points: null, passed: null, grade: 4 })], now)).toEqual({ tone: "ok", text: "4" });
+    // Буква ECTS — только когда баллы с оценкой согласуются.
+    expect(courseStatus("EXAM", [final({ points: 95, passed: null, grade: 5 })], now)).toEqual({ tone: "ok", text: "5 · A" });
     // Баллы за аттестацию без оценки и без «зачтено» — ещё не итог.
     expect(courseStatus("CREDIT", [{ ...cp(100, 70, "2026-06-15", "CREDIT") }], now).text).toBe("порог 60 пройден");
   });
