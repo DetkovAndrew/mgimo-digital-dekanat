@@ -28,8 +28,10 @@ async function settle(page) {
   await page.waitForTimeout(400);
 }
 
-/** Последовательность кадров: прокрутка по ключам [доля времени, y]. Пишет captures/phone/<name>/NNNN.jpg. */
-async function sequence(page, name, seconds, keys) {
+/** Последовательность кадров: прокрутка по ключам [доля времени, y]. Пишет captures/phone/<name>/NNNN.jpg.
+ * at — когда экран появляется в ролике: CSS-анимации (моргание, волосы) стоят на паузе, и на каждом кадре их время
+ * выставляется по времени ролика. Иначе съёмка (≈150 мс на кадр) ускоряла бы их в ролике в несколько раз. */
+async function sequence(page, name, seconds, keys, at = 0) {
   const dir = `${OUT}phone/${name}/`;
   await fs.rm(dir, { recursive: true, force: true });
   await fs.mkdir(dir, { recursive: true });
@@ -58,6 +60,12 @@ async function sequence(page, name, seconds, keys) {
       y,
     );
     scrolls.push([Math.round(y * 100) / 100, Math.round(actual * 100) / 100]);
+    await page.evaluate((ms) => {
+      for (const a of document.getAnimations()) {
+        a.pause();
+        a.currentTime = ms;
+      }
+    }, (at + i / FPS) * 1000);
     await page.screenshot({ path: `${dir}${String(i).padStart(4, "0")}.jpg`, type: "jpeg", quality: 92 });
   }
   // Смещения по кадрам: при движении не должно быть повторов и откатов.
@@ -86,17 +94,17 @@ async function phoneScreens(browser, only) {
   if (want("today")) {
     await open("/today");
     meta.fps.today = FPS;
-    meta.today = await sequence(page, "today", 5.5, [[0, 0], [0.15, 0], [0.85, 520], [1, 520]]);
+    meta.today = await sequence(page, "today", 5.5, [[0, 0], [0.15, 0], [0.85, 520], [1, 520]], 0.25);
   }
   if (want("schedule")) {
     await open("/schedule");
     meta.fps.schedule = FPS;
-    meta.schedule = await sequence(page, "schedule", 2.2, [[0, 0], [0.2, 0], [1, 340]]);
+    meta.schedule = await sequence(page, "schedule", 2.2, [[0, 0], [0.2, 0], [1, 340]], 8);
   }
   if (want("grades")) {
     await open("/grades");
     meta.fps.grades = FPS;
-    meta.grades = await sequence(page, "grades", 2.2, [[0, 0], [0.2, 0], [1, 300]]);
+    meta.grades = await sequence(page, "grades", 2.2, [[0, 0], [0.2, 0], [1, 300]], 10);
   }
   if (want("certificate")) {
     // Заявка со справкой: PDF и QR-проверка.
@@ -104,12 +112,12 @@ async function phoneScreens(browser, only) {
     const ready = await page.locator('a[href^="/requests/c"]').filter({ hasText: "Готова" }).first().getAttribute("href");
     await open(ready);
     meta.fps.certificate = FPS;
-    meta.certificate = await sequence(page, "certificate", 2.2, [[0, 0], [1, 0]]);
+    meta.certificate = await sequence(page, "certificate", 2.2, [[0, 0], [1, 0]], 12);
   }
   if (want("notifications")) {
     await open("/notifications");
     meta.fps.notifications = FPS;
-    meta.notifications = await sequence(page, "notifications", 2.2, [[0, 0], [0.2, 0], [1, 380]]);
+    meta.notifications = await sequence(page, "notifications", 2.2, [[0, 0], [0.2, 0], [1, 380]], 14);
   }
   if (want("assistant")) {
     // Помощница: настоящий ответ GigaChat по кабинету Алины.
@@ -126,14 +134,14 @@ async function phoneScreens(browser, only) {
     }, null, { timeout: 90_000 });
     await page.waitForTimeout(1500);
     meta.fps.assistant = FPS;
-    meta.assistant = await sequence(page, "assistant", 2.2, [[0, 0], [1, 0]]);
+    meta.assistant = await sequence(page, "assistant", 2.2, [[0, 0], [1, 0]], 16);
     await page.keyboard.press("Escape");
   }
   if (want("map")) {
     // Карта: схема корпуса с найденной аудиторией.
     await open("/rooms/kronv?room=1117");
     meta.fps.map = FPS;
-    meta.map = await sequence(page, "map", 2.2, [[0, 60], [0.2, 60], [1, 230]]);
+    meta.map = await sequence(page, "map", 2.2, [[0, 60], [0.2, 60], [1, 230]], 18);
   }
   if (want("form")) {
     // Форма заявки, заполненная; координаты кнопки — для касания в сцене.
@@ -143,7 +151,7 @@ async function phoneScreens(browser, only) {
     await page.locator("#copies").fill("1");
     await page.evaluate(() => document.activeElement?.blur());
     meta.fps.form = FPS;
-    meta.form = await sequence(page, "form", 3.2, [[0, 0], [0.25, 0], [0.75, 260], [1, 260]]);
+    meta.form = await sequence(page, "form", 3.2, [[0, 0], [0.25, 0], [0.75, 260], [1, 260]], 20);
     meta.submitButton = await page.getByRole("button", { name: "Отправить в деканат" }).boundingBox();
   }
 
