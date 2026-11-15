@@ -2,12 +2,15 @@ import { SignOut } from "@/components/nav";
 import { ThemePicker } from "@/components/theme-picker";
 import { Disclosure, List, Section } from "@/components/ui";
 import { formatDate } from "@/lib/format";
+import { SKINS } from "@/lib/invictia/skins";
 import { getMyAvatarUrl } from "@/server/dal/avatar";
 import { getMyProfile } from "@/server/dal/profile";
+import { getMyWardrobe } from "@/server/dal/skins";
 import { AvatarEditor } from "./avatar";
+import { Wardrobe } from "./wardrobe";
 
 export default async function ProfilePage() {
-  const [p, avatar] = await Promise.all([getMyProfile(), getMyAvatarUrl()]);
+  const [p, avatar, wardrobe] = await Promise.all([getMyProfile(), getMyAvatarUrl(), getMyWardrobe()]);
   const [last, first] = p.fullName.split(" ");
   const initials = `${first?.[0] ?? ""}${last?.[0] ?? ""}`; // «Лебедева Алина» → «АЛ»
   const main: [string, string][] = [
@@ -48,6 +51,10 @@ export default async function ProfilePage() {
       </Disclosure>
       <Section title="Оформление">
         <ThemePicker />
+      </Section>
+      {/* Образы открываются за достижения: сессия, физкультура, брони, корпуса (src/lib/invictia/skins.ts). */}
+      <Section title="Образ Инвиктии" aside={<span className="text-sm text-ink-2">открыто {wardrobe.unlocked.length} из {SKINS.length}</span>}>
+        <Wardrobe current={wardrobe.current} unlocked={wardrobe.unlocked} />
       </Section>
       <SignOut className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-surface text-[15px] font-medium text-bad ring-1 ring-hairline transition active:scale-[0.98] md:hidden" />
     </>

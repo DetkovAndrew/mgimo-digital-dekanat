@@ -104,17 +104,19 @@
   --k-consult-soft: #2a1f47;
   --k-sport: #7fe3a2;
   --k-sport-soft: #14301e;
-  --m-ground: #0e1016;
-  --m-floor: #272c39;
-  --m-wall: #7d879b;
-  --m-room: #1c2029;
-  --m-hall: #39321c;
-  --m-cowork: #1b3122;
-  --m-meet: #2c2340;
-  --m-food: #3d281b;
-  --m-wc: #33213d;
-  --m-quiet: #1e2f20;
-  --m-yard: #18261a;
+  /* Схема в тёмной теме: заливки обязаны быть тёмными (номер — 4.5:1 к ink-2), поэтому типы различаются не яркостью,
+     а насыщенным оттенком; коридор темнее обычных аудиторий, чтобы ячейки читались поверх него (NursuUwU, 15.11). */
+  --m-ground: #0b0d13;
+  --m-floor: #1b1f2a;
+  --m-wall: #9aa3b6;
+  --m-room: #3a3f50;
+  --m-hall: #4f3c0d;
+  --m-cowork: #174526;
+  --m-meet: #542d76;
+  --m-food: #613315;
+  --m-wc: #5d2965;
+  --m-quiet: #25462a;
+  --m-yard: #17271a;
   --m-ic-stairs: #7c8594;
   --m-ic-wc: #9b2bd8;
   --m-ic-food: #e85c14;
@@ -412,6 +414,12 @@ body {
     translate: 0 var(--hy);
   }
 }
+/* Убор образа (шапочка, бант, венок…) мягко плывёт вверх-вниз, медленнее волос. */
+@keyframes mascot-hat {
+  50% {
+    translate: 0 -0.5px;
+  }
+}
 /* Портреты Инвиктии в окне помощника — без движения: это портреты, а не персонаж в деле. */
 .mascot-still,
 .mascot-still * {
@@ -424,6 +432,9 @@ body {
   }
   .mascot-hair-y {
     animation: mascot-hair-y 5s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  }
+  .mascot-hat {
+    animation: mascot-hat 3.8s cubic-bezier(0.37, 0, 0.63, 1) infinite;
   }
   .mascot-walk {
     animation: mascot-bob 0.36s ease-in-out infinite;
@@ -459,6 +470,55 @@ body {
 .mascot-lit .mascot-eyes-happy,
 .mascot-joy .mascot-eyes-happy {
   display: inline;
+}
+/* Эмоции по нажатию на портрет в окне помощника (наброски NursuUwU): подмигивание и лёгкая грусть. */
+.mascot-wink-lid,
+.mascot-eyes-sad,
+.mascot-wink .mascot-eye-l,
+.mascot-sad .mascot-eyes-open {
+  display: none;
+}
+.mascot-wink .mascot-wink-lid,
+.mascot-sad .mascot-eyes-sad {
+  display: inline;
+}
+@keyframes mascot-pulse {
+  30% {
+    scale: 1.14;
+    translate: 0 -3px;
+  }
+  55% {
+    scale: 0.96;
+    translate: 0 0;
+  }
+  75% {
+    scale: 1.05;
+  }
+}
+@keyframes mascot-tilt {
+  35%,
+  70% {
+    rotate: 9deg;
+  }
+}
+@keyframes mascot-droop {
+  30%,
+  75% {
+    translate: 0 3px;
+    rotate: -7deg;
+    scale: 0.96;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mascot-react.mascot-joy {
+    animation: mascot-pulse 0.9s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+  .mascot-react.mascot-wink {
+    animation: mascot-tilt 1.2s ease-in-out;
+  }
+  .mascot-react.mascot-sad {
+    animation: mascot-droop 1.4s ease-in-out;
+  }
 }
 /* Финиш: звезда на лбу Инвиктии загорается зелёным и светится. */
 .mascot-lit .mascot-star {

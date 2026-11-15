@@ -66,6 +66,31 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
   );
 }
 
+/**
+ * Заголовок дня: число крупно на плитке, рядом день недели и месяц — день находится, пролистывая ленту (NursuUwU, 15.11).
+ * Сегодня — плитка цвета бренда.
+ */
+function DayHeading({ date, today, note }: { date: Date; today: boolean; note?: string | null }) {
+  return (
+    <span className="flex items-center gap-3">
+      <span
+        aria-hidden
+        className={`grid size-12 shrink-0 place-items-center rounded-2xl text-title font-bold tabular-nums ${today ? "bg-brand-fill text-on-brand" : "bg-brand-soft text-brand"}`}
+      >
+        {dayNum.format(date)}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-title leading-tight font-bold">{cap(weekdayLong.format(date))}</span>
+        <span className="block text-sm font-normal text-ink-2">
+          {dayMonth.format(date)}
+          {today && " · сегодня"}
+          {note}
+        </span>
+      </span>
+    </span>
+  );
+}
+
 /** Занятия, экзамены и сроки одного дня. */
 function DayItems({ lessons, events }: { lessons: ScheduleLesson[]; events: StudyEvent[] }) {
   const transfers = transfersForDay(lessons);
@@ -181,7 +206,7 @@ async function MonthView({ m, d }: { m: unknown; d: unknown }) {
           </h2>
           {arrow(1, "Следующий месяц", ChevronRight)}
         </div>
-        <div aria-hidden className="mt-1 grid grid-cols-7 text-center text-micro font-semibold text-ink-3">
+        <div aria-hidden className="mt-1 grid grid-cols-7 text-center text-sm font-semibold text-ink-2">
           {WEEKDAYS.map((w) => (
             <span key={w} className="py-1">
               {w}
@@ -216,7 +241,7 @@ async function MonthView({ m, d }: { m: unknown; d: unknown }) {
                     scroll={false}
                     aria-label={label}
                     aria-current={on ? "date" : undefined}
-                    className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl text-sm tabular-nums transition-colors ${
+                    className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl text-body font-medium tabular-nums transition-colors ${
                       on ? "bg-brand-fill font-semibold text-on-brand" : today ? "font-semibold text-brand ring-2 ring-brand ring-inset" : c.inMonth ? "text-ink hover:bg-fill" : "text-ink-3 hover:bg-fill"
                     }`}
                   >
@@ -271,14 +296,11 @@ async function MonthView({ m, d }: { m: unknown; d: unknown }) {
         <Section
           className="mt-6 xl:mt-0"
           title={
-            <span className="flex items-baseline gap-2">
-              <span className={selectedKey === todayKey ? "text-brand" : ""}>{cap(weekdayLong.format(selected.date))}</span>
-              <span className="text-sm font-normal text-ink-2">
-                {dayMonth.format(selected.date)}
-                {selectedKey === todayKey && " · сегодня"}
-                {sessionStart && term && selectedKey >= sessionStart && selectedKey <= mskDayKey(term.sessionEndsOn) && " · сессия"}
-              </span>
-            </span>
+            <DayHeading
+              date={selected.date}
+              today={selectedKey === todayKey}
+              note={sessionStart && term && selectedKey >= sessionStart && selectedKey <= mskDayKey(term.sessionEndsOn) ? " · сессия" : null}
+            />
           }
         >
           <DayItems lessons={selected.lessons} events={selected.events} />
@@ -338,12 +360,12 @@ async function WeekView({ week }: { week: unknown }) {
                 key={d.key}
                 href={`#d-${d.key}`}
                 aria-label={`${formatDay(d.date)}: ${count ? `событий ${count}` : "нет занятий"}`}
-                className={`flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl transition-colors ${
+                className={`flex min-h-18 flex-col items-center justify-center gap-0.5 rounded-2xl transition-colors ${
                   on ? "bg-brand-fill text-on-brand" : "bg-surface text-ink ring-1 ring-hairline md:hover:bg-fill"
                 }`}
               >
-                <span className={`text-micro ${on ? "text-on-brand" : "text-ink-3"}`}>{weekdayShort.format(d.date)}</span>
-                <span className="text-lead leading-none font-semibold tabular-nums">{dayNum.format(d.date)}</span>
+                <span className={`text-sm font-semibold ${on ? "text-on-brand" : "text-ink-2"}`}>{weekdayShort.format(d.date)}</span>
+                <span className="text-title leading-none font-bold tabular-nums">{dayNum.format(d.date)}</span>
                 <span aria-hidden className="flex h-2 items-center gap-0.5">
                   {held.slice(0, 4).map((l) => (
                     <span key={l.id} className={`size-1.5 rounded-full ${on ? "bg-on-brand" : kindStyle(l.kind).bar}`} />
@@ -364,15 +386,7 @@ async function WeekView({ week }: { week: unknown }) {
                 key={d.key}
                 id={`d-${d.key}`}
                 className="scroll-mt-20 md:scroll-mt-6"
-                title={
-                  <span className="flex items-baseline gap-2">
-                    <span className={d.key === todayKey ? "text-brand" : ""}>{cap(weekdayLong.format(d.date))}</span>
-                    <span className="text-sm font-normal text-ink-2">
-                      {dayMonth.format(d.date)}
-                      {d.key === todayKey && " · сегодня"}
-                    </span>
-                  </span>
-                }
+                title={<DayHeading date={d.date} today={d.key === todayKey} />}
               >
                 <DayItems lessons={d.lessons} events={d.events} />
               </Section>

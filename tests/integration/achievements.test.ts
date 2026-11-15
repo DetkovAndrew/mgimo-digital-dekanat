@@ -1,4 +1,4 @@
-// Ачивки (для будущих образов Инвиктии): только флаги и только по своим данным (A/B).
+// Ачивки (открывают образы Инвиктии): только флаги и только по своим данным (A/B).
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/server/db";
 import { getMyAchievements } from "@/server/dal/achievements";
@@ -12,7 +12,7 @@ afterAll(() => prisma.$disconnect());
 describe("ачивки", () => {
   it("считаются по своим данным: бронь и баллы физкультуры B не открывают ничего у A, и наоборот", async () => {
     const b = await makeStudent(`ach-b-${tag}`);
-    expect(await getMyAchievements()).toEqual({ excellent: false, sport60: false, sport100: false, booker: false });
+    expect(await getMyAchievements()).toEqual({ excellent: false, sport60: false, sport100: false, booker: false, travel: false, invicta: false });
 
     const term = await prisma.academicTerm.findFirstOrThrow({ where: { startsOn: { lte: new Date() } }, orderBy: { startsOn: "desc" } });
     // Дополнительные баллы — не больше 40 за раз (CHECK в БД): 30 + 30 = 60.

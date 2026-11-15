@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createContext, type KeyboardEvent, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import type { Pt } from "@/lib/campus/plans";
 import { climbEnd, climbStart, type RouteLeg, type RouteStep, type StepKind } from "@/lib/campus/route";
+import { type Skin, type SkinId, skinById } from "@/lib/invictia/skins";
 import { MascotFigure } from "./mascots";
 import { Stairs } from "./stairs-icon";
 
@@ -21,6 +22,7 @@ type Ctx = {
   shown: number;
   showFloor: (f: number | null) => void;
   calm: boolean;
+  skin: Skin;
 };
 
 
@@ -40,7 +42,7 @@ function useReducedMotion() {
 }
 
 /** Состояние плеера для схемы и шагов. Без маршрута (route = null) просто отдаёт содержимое. */
-export function RouteProvider({ route, views, children }: { route: RouteData | null; views: Record<number, View>; children: ReactNode }) {
+export function RouteProvider({ route, views, skinId, children }: { route: RouteData | null; views: Record<number, View>; skinId: SkinId; children: ReactNode }) {
   const [step, setStepRaw] = useState(0);
   const [manual, setManual] = useState<number | null>(null);
   const calm = useReducedMotion();
@@ -52,7 +54,7 @@ export function RouteProvider({ route, views, children }: { route: RouteData | n
   };
   const current = Math.min(step, last);
   const shown = manual ?? route.steps[current].floor;
-  return <RouteCtx value={{ route, views, step: current, setStep, shown, showFloor: setManual, calm }}>{children}</RouteCtx>;
+  return <RouteCtx value={{ route, views, step: current, setStep, shown, showFloor: setManual, calm, skin: skinById(skinId) }}>{children}</RouteCtx>;
 }
 
 /** Схема этажа видна, только когда на нём шаг (или этаж выбран вручную). Схемы всех этажей отрисованы сервером. */
@@ -132,7 +134,7 @@ function focusBox(pts: Pt[], v: View): [number, number, number, number] {
  * покачиваясь; на лестнице прыгает, у двери радуется. Парит над линией маршрута.
  * Родитель пересоздаёт его на каждом шаге (key), так что проход начинается заново только при смене шага.
  */
-function Walker({ at, motion, mood, finale = false }: { at?: Pt; motion?: { d: string; dur: number }; mood: "walk" | "hop" | "still"; finale?: boolean }) {
+function Walker({ skin, at, motion, mood, finale = false }: { skin: Skin; at?: Pt; motion?: { d: string; dur: number }; mood: "walk" | "hop" | "still"; finale?: boolean }) {
   const group = useRef<SVGGElement>(null);
   const anim = useRef<SVGAnimateMotionElement>(null);
   const [arrived, setArrived] = useState(!motion);
@@ -157,7 +159,7 @@ function Walker({ at, motion, mood, finale = false }: { at?: Pt; motion?: { d: s
         {/* Тень под ногами и обводка цветом пола: не сливается с линией маршрута и выбранной аудиторией. */}
         <ellipse cy={10.6} rx={7} ry={1.7} className="fill-ink opacity-20" />
         <g className={`mascot-sticker ${pose === "still" ? "" : `mascot-${pose}`} ${lit ? "mascot-lit" : ""}`}>
-          <MascotFigure />
+          <MascotFigure skin={skin} />
         </g>
       </g>
     </g>
@@ -217,7 +219,7 @@ export function RouteLayer({ floor }: { floor: number }) {
   }, [view]);
 
   if (!ctx || !current) return null;
-  const { route, calm } = ctx;
+  const { route, calm, skin } = ctx;
   const steps = route.steps.map((s, i) => ({ ...s, i })).filter((s) => s.floor === floor);
   const legs = route.legs.map((l, i) => ({ ...l, i })).filter((l) => l.floor === floor);
   const pill = (at: Pt, text: string) => {
@@ -273,14 +275,14 @@ export function RouteLayer({ floor }: { floor: number }) {
       {current.floor === floor && (
         <g key={`w${step}-${calm ? "calm" : "move"}`}>
           {current.path.length === 1 ? (
-            <Walker at={current.path[0]} mood={calm ? "still" : "hop"} />
+            <Walker skin={skin} at={current.path[0]} mood={calm ? "still" : "hop"} />
           ) : current.kind === "arrive" ? (
             // Финиш: стоит в коридоре напротив двери (а не в проёме) и «загорается».
-            <Walker at={current.path[0]} mood="still" finale />
+            <Walker skin={skin} at={current.path[0]} mood="still" finale />
           ) : calm ? (
-            <Walker at={current.path.at(-1)!} mood="still" />
+            <Walker skin={skin} at={current.path.at(-1)!} mood="still" />
           ) : (
-            <Walker motion={{ d: curve(current.path), dur: Math.max(1.4, lengthOf(current.path) / 70) }} mood="walk" />
+            <Walker skin={skin} motion={{ d: curve(current.path), dur: Math.max(1.4, lengthOf(current.path) / 70) }} mood="walk" />
           )}
         </g>
       )}

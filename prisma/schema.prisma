@@ -110,6 +110,8 @@ model StudentProfile {
   studyForm        String     @default("очная")
   funding          String // «бюджет» | «договор»
   enrolledAt       DateTime   @db.Date
+  /// Образ Инвиктии (src/lib/invictia/skins.ts); null — базовый. Открыт ли он, проверяет сервер при выборе и при показе.
+  invictiaSkin     String?
 
   grades        GradeResult[]
   requests      Request[]

@@ -2,6 +2,7 @@
 // аудитории — ячейки с общими стенами по обе стороны коридора, дверь каждой выходит в коридор или холл (plans.test.ts).
 // Одно описание — и для рисунка, и для строк Room в БД (scripts/sync-rooms.ts). docs/plans/rooms.md.
 // Номер аудитории XYAB: X — крыло, Y — этаж, AB — номер на этаже.
+import type { RoomIndexItem } from "./search";
 
 export type RoomKind = "LECTURE_HALL" | "CLASSROOM" | "COMPUTER_LAB" | "LAB" | "COWORKING" | "MEETING";
 
@@ -372,3 +373,16 @@ export const roomKindLabel: Record<RoomKind, string> = {
   COWORKING: "Коворкинг",
   MEETING: "Переговорная",
 };
+
+/** Плоский список аудиторий корпуса для поиска (src/lib/campus/search.ts): без геометрии этажей. */
+export const roomIndexOf = (p: PlanBuilding): RoomIndexItem[] =>
+  p.rooms.map((r) => ({
+    buildingId: p.buildingId,
+    short: p.short,
+    building: p.title,
+    number: r.number,
+    floor: r.floor,
+    kind: roomKindLabel[r.kind],
+    title: r.title,
+    bookable: r.bookable,
+  }));

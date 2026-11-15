@@ -1,19 +1,19 @@
-import { Building2, ChevronRight, DoorOpen, Search } from "lucide-react";
+import { ChevronRight, DoorOpen, MapPinned, Search } from "lucide-react";
 import Link from "next/link";
 import { ROOM_KIND_STYLE } from "@/components/campus-map";
-import { Disclosure, List, PageTitle, Section } from "@/components/ui";
+import { Disclosure, IconTile, List, PageTitle, RowLink, Section } from "@/components/ui";
 import { roomKindLabel } from "@/lib/campus/plans";
 import { ROOM_RULES } from "@/lib/campus/rules";
 import { formatDay, formatTime, mskDayKey } from "@/lib/format";
-import { listCampus, listMyRoomBookings } from "@/server/dal/rooms";
+import { listMyRoomBookings } from "@/server/dal/rooms";
 import { CancelRoomBooking } from "./booking";
 
 export default async function RoomsPage() {
-  const [campus, mine] = await Promise.all([listCampus(), listMyRoomBookings()]);
+  const mine = await listMyRoomBookings();
 
   return (
     <>
-      <PageTitle sub="Коворкинги и переговорные: схема корпуса, расписание аудитории и бронь">Аудитории</PageTitle>
+      <PageTitle sub="Коворкинги, переговорные и свободные аудитории: выберите время и забронируйте">Бронирование аудиторий</PageTitle>
 
       {/* Быстрая бронь: когда и на сколько → свободные → забронировать (без поиска по схеме). */}
       <Link
@@ -57,39 +57,19 @@ export default async function RoomsPage() {
         </Section>
       )}
 
-      <Section title="Выберите корпус">
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {campus.map((c) => (
-            <li key={c.id}>
-              <Link
-                href={`/rooms/${c.id}`}
-                transitionTypes={["nav-forward"]}
-                className="group flex h-full flex-col rounded-3xl bg-surface p-4 ring-1 ring-hairline transition hover:bg-fill/50 active:scale-[0.99]"
-              >
-                <span className="flex items-center justify-between gap-3">
-                  <span className="grid size-12 place-items-center rounded-2xl bg-brand-fill text-lead font-bold text-on-brand">{c.short}</span>
-                  <ChevronRight aria-hidden className="size-5 text-ink-3 transition-transform group-hover:translate-x-0.5" />
-                </span>
-                <span className="mt-3 block text-lead font-semibold">{c.name}</span>
-                <span className="block text-sm text-ink-2">
-                  {c.address}
-                  {c.metro && ` · м. ${c.metro}`}
-                </span>
-                <span className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-2">
-                  <span className="flex items-center gap-1">
-                    <Building2 aria-hidden className="size-3.5" />
-                    {c.wings > 1 ? `${c.wings} крыла · ` : ""}
-                    {c.floors.length} этажа
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <DoorOpen aria-hidden className="size-3.5" />
-                    можно забронировать: {c.bookable}
-                  </span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+      {/* Конкретную аудиторию удобнее выбрать на схеме: там её расписание на день и форма брони. */}
+      <Section title="Знаете, какую аудиторию хотите?">
+        <List>
+          <RowLink href="/map">
+            <span className="flex items-center gap-3">
+              <IconTile icon={MapPinned} tone="neutral" />
+              <span className="min-w-0">
+                <span className="block font-medium">Найти на карте</span>
+                <span className="block text-sm text-ink-2">По номеру или названию: её расписание и бронь на схеме корпуса</span>
+              </span>
+            </span>
+          </RowLink>
+        </List>
       </Section>
 
       <Disclosure title="Правила брони">
