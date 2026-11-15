@@ -1,7 +1,7 @@
 // Рендер ролика: локальный сервер (сцена, снимки, шрифты Onest из assets/) + Chromium без окна.
 //   node render.mjs stills 0.5,7,9,21,23.5,26,31.5,35     — кадры-проверки в out/stills/
 //   node render.mjs video [--scale 0.5] [--from 0 --to 37] — out/dekanat.mp4 (H.264, 60 к/с)
-//   node render.mjs video --music music.json                — по ролику и WAV на каждый вариант музыки
+//   node render.mjs video --music music.json [--only dekanat-hiphop] — по ролику и WAV на каждый вариант музыки
 //   node render.mjs analyze                                  — темп, доли и громкость треков из music/
 //   node render.mjs frames dekanat.mp4 1,9,26               — кадры из готового ролика в out/frames/
 import fs from "node:fs";
@@ -71,7 +71,8 @@ try {
     const t0 = Date.now();
     // --music music.json — варианты звука (трек и привязка к таймлайну), на каждый свой MP4 и WAV.
     const musicArg = process.argv.includes("--music") ? process.argv[process.argv.indexOf("--music") + 1] : null;
-    const variants = musicArg ? JSON.parse(fs.readFileSync(path.resolve(ROOT, musicArg), "utf8")) : [];
+    const only = process.argv.includes("--only") ? process.argv[process.argv.indexOf("--only") + 1].split(",") : null;
+    const variants = (musicArg ? JSON.parse(fs.readFileSync(path.resolve(ROOT, musicArg), "utf8")) : []).filter((v) => !only || only.includes(v.name));
     await page.evaluate((o) => window.renderVideo(o), { from: opt("from", 0), to: opt("to", 37), name, bitrate: opt("bitrate", 24e6), variants });
     console.log(`готово: out/${name}, ${((Date.now() - t0) / 60000).toFixed(1)} мин`);
   } else if (mode === "analyze") {

@@ -121,19 +121,28 @@ export async function mixScore(music, plan, T, duration) {
     }
   }
   const rmsDb = 10 * Math.log10(e / cnt + 1e-12);
-  const base = 10 ** ((-18 - rmsDb) / 20);
+  const base = 10 ** (((plan.musicDb ?? -18) - rmsDb) / 20);
   const src = ctx.createBufferSource();
   src.buffer = music;
   const lp = ctx.createBiquadFilter();
   lp.type = "lowpass";
   lp.Q.value = 0.5;
   const gain = ctx.createGain();
-  src.connect(lp).connect(gain).connect(out);
+  // Музыка — фоном: можно убрать бас и верха, чтобы бочка и тарелки не тянули внимание на себя.
+  const low = ctx.createBiquadFilter();
+  low.type = "lowshelf";
+  low.frequency.value = 140;
+  low.gain.value = plan.lowShelfDb ?? 0;
+  const high = ctx.createBiquadFilter();
+  high.type = "highshelf";
+  high.frequency.value = 5000;
+  high.gain.value = plan.highShelfDb ?? 0;
+  src.connect(low).connect(high).connect(lp).connect(gain).connect(out);
   const startAt = Math.max(0, -plan.offset);
   src.start(startAt, Math.max(0, plan.offset));
   const g = gain.gain;
   g.setValueAtTime(0, 0);
-  g.linearRampToValueAtTime(base, startAt + (plan.offset > 0.5 ? 0.6 : 0.05));
+  g.linearRampToValueAtTime(base, startAt + (plan.fadeIn ?? (plan.offset > 0.5 ? 0.6 : 0.05)));
   // Одобрение: музыка на миг уступает «дзынь».
   g.setValueAtTime(base, T.approve - 0.05);
   g.linearRampToValueAtTime(base * 0.55, T.approve + 0.08);
@@ -154,6 +163,10 @@ export async function mixScore(music, plan, T, duration) {
   f.setValueAtTime(plan.nightCutoff ?? 900, T.end);
   f.exponentialRampToValueAtTime(3500, T.end + 1.2);
 
+  // Акценты — через общую шину: их громкость подстраивается под громкость музыки.
+  const sfx = ctx.createGain();
+  sfx.gain.value = 10 ** ((plan.sfxDb ?? 0) / 20);
+  sfx.connect(out);
   const noise = ctx.createBuffer(1, SR * 2, SR);
   const nd = noise.getChannelData(0);
   let seed = 7;
@@ -174,7 +187,7 @@ export async function mixScore(music, plan, T, duration) {
     if (glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, at + decay);
     const a = ctx.createGain();
     env(a.gain, at, peak, 0.004, decay);
-    o.connect(a).connect(out);
+    o.connect(a).connect(sfx);
     o.start(at);
     o.stop(at + decay + 0.05);
   };
@@ -190,7 +203,7 @@ export async function mixScore(music, plan, T, duration) {
     a.gain.setValueAtTime(0.0001, at);
     a.gain.exponentialRampToValueAtTime(peak, at + attack);
     a.gain.exponentialRampToValueAtTime(0.0001, at + len);
-    s.connect(bp).connect(a).connect(out);
+    s.connect(bp).connect(a).connect(sfx);
     s.start(at, 0, len + 0.05);
   };
 
@@ -210,7 +223,7 @@ export async function mixScore(music, plan, T, duration) {
   wg.gain.setValueAtTime(0.0001, T.lift);
   wg.gain.exponentialRampToValueAtTime(db(-14), T.cut - 0.02);
   wg.gain.exponentialRampToValueAtTime(0.0001, T.cut + 0.55);
-  w.connect(wbp).connect(wg).connect(out);
+  w.connect(wbp).connect(wg).connect(sfx);
   w.start(T.lift, 0.3, T.cut - T.lift + 0.6);
   tone(90, T.cut, db(-14), 0.35, "sine", 45);
   // Посадка на экран ноутбука: тихий «тук».

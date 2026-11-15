@@ -16,20 +16,21 @@ const SCALE = Number(q.get("scale") ?? 1);
 const W = Math.round((1920 * SCALE) / 2) * 2;
 const H = Math.round((1080 * SCALE) / 2) * 2;
 
-// Таймлайн, секунды.
+// Таймлайн, секунды. Касание, вылет, вспышка, посадка и одобрение — на долях выбранного трека (хип-хоп, 95 уд/мин,
+// music.json): доля 0.6315 с, трек начинается с 3.5 с; номера долей 41, 42, 44, 46, 47.
 const T = {
   todayAt: 0.25,
   features: 8.0,
   featureLen: 2.0,
   form: 20.0,
-  tap: 22.45,
+  tap: 22.46,
   submitted: 22.75,
-  lift: 22.95,
-  cut: 24.2,
-  land: 25.45,
-  approve: 26.05,
-  toRequest: 27.0,
-  pullBack: 28.6,
+  lift: 23.09,
+  cut: 24.354,
+  land: 25.616,
+  approve: 26.248,
+  toRequest: 27.2,
+  pullBack: 28.8,
   dim: [30.2, 31.2],
   reveal: [31.25, 32.05],
   end: 33.4,
