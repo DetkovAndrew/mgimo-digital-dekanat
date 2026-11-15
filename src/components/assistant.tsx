@@ -6,7 +6,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { bookFromAssistantAction } from "@/app/(cabinet)/rooms/actions";
 import { parseInline } from "@/lib/assistant/answer";
 import type { BookingProposal } from "@/server/dal/rooms";
-import { InvictusFace, InvictusHair, MascotIcon } from "./mascots";
+import { type Skin, type SkinId, skinById } from "@/lib/invictia/skins";
+import { InvictusFace, InvictusHair, InvictusHat, MascotIcon } from "./mascots";
 import { authClient } from "@/lib/auth-client";
 
 // Помощник GigaChat — кружок в углу любого экрана кабинета. Живёт в layout: разговор не теряется при переходах,
@@ -132,7 +133,7 @@ function fit(owner: string, full: Msg[]) {
   return h;
 }
 
-function Chat({ configured, owner, onClose }: { configured: boolean; owner: string; onClose: () => void }) {
+function Chat({ configured, owner, skin, onClose }: { configured: boolean; owner: string; skin: Skin; onClose: () => void }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
@@ -195,7 +196,7 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
     <div className="flex h-full flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] md:p-0">
       <header className="flex items-center gap-3 border-b border-hairline py-2 pr-2 pl-4">
         <span aria-hidden className="grid size-14 shrink-0 place-items-center rounded-full bg-brand-soft">
-          <MascotIcon size={48} />
+          <MascotIcon skin={skin} size={48} />
         </span>
         <span className="min-w-0 flex-1">
           <h2 id="assistant-title" className="font-semibold">
@@ -267,7 +268,7 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
               )}
               {pending && (
                 <p role="status" className="mr-auto flex w-fit items-center gap-2 rounded-2xl rounded-bl-md bg-page py-2 pr-4 pl-2 text-sm text-ink-2">
-                  <MascotIcon size={40} />
+                  <MascotIcon skin={skin} size={40} />
                   Инвиктия смотрит в кабинет…
                 </p>
               )}
@@ -327,7 +328,8 @@ function Chat({ configured, owner, onClose }: { configured: boolean; owner: stri
 }
 
 /** Кружок в углу и окно помощника: на телефоне на весь экран, на десктопе — панель справа внизу. */
-export function Assistant({ configured, owner }: { configured: boolean; owner: string }) {
+export function Assistant({ configured, owner, skinId }: { configured: boolean; owner: string; skinId: SkinId }) {
+  const skin = skinById(skinId); // образ выбирается в профиле; сервер уже проверил, что он открыт
   const dialog = useRef<HTMLDialogElement>(null);
   const fab = useRef<HTMLButtonElement>(null);
   const face = useRef<HTMLSpanElement>(null);
@@ -415,15 +417,21 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
         aria-label="Спросить Инвиктию, помощницу по кабинету"
         aria-haspopup="dialog"
         aria-expanded={open}
+        style={skin.head ? { backgroundColor: skin.head } : undefined}
         className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-brand-fill text-on-brand ring-4 ring-page transition duration-200 hover:scale-105 active:scale-95 motion-reduce:transition-none md:right-6 md:bottom-6 ${open ? "pointer-events-none scale-75 opacity-0" : ""}`}
       >
         {/* Кнопка — голова Инвиктии: волосы-кружочки вокруг круга, звезда на лбу, глаза с ресницами. */}
         <svg aria-hidden viewBox="-8 -8 16 16" className="pointer-events-none absolute inset-0 size-full overflow-visible">
-          <InvictusHair />
+          <InvictusHat skin={skin} layer="back" />
+          <InvictusHair skin={skin} />
+          {/* Голова поверх ушек (у образа с ободком): основания ушек уходят за неё, как на схеме. */}
+          {skin.hat === "ears" && <circle r={8} fill={skin.head} />}
         </svg>
         <span ref={face} aria-hidden className={`block size-full transition-transform duration-300 ease-(--ease-out) ${joy ? "mascot-joy" : ""}`}>
           <svg viewBox="-8 -8 16 16" className="size-full overflow-visible">
-            <InvictusFace />
+            <InvictusHat skin={skin} layer="band" />
+            <InvictusFace skin={skin} />
+            <InvictusHat skin={skin} layer="front" />
           </svg>
         </span>
       </button>
@@ -435,7 +443,7 @@ export function Assistant({ configured, owner }: { configured: boolean; owner: s
         className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none bg-surface text-ink opacity-0 transition-[opacity,translate,display,overlay] transition-discrete duration-200 backdrop:bg-ink/25 open:translate-y-0 open:opacity-100 motion-reduce:transition-none starting:open:translate-y-4 starting:open:opacity-0 md:inset-auto md:right-6 md:bottom-6 md:h-[min(40rem,calc(100dvh-3rem))] md:w-[26rem] md:rounded-3xl md:ring-1 md:ring-hairline md:backdrop:bg-ink/10"
       >
         {/* key: при смене аккаунта разговор пересоздаётся, история прежнего пользователя исчезает. */}
-        <Chat key={owner} owner={owner} configured={configured} onClose={close} />
+        <Chat key={owner} owner={owner} configured={configured} skin={skin} onClose={close} />
       </dialog>
     </>
   );

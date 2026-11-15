@@ -53,7 +53,7 @@ export default async function ServicesPage() {
 
   return (
     <>
-      <PageTitle sub="Кампус в телефоне: пропуск, Wi-Fi, печать, аудитории и помощь.">Сервисы</PageTitle>
+      <PageTitle sub="Кампус в телефоне: пропуск, карта, бронирование, Wi-Fi, печать и помощь.">Сервисы</PageTitle>
 
       {/* Главное: пройти в корпус, поэтому пропуск ведёт экран. */}
       <Link
@@ -79,7 +79,7 @@ export default async function ServicesPage() {
           Осталось {print.left} из {print.limit} стр.
           {print.queued > 0 && ` · в очереди ${print.queued}`}
         </Tile>
-        <Tile href="/rooms/find" icon={DoorOpen} tone="ok" title="Аудитории">
+        <Tile href="/rooms" icon={DoorOpen} tone="ok" title="Бронирование аудиторий">
           {bookings.length ? `Мои брони: ${bookings.length}. Найти свободную` : "Найти свободную и забронировать"}
         </Tile>
         <Tile href="/sport" icon={Dumbbell} tone="warn" title="Физкультура">
@@ -89,7 +89,7 @@ export default async function ServicesPage() {
 
       <Section title="Кампус">
         <List>
-          <Row href="/rooms" icon={MapPinned} tone="neutral" title="Схемы корпусов и аудитории" sub="Где аудитория, как пройти, расписание и бронь" />
+          <Row href="/map" icon={MapPinned} tone="brand" title="Карта" sub="Найти аудиторию по номеру или названию, схемы корпусов и как пройти" />
           <Row href="/services/print#printers" icon={Printer} tone="neutral" title="Где принтеры" sub="Коворкинги и деканат: где стоят и что с бумагой (демо)" />
         </List>
       </Section>

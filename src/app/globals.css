@@ -412,6 +412,12 @@ body {
     translate: 0 var(--hy);
   }
 }
+/* Убор образа (шапочка, бант, венок…) мягко плывёт вверх-вниз, медленнее волос. */
+@keyframes mascot-hat {
+  50% {
+    translate: 0 -0.5px;
+  }
+}
 /* Портреты Инвиктии в окне помощника — без движения: это портреты, а не персонаж в деле. */
 .mascot-still,
 .mascot-still * {
@@ -424,6 +430,9 @@ body {
   }
   .mascot-hair-y {
     animation: mascot-hair-y 5s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  }
+  .mascot-hat {
+    animation: mascot-hat 3.8s cubic-bezier(0.37, 0, 0.63, 1) infinite;
   }
   .mascot-walk {
     animation: mascot-bob 0.36s ease-in-out infinite;

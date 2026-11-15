@@ -39,7 +39,7 @@ export default async function FindRoomPage({ searchParams }: PageProps<"/rooms/f
 
   return (
     <>
-      <BackLink href="/rooms">Аудитории</BackLink>
+      <BackLink href="/rooms">Бронирование</BackLink>
       <PageTitle sub={`Коворкинги, переговорные и аудитории, которые студенты могут бронировать. С ${ROOM_RULES.opens} до ${ROOM_RULES.closes}, до ${ROOM_RULES.windowDays} дней вперёд.`}>
         Найти свободную
       </PageTitle>

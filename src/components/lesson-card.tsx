@@ -1,6 +1,8 @@
 import { MapPin, UserRound } from "lucide-react";
 import Link from "next/link";
 import { ViewTransition } from "react";
+import { lessonRoomOnPlan } from "@/lib/campus/route-link";
+import { roomOnMapHref } from "@/lib/campus/search";
 import { formatDateTime, formatTime, lessonKindLabel, shortName } from "@/lib/format";
 import type { ScheduleLesson } from "@/server/dal/schedule";
 import { lessonTitleName } from "@/lib/view-transitions";
@@ -24,12 +26,14 @@ export function LessonCard({ lesson }: { lesson: ScheduleLesson }) {
   const moved = lesson.status === "RESCHEDULED";
   const summary = changeSummary(lesson);
   const place = lesson.online ? "Онлайн" : [lesson.room, lesson.building?.title].filter(Boolean).join(" · ");
+  // Аудитория со схемы корпуса — ссылка на неё на «Карте»; отменённое занятие никуда не ведёт.
+  const onPlan = cancelled ? null : lessonRoomOnPlan(lesson);
 
+  // Вся карточка ведёт на пару: ссылка растянута на карточку (after:inset-0). Аудитория — своя ссылка поверх (z-10):
+  // вложить ссылку в ссылку нельзя.
   return (
-    <Link
-      href={lesson.href}
-      transitionTypes={["nav-forward"]}
-      className={`group relative flex items-center gap-3 overflow-hidden rounded-2xl bg-surface py-2.5 pr-3.5 pl-3.5 ring-1 transition active:scale-[0.99] md:hover:ring-brand/30 ${
+    <div
+      className={`group relative flex items-center gap-3 overflow-hidden rounded-2xl bg-surface py-2.5 pr-9 pl-3.5 ring-1 transition has-[a[data-card]:active]:scale-[0.99] md:hover:ring-brand/30 ${
         cancelled ? "ring-bad/30" : moved ? "ring-warn/40" : "ring-hairline"
       }`}
     >
@@ -42,17 +46,35 @@ export function LessonCard({ lesson }: { lesson: ScheduleLesson }) {
           {cancelled && <Badge tone="bad">Отменено</Badge>}
           {moved && <Badge tone="warn">Изменено</Badge>}
         </span>
-        {lesson.source === "lesson" ? (
-          <ViewTransition name={lessonTitleName(lesson.id)} share="morph" default="none">
-            <span className={`block w-fit leading-snug font-semibold ${cancelled ? "text-ink-2 line-through" : ""}`}>{lesson.title}</span>
-          </ViewTransition>
-        ) : (
-          <span className="block leading-snug font-semibold">{lesson.title}</span>
-        )}
+        <Link href={lesson.href} data-card transitionTypes={["nav-forward"]} className="block outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-focus">
+          {lesson.source === "lesson" ? (
+            <ViewTransition name={lessonTitleName(lesson.id)} share="morph" default="none">
+              <span className={`block w-fit leading-snug font-semibold ${cancelled ? "text-ink-2 line-through" : ""}`}>{lesson.title}</span>
+            </ViewTransition>
+          ) : (
+            <span className="block leading-snug font-semibold">{lesson.title}</span>
+          )}
+          <span className="sr-only">, {place || "аудитория не указана"}</span>
+          {/* Стрелка с индикатором загрузки (useLinkStatus) — внутри ссылки, прижата к правому краю карточки. */}
+          <span className="absolute top-1/2 right-3.5 -translate-y-1/2">
+            <Chevron />
+          </span>
+        </Link>
         {/* Место и преподаватель — каждый своей строкой и без обрезки: их ищут прямо в списке, не открывая пару. */}
         <span className="mt-1 flex items-start gap-1.5 text-sm text-ink">
           <MapPin aria-hidden className="mt-0.5 size-3.5 shrink-0 text-ink-2" />
-          <span className="min-w-0">{place || "Аудитория не указана"}</span>
+          {onPlan ? (
+            <Link
+              href={roomOnMapHref(onPlan)}
+              transitionTypes={["nav-forward"]}
+              aria-label={`${place} — на карте`}
+              className="relative z-10 -my-2 inline-flex min-h-11 min-w-0 items-center text-brand underline decoration-brand/40 underline-offset-2 hover:decoration-brand"
+            >
+              {place}
+            </Link>
+          ) : (
+            <span className="min-w-0">{place || "Аудитория не указана"}</span>
+          )}
         </span>
         {lesson.teacher && (
           <span className="flex items-start gap-1.5 text-sm text-ink-2">
@@ -62,7 +84,6 @@ export function LessonCard({ lesson }: { lesson: ScheduleLesson }) {
         )}
         {summary && <span className="mt-1 block text-xs text-warn">{summary}</span>}
       </span>
-      <Chevron />
-    </Link>
+    </div>
   );
 }

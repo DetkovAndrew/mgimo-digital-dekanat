@@ -6,11 +6,12 @@ import { Toaster } from "@/components/toast";
 import { isAssistantConfigured } from "@/server/ai/gigachat";
 import { getMyAvatarUrl } from "@/server/dal/avatar";
 import { countMyUnread } from "@/server/dal/notifications";
+import { getMySkinId } from "@/server/dal/skins";
 import { requireStudent } from "@/server/session";
 
 export default async function CabinetLayout({ children }: LayoutProps<"/">) {
   const { userId } = await requireStudent();
-  const [unread, avatar] = await Promise.all([countMyUnread(), getMyAvatarUrl()]);
+  const [unread, avatar, skin] = await Promise.all([countMyUnread(), getMyAvatarUrl(), getMySkinId()]);
   return (
     <div className="flex min-h-dvh">
       <Nav unread={unread} avatar={avatar} />
@@ -35,7 +36,7 @@ export default async function CabinetLayout({ children }: LayoutProps<"/">) {
           <RouteMotion>{children}</RouteMotion>
         </main>
       </div>
-      <Assistant owner={userId} configured={isAssistantConfigured()} />
+      <Assistant owner={userId} configured={isAssistantConfigured()} skinId={skin} />
     </div>
   );
 }
