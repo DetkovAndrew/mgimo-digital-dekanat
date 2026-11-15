@@ -1,8 +1,7 @@
 import { Building2, ChevronRight, DoorOpen } from "lucide-react";
 import Link from "next/link";
 import { PageTitle, Section } from "@/components/ui";
-import { PLANS, roomKindLabel } from "@/lib/campus/plans";
-import type { RoomIndexItem } from "@/lib/campus/search";
+import { PLANS, roomIndexOf } from "@/lib/campus/plans";
 import { listCampus } from "@/server/dal/rooms";
 import { RoomSearch } from "./room-search";
 
@@ -13,18 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function MapPage() {
   const campus = await listCampus();
-  const index: RoomIndexItem[] = PLANS.flatMap((p) =>
-    p.rooms.map((r) => ({
-      buildingId: p.buildingId,
-      short: p.short,
-      building: p.title,
-      number: r.number,
-      floor: r.floor,
-      kind: roomKindLabel[r.kind],
-      title: r.title,
-      bookable: r.bookable,
-    })),
-  );
+  const index = PLANS.flatMap(roomIndexOf);
 
   return (
     <>

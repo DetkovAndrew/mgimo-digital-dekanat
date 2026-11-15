@@ -7,7 +7,7 @@ import { CampusMap, MapLegend, ROOM_KIND_STYLE } from "@/components/campus-map";
 import { RouteFloor, RouteFloorTabs, RouteLayer, RoutePlayer, RouteProvider } from "@/components/route-player";
 import { KindTime } from "@/components/kind";
 import { Badge, Disclosure, Empty, List, PageTitle, RowLink, Section } from "@/components/ui";
-import { planFor, roomKindLabel } from "@/lib/campus/plans";
+import { planFor, roomIndexOf, roomKindLabel } from "@/lib/campus/plans";
 import { findRoute, type RouteEnd } from "@/lib/campus/route";
 import { ROOM_RULES, roomDayKeys } from "@/lib/campus/rules";
 import { formatDay, formatTime, lessonKindLabel } from "@/lib/format";
@@ -15,6 +15,7 @@ import { getCampusState, getRoomDay } from "@/server/dal/rooms";
 import { getMyRouteStart } from "@/server/dal/schedule";
 import { getMySkinId } from "@/server/dal/skins";
 import { BookForm, CancelRoomBooking } from "../booking";
+import { BuildingRoomSearch } from "./room-search";
 
 const weekday = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", weekday: "short" });
 const dayNum = new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "numeric" });
@@ -138,6 +139,7 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
       <PageTitle sub={`${state.building.address} · ${plan.wingCount > 1 ? `${plan.wingCount} крыла, ` : ""}${plan.floors.length} этажа`}>
         {plan.title}
       </PageTitle>
+      <BuildingRoomSearch index={roomIndexOf(plan)} building={plan.title} />
 
       {/* key: другой маршрут (начало или аудитория) — плеер с первого шага. */}
       <RouteProvider
