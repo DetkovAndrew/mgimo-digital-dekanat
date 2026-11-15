@@ -80,14 +80,9 @@ const PHONE_CAM = [
 ];
 const PHONE_YAW = [
   [0, [0]],
-  [6.0, [0.06]],
-  [8.0, [-0.3]],
-  [10.0, [-0.2]],
-  [12.0, [-0.32]],
-  [14.0, [-0.2]],
-  [16.0, [-0.3]],
-  [18.0, [-0.2]],
-  [20.0, [-0.28]],
+  [6.0, [0.03]],
+  [8.0, [-0.26]],
+  [20.0, [-0.24]],
   [22.8, [-0.16]],
   [T.cut, [-0.08]],
 ];
@@ -261,12 +256,13 @@ async function renderAt(t) {
 
   if (usePhone) {
     setCamera(PHONE_CAM, t);
-    const bob = 0.035 * Math.sin((2 * Math.PI * t) / 3.4);
+    // Парение — едва заметное: медленный подъём и лёгкий наклон.
+    const bob = 0.016 * Math.sin((2 * Math.PI * t) / 4.2);
     phone.group.position.set(0, bob, 0);
-    phone.group.rotation.set(0.05 * Math.sin((2 * Math.PI * t) / 4.6) - 0.02, track(PHONE_YAW, t)[0] + 0.045 * Math.sin((2 * Math.PI * t) / 6), 0.022 * Math.sin((2 * Math.PI * t) / 5.3));
+    phone.group.rotation.set(0.016 * Math.sin((2 * Math.PI * t) / 5.6) - 0.015, track(PHONE_YAW, t)[0] + 0.015 * Math.sin((2 * Math.PI * t) / 7.2), 0.007 * Math.sin((2 * Math.PI * t) / 6.4));
     phone.group.updateMatrixWorld();
-    phoneShadow.material.opacity = 0.3 - bob * 2;
-    phoneShadow.scale.setScalar(1 - bob * 0.8);
+    phoneShadow.material.opacity = 0.3 - bob * 3;
+    phoneShadow.scale.setScalar(1 - bob * 1.5);
     await updatePhoneScreen(t);
 
     // Заявка отрывается от экрана и летит в камеру.

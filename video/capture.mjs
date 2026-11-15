@@ -58,6 +58,9 @@ async function phoneScreens(browser, only) {
   const page = await ctx.newPage();
   const open = async (path) => {
     await page.goto(BASE + path);
+    // В кабинете кнопка помощницы прячется при прокрутке вниз; в ролике прокрутка почти всё время вниз,
+    // и Инвиктия мигала бы — на съёмке держим её на месте.
+    await page.addStyleTag({ content: "[data-assistant-fab]{opacity:1!important;translate:0 0!important}" });
     await settle(page);
   };
   // Частичная пересъёмка дополняет прежние метаданные.
