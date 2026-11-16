@@ -37,6 +37,14 @@ describe("sanitizeAnswer: только ссылки из снимка", () => {
     expect(sanitizeAnswer("путь /courses/zzz", allowed)).toBe("путь /courses/zzz");
   });
 
+  it("голый путь со службой и якорем тоже становится ссылкой, чужой якорь — нет", () => {
+    const withOffice = new Set([...allowed, "/services/support#scholarship"]);
+    expect(sanitizeAnswer("Подробности — в службе /services/support#scholarship.", withOffice)).toBe(
+      "Подробности — в службе [открыть](/services/support#scholarship).",
+    );
+    expect(sanitizeAnswer("см. /services/support#evil", withOffice)).toBe("см. /services/support#evil");
+  });
+
   it("путь в квадратных скобках, как в снимке: разрешённый — ссылка, чужой — убирается", () => {
     expect(sanitizeAnswer("Пара [/courses/abc]", allowed)).toBe("Пара [открыть](/courses/abc)");
     expect(sanitizeAnswer("Пара [/lessons/other]", allowed)).toBe("Пара ");

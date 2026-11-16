@@ -18,7 +18,8 @@ export function sanitizeAnswer(text: string, allowed: ReadonlySet<string> | ((hr
   };
   let s = text.replace(/\r/g, "").trim();
   // 1. Голый путь в тексте («здесь: /requests/new?type=…»). Скобку «(» не считаем началом: это уже ссылка.
-  s = s.replace(/(^|[\s:«])(\/[\w\-/?=&%+]{1,200}?)(?=[.,;:!?)»]?(?:\s|$))/gm, (m, pre: string, href: string) => {
+  //    «#» — для служб: «/services/support#scholarship» (прогон 17.11, сценарий 34, оставался текстом).
+  s = s.replace(/(^|[\s:«])(\/[\w\-/?=&%+#]{1,200}?)(?=[.,;:!?)»]?(?:\s|$))/gm, (m, pre: string, href: string) => {
     const c = canon(href);
     return c ? `${pre}[открыть](${c})` : m;
   });
