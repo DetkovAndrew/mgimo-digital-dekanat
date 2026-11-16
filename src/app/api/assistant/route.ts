@@ -6,7 +6,7 @@ import { BOOK_ROOM, FIND_FREE_ROOMS, formatFreeRooms, formatPrepared } from "@/s
 import { AssistantError, gigachatComplete, type ChatMessage } from "@/server/ai/gigachat";
 import { findFreeRooms, prepareBooking, type BookingProposal } from "@/server/dal/rooms";
 import { wantsRooms } from "@/lib/assistant/intent";
-import { takeStudentSlot, withProviderSlot } from "@/server/ai/limits";
+import { ASSISTANT_LIMITS, takeStudentSlot, withProviderSlot } from "@/server/ai/limits";
 import { systemPrompt } from "@/server/ai/prompt";
 import { studentForApi } from "@/server/session";
 
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
 
   const slot = takeStudentSlot(who.student.studentId);
   if (!slot.ok) {
-    const text = { active: "Подождите, помощник ещё отвечает на прошлый вопрос.", minute: "Слишком часто: попробуйте через минуту.", day: "На сегодня лимит вопросов исчерпан (60)." };
+    const text = { active: "Подождите, помощник ещё отвечает на прошлый вопрос.", minute: "Слишком часто: попробуйте через минуту.", day: `На сегодня лимит вопросов исчерпан (${ASSISTANT_LIMITS.perDay}).` };
     return json(429, { error: text[slot.reason] });
   }
 

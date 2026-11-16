@@ -5,6 +5,16 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 
+const OFFLINE = "Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.";
+
+/** «Неверный пароль» пишем, только когда сервер его действительно отверг: сбой сервера не должен выглядеть как ошибка в пароле. */
+function signInError(status: number | undefined) {
+  if (status === 401 || status === 400) return "Неверный логин или пароль.";
+  if (status === 429) return "Слишком много попыток. Подождите минуту.";
+  if (!status) return OFFLINE;
+  return "Сервер не смог выполнить вход. Попробуйте ещё раз через минуту.";
+}
+
 export function LoginForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -16,15 +26,28 @@ export function LoginForm() {
     const form = new FormData(e.currentTarget);
     setPending(true);
     setError(null);
-    // Вход через HTTP-эндпоинт Better Auth — на нём действует ограничение попыток.
-    const { error } = await authClient.signIn.username({
-      username: String(form.get("username") ?? "").trim(),
-      password: String(form.get("password") ?? ""),
-    });
-    if (error) {
+    // Без ответа за 20 с считаем, что связи нет: иначе кнопка навсегда осталась бы в «Входим…».
+    const timeout = new AbortController();
+    const timer = setTimeout(() => timeout.abort(), 20_000);
+    try {
+      // Вход через HTTP-эндпоинт Better Auth: на нём действует ограничение попыток.
+      const { error } = await authClient.signIn.username({
+        username: String(form.get("username") ?? "").trim(),
+        password: String(form.get("password") ?? ""),
+        fetchOptions: { signal: timeout.signal },
+      });
+      if (error) {
+        setPending(false);
+        setError(signInError(error.status));
+        return;
+      }
+    } catch {
+      // Запрос не дошёл или оборвался: пароль тут ни при чём.
       setPending(false);
-      setError(error.status === 429 ? "Слишком много попыток. Подождите минуту." : "Неверный логин или пароль.");
+      setError(OFFLINE);
       return;
+    } finally {
+      clearTimeout(timer);
     }
     router.replace("/");
     router.refresh();
