@@ -1,5 +1,5 @@
 import { ArrowDown, Timer, TriangleAlert } from "lucide-react";
-import type { Transfer } from "@/lib/transfers";
+import { type Transfer, transferText } from "@/lib/transfers";
 
 /** Плашка между парами: успеет ли студент дойти до следующего корпуса. */
 export function TransferNote({ transfer }: { transfer: Transfer }) {
@@ -11,14 +11,7 @@ export function TransferNote({ transfer }: { transfer: Transfer }) {
       : v.kind === "tight"
         ? "border-warn/30 bg-warn-soft text-warn"
         : "border-hairline bg-fill text-ink-2";
-  const text =
-    v.kind === "impossible"
-      ? `Не успеть: перерыв ${v.gapMin} мин, а дорога ≈ ${v.estimate.transitMin} мин на транспорте. Предупредите преподавателя или подайте заявку.`
-      : v.kind === "tight"
-        ? `Впритык: перерыв ${v.gapMin} мин, транспортом ≈ ${v.estimate.transitMin} мин.`
-        : v.mode === "walk"
-          ? `Пешком ≈ ${v.estimate.walkMin} мин, перерыв ${v.gapMin} мин.`
-          : `Транспортом ≈ ${v.estimate.transitMin} мин, перерыв ${v.gapMin} мин.`;
+  const text = transferText(v);
 
   return (
     <p className={`ml-4 flex items-start gap-2 rounded-xl border border-dashed px-3 py-2 text-xs ${tone}`}>

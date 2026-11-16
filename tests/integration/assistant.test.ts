@@ -83,6 +83,21 @@ describe("снимок кабинета", () => {
     }
   });
 
+  it("переходы между парами посчитаны сервером: строка «↳ до пары» после пары, с перерывом", async () => {
+    await as("alina.lebedeva");
+    // Вторник в середине семестра: у Алины несколько пар подряд, часть — в разных корпусах.
+    const { text } = await buildMyContext(new Date("2026-11-17T07:00:00+03:00"));
+    const lines = text.split("\n");
+    const hops = lines.map((l, i) => [l, lines[i - 1]] as const).filter(([l]) => l.startsWith("  ↳ до пары в "));
+    expect(hops.length).toBeGreaterThan(0);
+    for (const [hop, prev] of hops) {
+      expect(prev, hop).toMatch(/^(- \d\d:\d\d|  ↳)/); // сразу после строки пары
+      expect(hop).toMatch(/перерыв \d+ мин/);
+      expect(hop).toMatch(/: (успеваете\. |Не успеть|Впритык|Тот же корпус)/);
+    }
+    expect(text).toContain("Строки «↳ до пары» посчитал сервер");
+  });
+
   it("ссылки снимка ведут только на объекты A", async () => {
     await as("alina.lebedeva");
     const { links } = await buildMyContext();

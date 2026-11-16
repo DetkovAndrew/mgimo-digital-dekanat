@@ -30,14 +30,14 @@ export function estimateTravel(a: Point, b: Point): TravelEstimate {
 }
 
 export type TransferVerdict =
-  | { kind: "same-building" }
+  | { kind: "same-building"; gapMin: number }
   | { kind: "ok"; estimate: TravelEstimate; gapMin: number; mode: "walk" | "transit" }
   | { kind: "tight"; estimate: TravelEstimate; gapMin: number } // только транспортом и впритык
   | { kind: "impossible"; estimate: TravelEstimate; gapMin: number };
 
 /** Успеет ли студент перейти между корпусами за перерыв между парами. */
 export function judgeTransfer(from: Point & { id: string }, to: Point & { id: string }, gapMin: number): TransferVerdict {
-  if (from.id === to.id) return { kind: "same-building" };
+  if (from.id === to.id) return { kind: "same-building", gapMin };
   const estimate = estimateTravel(from, to);
   if (estimate.walkMin <= gapMin) return { kind: "ok", estimate, gapMin, mode: "walk" };
   if (estimate.transitMin <= gapMin) {

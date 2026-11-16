@@ -1,6 +1,7 @@
 import "server-only";
 import { addDays, mskDayKey, controlFormLabel, formatDate, formatDateTime, formatDay, formatShortDate, formatTime, lessonKindLabel, mskStartOfDay, requestStatusLabel } from "@/lib/format";
 import { assessmentDate, courseProgress, courseStatus, formatPoints, nextAssessment } from "@/lib/grading";
+import { transfersForDay, transferText } from "@/lib/transfers";
 import { formatRequestNumber, isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { requestGuide } from "@/lib/requests/guide";
 import { officeHref, officeSubject, SUPPORT_OFFICES } from "@/lib/support/offices";
@@ -84,6 +85,12 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
       `Ближайшее занятие (на «следующую пару» отвечай этой строкой): ${when}, ${formatDay(next.startsAt)} ${formatTime(next.startsAt)}–${formatTime(next.endsAt)}, ${lessonKindLabel[next.kind] ?? next.kind}: ${clip(next.title, 80)}; ${where} [${link(next.href)}]`,
     );
   }
+  // Переходы между парами считает сервер, как плашки на «Сегодня»: сама модель назвала перерыв 09:40 → 09:50
+  // пересечением (прогон 14.11, сценарий 3). Пары в одном корпусе тоже с перерывом — чтобы не считала и их.
+  const byDay = new Map<string, typeof lessons>();
+  for (const l of lessons) byDay.set(mskDayKey(l.startsAt), [...(byDay.get(mskDayKey(l.startsAt)) ?? []), l]);
+  const transfers = new Map([...byDay.values()].flatMap((d) => [...transfersForDay(d, { sameBuilding: true })]));
+  if (transfers.size) out.push("Строки «↳ до пары» посчитал сервер: на вопросы «успею ли» отвечай ими, время сам не вычисляй.");
   let day = "";
   for (const l of lessons.slice(0, 60)) {
     const d = formatDay(l.startsAt);
@@ -100,6 +107,13 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
     out.push(
       `- ${formatTime(l.startsAt)}–${formatTime(l.endsAt)} ${lessonKindLabel[l.kind] ?? l.kind}: ${clip(l.title, 80)}; ${place}${l.teacher ? `; ${clip(l.teacher, 60)}` : ""}${status}${href ? ` [${href}]` : ""}`,
     );
+    const t = transfers.get(l.id);
+    if (t) {
+      // «Успеваете» — только когда сервер посчитал дорогу; про тот же корпус — нейтрально (этажи и аудитории разные).
+      const ok = t.verdict.kind === "ok" ? "успеваете. " : "";
+      const to = t.verdict.kind === "same-building" ? "" : ` (${t.toTitle})`;
+      out.push(`  ↳ до пары в ${formatTime(t.toStartsAt)}${to}: ${ok}${transferText(t.verdict)}`);
+    }
   }
 
   const term = terms[0];
