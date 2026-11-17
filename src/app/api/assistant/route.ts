@@ -6,6 +6,7 @@ import { BOOK_ROOM, FIND_FREE_ROOMS, formatFreeRooms, formatPrepared } from "@/s
 import { AssistantError, gigachatComplete, type ChatMessage } from "@/server/ai/gigachat";
 import { findFreeRooms, prepareBooking, type BookingProposal } from "@/server/dal/rooms";
 import { wantsRooms } from "@/lib/assistant/intent";
+import { answerTransfer } from "@/lib/assistant/transfer-answer";
 import { ASSISTANT_LIMITS, takeStudentSlot, withProviderSlot } from "@/server/ai/limits";
 import { systemPrompt } from "@/server/ai/prompt";
 import { studentForApi } from "@/server/session";
@@ -101,6 +102,14 @@ export async function POST(req: Request) {
   try {
     const ctx = await buildMyContext();
     if (abort.signal.aborted) throw new AssistantError("unavailable", "aborted");
+    // «Успею ли с X на Y»: ответ из посчитанного перехода, без модели (сценарий 3, живой сайт 17.11).
+    const last = parsed.data.messages.at(-1);
+    const standalone = parsed.data.messages.length === 1;
+    const transfer = last?.role === "user" ? answerTransfer(last.content, ctx.transfers, ctx.asOf, standalone) : null;
+    if (transfer) {
+      console.info(`[assistant] transfer ${Date.now() - started}ms`);
+      return json(200, { answer: sanitizeAnswer(transfer, (href) => canonicalLink(href, ctx.links, ctx.asOf)) });
+    }
     let proposal: BookingProposal | null = null;
     const raw = await withProviderSlot(async (): Promise<{ text: string; fromModel?: true }> => {
       const messages: ChatMessage[] = [{ role: "system", content: systemPrompt(ctx) }, ...parsed.data.messages];

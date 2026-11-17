@@ -28,17 +28,24 @@ export function sanitizeAnswer(text: string, allowed: ReadonlySet<string> | ((hr
     const c = canon(href);
     return c ? `[открыть](${c})` : "";
   });
-  // 3. Ссылки [текст](путь): чужие и выдуманные превращаются в обычный текст.
+  // 3. Обрывок ссылки без адреса: «[страница службы]/care» (прогон 17.11, сценарий 36) — остаётся только текст.
+  //    До проверки ссылок: из «[[жми]](/чужое)» получится ссылка, и её проверят шаги 4–5 (ревью Codex 73).
+  s = s.replace(/\[([^[\]\n]+)\](?!\()(?:\/[\w\-/?=&%+#]*)?/g, "$1");
+  // 4. Ссылки [текст](путь): чужие и выдуманные превращаются в обычный текст.
   s = s.replace(LINK, (_, label: string, href: string) => {
     const c = canon(href);
     return c ? `[${label}](${c})` : label;
   });
-  // 4. Замена могла склеить новую ссылку из вложенных скобок («[a [b](/x)](/y)» → «[a b](/y)»): проверяем ещё раз,
+  // 5. Замена могла склеить новую ссылку из вложенных скобок («[a [b](/x)](/y)» → «[a b](/y)»): проверяем ещё раз,
   //    пока текст не перестанет меняться. Остаются только ссылки, уже приведённые к каноническому виду.
-  for (let i = 0, prev = ""; i < 5 && prev !== s; i++) {
-    prev = s;
+  let stable = false;
+  for (let i = 0; i < 20 && !stable; i++) {
+    const prev = s;
     s = s.replace(LINK, (m, label: string, href: string) => (canon(href) === href ? m : label));
+    stable = prev === s;
   }
+  // Вложенность глубже предела (ревью Codex 74): без квадратных скобок клиент не соберёт ни одной ссылки.
+  if (!stable) s = s.replace(/[[\]]/g, "");
   return s.length > MAX_ANSWER_CHARS ? `${s.slice(0, MAX_ANSWER_CHARS - 1)}…` : s;
 }
 
@@ -72,7 +79,8 @@ const subjectParts = (subject: string) =>
  * в кавычках с постоянными частями шаблона, и одна такая тема закрывает одну службу (ревью Codex 69–71).
  */
 export function completeOfficeContacts(text: string, offices: readonly OfficeFacts[]): string {
-  const linked = offices.filter((o) => text.includes(`](${o.href})`));
+  // Служба в ответе — по ссылке на неё или по её почте (ссылку модель иногда ломала: сценарий 36).
+  const linked = offices.filter((o) => text.includes(`](${o.href})`) || text.includes(o.email));
   // Каждая тема в кавычках закрывает одну службу: ту, чей шаблон подробнее («Обмен: …, группа P3212» — не деканату
   // с «<Тема>, группа P3212»), а при одинаковых шаблонах (деканат и библиотека) — ближайшую ссылку на службу.
   const at = (o: OfficeFacts) => text.indexOf(`](${o.href})`);
@@ -92,6 +100,7 @@ export function completeOfficeContacts(text: string, offices: readonly OfficeFac
     const mail = text.includes(o.email) ? null : `почта ${o.email}`;
     const subject = covered.has(o) ? null : `тема письма: «${o.subject}»`;
     if (mail || subject) add.push(`${lead}${[mail, subject].filter(Boolean).join(", ")}.`);
+    if (!text.includes(`](${o.href})`)) add.push(`[${o.title}: страница службы](${o.href})`);
   }
   if (!add.length) return text;
   const s = `${text}\n${add.map((l) => l[0].toUpperCase() + l.slice(1)).join("\n")}`;

@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { POST } from "@/app/api/assistant/route";
 import { formatRequestNumber } from "@/lib/requests/catalog";
 import { SUPPORT_OFFICES } from "@/lib/support/offices";
+import { answerTransfer } from "@/lib/assistant/transfer-answer";
 import { buildMyContext } from "@/server/ai/context";
 import { gigachatComplete, type ChatMessage } from "@/server/ai/gigachat";
 import { resetAssistantLimits } from "@/server/ai/limits";
@@ -99,6 +100,18 @@ describe("снимок кабинета", () => {
     // Сценарий 3: английский (Ломоносова) → Гривцова за 10 минут — готовый ответ «нет», а не только числа.
     expect(hops.some(([h]) => /^  ↳ переход с «[^»]*Английский[^»]*» на «Хемоинформатика» в 09:50, Гривцова, 14: Нет, не успеваете\. Перерыв \d+ мин, а дорога/.test(h))).toBe(true);
     expect(text).toContain("Строки «↳ переход с … на …» посчитал сервер");
+  });
+
+  it("«успею ли с английского на хемоинформатику» — готовый ответ сервера, а не пятничный переход на английский", async () => {
+    await as("alina.lebedeva");
+    const now = new Date("2026-11-17T07:00:00+03:00");
+    const { transfers, links } = await buildMyContext(now);
+    const answer = answerTransfer("Успею ли я во вторник с английского на хемоинформатику?", transfers, now);
+    expect(answer).toMatch(
+      /^Нет, не успеваете: вторник, 17 ноября, после «English C1 \/ Английский язык C1» \(до 09:40, Ломоносова, 9, лит\. Е\) на «Хемоинформатика» в 09:50 \(Гривцова, 14\)\. Перерыв 10 мин, а дорога ≈ \d+ мин на транспорте\./,
+    );
+    const href = answer!.match(/\[Пара в расписании\]\((\/lessons\/[^)]+)\)/)?.[1];
+    expect(href && links.has(href)).toBe(true);
   });
 
   it("ссылки снимка ведут только на объекты A", async () => {

@@ -6,6 +6,7 @@ import { transfersForDay, transferText } from "@/lib/transfers";
 import { formatRequestNumber, isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { requestGuide } from "@/lib/requests/guide";
 import type { OfficeFacts } from "@/lib/assistant/answer";
+import { words, type TransferFact } from "@/lib/assistant/transfer-answer";
 import { officeHref, officeSubject, SUPPORT_OFFICES } from "@/lib/support/offices";
 import { getMyGrades } from "../dal/grades";
 import { listMyNotifications } from "../dal/notifications";
@@ -61,7 +62,7 @@ export const STATIC_LINKS = [
 /** Имена «полей ссылки» каталога: по ним сервер узнаёт их пересказ в ответе модели (dropCatalogFields). */
 export const CATALOG_FIELD_NAMES: ReadonlySet<string> = new Set(Object.values(requestCatalog).flatMap((spec) => spec.fields.map((f) => f.name)));
 
-export type AssistantContext = { text: string; links: Set<string>; asOf: Date; offices: OfficeFacts[] };
+export type AssistantContext = { text: string; links: Set<string>; asOf: Date; offices: OfficeFacts[]; transfers: TransferFact[] };
 
 export async function buildMyContext(now = new Date()): Promise<AssistantContext> {
   const today = mskStartOfDay(now);
@@ -107,6 +108,7 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
       "Строки «↳ переход с … на …» посчитал сервер. На «успею ли» найди строку, где совпадают обе пары, и ответь ею: после двоеточия в ней готовый ответ, затем перерыв и дорога; время сам не вычисляй.",
     );
   }
+  const transferFacts: TransferFact[] = [];
   let day = "";
   for (const l of lessons.slice(0, 60)) {
     const d = formatDay(l.startsAt);
@@ -130,9 +132,20 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
       const next = lessons.find((x) => x.id === t.toLessonId);
       const to = t.verdict.kind === "same-building" ? "" : `, ${t.toTitle}`;
       const facts = transferText(t.verdict).replace(/^(Не успеть: |Впритык: |Тот же корпус, )/, "");
-      out.push(
-        `  ↳ переход с «${clip(l.title, 50)}» на «${clip(next?.title, 50)}» в ${formatTime(t.toStartsAt)}${to}: ${TRANSFER_ANSWER[t.verdict.kind]}. ${facts[0].toUpperCase()}${facts.slice(1)}`,
-      );
+      const Facts = `${facts[0].toUpperCase()}${facts.slice(1)}`;
+      out.push(`  ↳ переход с «${clip(l.title, 50)}» на «${clip(next?.title, 50)}» в ${formatTime(t.toStartsAt)}${to}: ${TRANSFER_ANSWER[t.verdict.kind]}. ${Facts}`);
+      // Тот же переход готовым ответом: на «успею ли с X на Y» отвечает сервер (src/lib/assistant/transfer-answer.ts).
+      const fromPlace = l.online ? "онлайн" : (l.building?.title ?? "место не указано");
+      const toHref = next?.source === "lesson" ? ` [Пара в расписании](${link(next.href)})` : "";
+      transferFacts.push({
+        day: mskDayKey(l.startsAt),
+        fromWords: words(`${l.title} ${lessonKindLabel[l.kind] ?? ""}`),
+        toWords: words(`${next?.title ?? ""} ${next ? (lessonKindLabel[next.kind] ?? "") : ""}`),
+        toStartsAt: t.toStartsAt,
+        text:
+          `${TRANSFER_ANSWER[t.verdict.kind]}: ${formatDay(l.startsAt)}, после «${clip(l.title, 60)}» (до ${formatTime(l.endsAt)}, ${fromPlace}) ` +
+          `на «${clip(next?.title, 60)}» в ${formatTime(t.toStartsAt)} (${t.toTitle}). ${Facts}${toHref}`,
+      });
     }
   }
 
@@ -271,5 +284,5 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
 
   let text = out.join("\n");
   if (text.length > MAX_CONTEXT_CHARS) text = `${text.slice(0, MAX_CONTEXT_CHARS)}\n…(снимок обрезан)`;
-  return { text, links, asOf: now, offices };
+  return { text, links, asOf: now, offices, transfers: transferFacts };
 }

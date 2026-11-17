@@ -150,3 +150,32 @@ describe("dropCatalogFields: пересказ «полей ссылки» кат
     }
   });
 });
+
+describe("обрывки ссылок и служба по почте (прогон 17.11, сценарий 36)", () => {
+  it("«[текст]/путь» без адреса в скобках становится текстом, настоящие ссылки целы", () => {
+    const ok = new Set(["/services/support#care"]);
+    expect(sanitizeAnswer("Напишите: [страница службы]/care.", ok)).toBe("Напишите: страница службы.");
+    expect(sanitizeAnswer("См. [психолог](/services/support#care) и [1].", ok)).toBe("См. [психолог](/services/support#care) и 1.");
+    // Глубокая вложенность тоже: ни одной ссылки на чужое (ревью Codex 74).
+    for (const depth of [7, 30]) {
+      let deep = "жми";
+      for (let i = 0; i < depth; i++) deep = `[a ${deep}](/courses/not-mine)`;
+      expect(parseInline(sanitizeAnswer(deep, ok)).some((x) => x.kind === "link"), String(depth)).toBe(false);
+    }
+    // Вложенные скобки не дают ссылке обойти проверку (ревью Codex 73).
+    expect(sanitizeAnswer("[[жми]](/courses/not-mine) и [[ок]](/services/support#care)", ok)).toBe("жми и [ок](/services/support#care)");
+  });
+
+  it("служба названа почтой, но без ссылки — сервер добавляет ссылку на неё", () => {
+    const care = {
+      href: "/services/support#care",
+      title: "Психологическая служба",
+      where: "Кронверкский, 49, 4-й этаж",
+      hours: "по будням с 10 до 19",
+      email: "care@university.example",
+      subject: "Запись на консультацию",
+    };
+    const text = "Где: Кронверкский, 49, 4-й этаж; часы: по будням с 10 до 19.\nПочта: care@university.example, тема письма: «Запись на консультацию».";
+    expect(completeOfficeContacts(text, [care])).toBe(`${text}\n[Психологическая служба: страница службы](/services/support#care)`);
+  });
+});
