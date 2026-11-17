@@ -421,8 +421,10 @@ export function Assistant({ configured, owner, skinId }: { configured: boolean; 
     };
   }, []);
 
-  // На телефоне кнопка прячется, пока страницу листают вниз, и возвращается при прокрутке вверх: с волосами она
-  // шире круга и закрывала край карточек, ссылок и вариантов в формах (360 px). На компьютере она вне колонки текста.
+  // На телефоне кнопка поджимается, пока страницу листают вниз, и разворачивается при прокрутке вверх: с волосами она
+  // шире круга и закрывала край карточек, ссылок и вариантов в формах (360 px). Раньше она пропадала совсем — «маскот
+  // убегает» (NursuUwU, 17.11); теперь меньше, без волос, у края экрана, но всегда на месте и нажимается.
+  // На компьютере она вне колонки текста.
   const [tucked, setTucked] = useState(false);
   useEffect(() => {
     const phone = window.matchMedia("(width < 48rem)");
@@ -476,10 +478,10 @@ export function Assistant({ configured, owner, skinId }: { configured: boolean; 
         aria-expanded={open}
         onFocus={() => setTucked(false)}
         style={skin.head ? { backgroundColor: skin.head } : undefined}
-        className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-brand-fill text-on-brand ring-4 ring-page transition duration-200 hover:scale-105 active:scale-95 motion-reduce:transition-none md:right-6 md:bottom-6 ${open ? "pointer-events-none scale-75 opacity-0" : tucked ? "pointer-events-none translate-y-4 opacity-0" : ""}`}
+        className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-brand-fill text-on-brand ring-4 ring-page transition duration-200 hover:scale-105 active:scale-95 motion-reduce:transition-none md:right-6 md:bottom-6 origin-bottom-right ${open ? "pointer-events-none scale-75 opacity-0" : tucked ? "scale-[0.72]" : ""}`}
       >
         {/* Кнопка — голова Инвиктии: волосы-кружочки вокруг круга, звезда на лбу, глаза с ресницами. */}
-        <svg aria-hidden viewBox="-8 -8 16 16" className="pointer-events-none absolute inset-0 size-full overflow-visible">
+        <svg aria-hidden viewBox="-8 -8 16 16" className={`pointer-events-none absolute inset-0 size-full overflow-visible transition-opacity duration-200 motion-reduce:transition-none ${tucked ? "opacity-0" : ""}`}>
           <InvictusHat skin={skin} layer="back" />
           <InvictusHair skin={skin} />
           {/* Голова поверх ушек (у образа с ободком): основания ушек уходят за неё, как на схеме. */}
