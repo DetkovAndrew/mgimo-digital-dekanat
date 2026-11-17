@@ -17,6 +17,7 @@ export default async function StaffLayout({ children }: { children: ReactNode })
           <nav aria-label="Разделы деканата" className="flex gap-1">
             <Link href="/staff" className="inline-flex min-h-11 items-center rounded-xl px-3 text-body font-medium text-ink-2 hover:bg-fill">Заявки</Link>
             <Link href="/staff/schedule" className="inline-flex min-h-11 items-center rounded-xl px-3 text-body font-medium text-ink-2 hover:bg-fill">Расписание</Link>
+            <Link href="/staff/announcements" className="inline-flex min-h-11 items-center rounded-xl px-3 text-body font-medium text-ink-2 hover:bg-fill">Объявления</Link>
           </nav>
           <SignOut className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3 text-body text-ink-2 hover:bg-fill" />
         </div>

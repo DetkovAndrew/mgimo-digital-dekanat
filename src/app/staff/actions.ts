@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { StaffActionState } from "@/lib/staff/requests";
+import type { AnnounceActionState } from "@/lib/staff/announcements";
 import type { ScheduleActionState } from "@/lib/staff/schedule";
 import { changeFacultyRequest } from "@/server/dal/staff";
+import { sendFacultyAnnouncement } from "@/server/dal/staff-announcements";
 import { rescheduleFacultyLesson } from "@/server/dal/staff-schedule";
 import { requireStaff } from "@/server/session";
 
@@ -39,6 +41,20 @@ export async function rescheduleLessonAction(_previous: ScheduleActionState, for
     revalidatePath("/notifications");
     revalidatePath("/lessons/[id]", "page");
     redirect(`/staff/schedule/${encodeURIComponent(text(form, "id"))}?updated=1`);
+  }
+  return result;
+}
+
+export async function sendAnnouncementAction(_previous: AnnounceActionState, form: FormData): Promise<AnnounceActionState> {
+  await requireStaff();
+  const result = await sendFacultyAnnouncement({
+    audience: text(form, "audience"), course: text(form, "course"), group: text(form, "group"),
+    title: text(form, "title"), body: text(form, "body"), important: form.get("important") === "on",
+  });
+  if (result.ok) {
+    revalidatePath("/staff/announcements");
+    revalidatePath("/notifications");
+    revalidatePath("/today");
   }
   return result;
 }
