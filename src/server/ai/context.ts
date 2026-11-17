@@ -257,7 +257,7 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
   // и подставляла адрес соседней службы (живой сайт 17.11, сценарии 34 и 35).
   const offices: OfficeFacts[] = [];
   for (const o of SUPPORT_OFFICES) {
-    offices.push({ href: officeHref(o), title: o.title, where: o.where, hours: o.hours, email: o.email, subject: officeSubject(o, profile.group) });
+    offices.push({ href: officeHref(o), title: o.title, where: o.where, hours: o.hours, email: o.email, subject: officeSubject(o, profile.group), note: o.note });
     out.push(`- ${o.title}: ${o.topics.join("; ")}${o.note ? `. ${o.note}` : ""} [${link(officeHref(o))}]`);
     out.push(`  где: ${o.where}; часы: ${o.hours}; почта: ${o.email}; тема письма: «${officeSubject(o, profile.group)}»`);
     if (o.requests.length) {

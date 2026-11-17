@@ -66,7 +66,7 @@ export function dropCatalogFields(text: string, names: ReadonlySet<string>): str
   return kept.length === lines.length ? text : kept.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-export type OfficeFacts = { href: string; title: string; where: string; hours: string; email: string; subject: string };
+export type OfficeFacts = { href: string; title: string; where: string; hours: string; email: string; subject: string; note?: string };
 
 /** Постоянные части шаблона темы — без «<…>», которые заполняет студент. */
 const subjectParts = (subject: string) =>
@@ -100,6 +100,10 @@ export function completeOfficeContacts(text: string, offices: readonly OfficeFac
     const mail = text.includes(o.email) ? null : `почта ${o.email}`;
     const subject = covered.has(o) ? null : `тема письма: «${o.subject}»`;
     if (mail || subject) add.push(`${lead}${[mail, subject].filter(Boolean).join(", ")}.`);
+    // Пометка службы («Бесплатно и конфиденциально: …») — если в ответе нет хоть одного ключевого слова её начала
+    // (до двоеточия): «это бесплатно» без «конфиденциально» не считается (сценарий 36, ревью Codex 77).
+    const keys = (o.note?.split(":")[0].toLowerCase().match(/[а-яё]{5,}/g) ?? []).map((w) => w.slice(0, 7));
+    if (o.note && keys.some((k) => !text.toLowerCase().includes(k))) add.push(`${lead}${o.note}`);
     if (!text.includes(`](${o.href})`)) add.push(`[${o.title}: страница службы](${o.href})`);
   }
   if (!add.length) return text;

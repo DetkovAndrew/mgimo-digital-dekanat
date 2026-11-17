@@ -178,4 +178,20 @@ describe("обрывки ссылок и служба по почте (прог�
     const text = "Где: Кронверкский, 49, 4-й этаж; часы: по будням с 10 до 19.\nПочта: care@university.example, тема письма: «Запись на консультацию».";
     expect(completeOfficeContacts(text, [care])).toBe(`${text}\n[Психологическая служба: страница службы](/services/support#care)`);
   });
+
+  it("потерянная пометка службы дописывается целиком; пересказанная со всеми ключевыми словами — нет", () => {
+    const care = {
+      href: "/services/support#care",
+      title: "Психологическая служба",
+      where: "Кронверкский, 49, 4-й этаж",
+      hours: "по будням с 10 до 19",
+      email: "care@university.example",
+      subject: "Запись на консультацию",
+      note: "Бесплатно и конфиденциально: содержание разговора не передаётся деканату.",
+    };
+    const text = "[Служба](/services/support#care). Кронверкский, 49, 4-й этаж, по будням с 10 до 19. Почта care@university.example, тема письма: «Запись на консультацию».";
+    expect(completeOfficeContacts(text, [care])).toBe(`${text}\n${care.note}`);
+    expect(completeOfficeContacts(`${text} Это бесплатно.`, [care])).toBe(`${text} Это бесплатно.\n${care.note}`);
+    expect(completeOfficeContacts(`${text} Это бесплатно и конфиденциально.`, [care])).toBe(`${text} Это бесплатно и конфиденциально.`);
+  });
 });
