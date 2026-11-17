@@ -106,6 +106,27 @@ export async function getMySchedule(range: { from: Date; to: Date }) {
 export type ScheduleLesson = Awaited<ReturnType<typeof getMySchedule>>[number];
 
 /**
+ * Сколько занятий ещё впереди по каждой дисциплине семестра — только курсы группы студента, без отменённых
+ * (опрос 15–16.11: «сколько занятий осталось до конца семестра по определённому предмету»). Для снимка помощника.
+ */
+export async function countMyRemainingLessons(offeringIds: string[], now = new Date()) {
+  const { groupId } = await requireStudent();
+  const rows = await prisma.lesson.groupBy({
+    by: ["offeringId", "kind"],
+    where: { offeringId: { in: offeringIds }, offering: { groupId }, startsAt: { gte: now }, status: { not: "CANCELLED" } },
+    _count: { _all: true },
+  });
+  const out = new Map<string, { total: number; byKind: [kind: string, count: number][] }>();
+  for (const r of rows) {
+    const o = out.get(r.offeringId) ?? { total: 0, byKind: [] };
+    o.total += r._count._all;
+    o.byKind.push([r.kind, r._count._all]);
+    out.set(r.offeringId, o);
+  }
+  return out;
+}
+
+/**
  * Откуда вести маршрут внутри корпуса (docs/plans/indoor-route.md): аудитория последнего занятия студента в этот день
  * (МСК), закончившегося не позже `before`. Отменённые и онлайн не в счёт. Если последнее такое занятие было в другом
  * корпусе или не в аудитории со схемы — null, маршрут начнётся от входа. Только из своего расписания (сессия).
