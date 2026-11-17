@@ -4,14 +4,15 @@ import { AssistantError } from "./gigachat";
 // Ограничения помощника. Счётчики в памяти процесса: прототип работает одним процессом Node
 // (next start / standalone, см. docs/plans/assistant.md). При нескольких процессах их нужно вынести в PostgreSQL.
 
-export const ASSISTANT_LIMITS = { perMinute: 10, perDay: 60, concurrency: Number(process.env.GIGACHAT_MAX_CONCURRENCY) || 1, queue: 8, waitMs: 20_000 };
+// 200 в сутки, а не 60: демо-аккаунт Алины общий у всех экспертов жюри, и суточная квота у них тоже одна на всех.
+export const ASSISTANT_LIMITS = { perMinute: 10, perDay: 200, concurrency: Number(process.env.GIGACHAT_MAX_CONCURRENCY) || 1, queue: 8, waitMs: 20_000 };
 
 const hits = new Map<string, number[]>();
 const active = new Set<string>();
 
 export type LimitVerdict = { ok: true; release: () => void } | { ok: false; reason: "active" | "minute" | "day" };
 
-/** Квота студента: не больше одного запроса одновременно, 10 в минуту и 60 в сутки. */
+/** Квота студента: не больше одного запроса одновременно, 10 в минуту и 200 в сутки. */
 export function takeStudentSlot(studentId: string, now = Date.now()): LimitVerdict {
   if (active.has(studentId)) return { ok: false, reason: "active" };
   const list = (hits.get(studentId) ?? []).filter((t) => now - t < 86_400_000);

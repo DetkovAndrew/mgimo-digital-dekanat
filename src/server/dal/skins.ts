@@ -6,20 +6,26 @@ import { requireStudent } from "../session";
 import { getMyAchievements } from "./achievements";
 
 // Образ Инвиктии студента (src/lib/invictia/skins.ts). Владелец — только из сессии. Открыт ли образ, сервер проверяет
-// при выборе по ачивкам; при показе (каждая страница кабинета) читается только сохранённое значение — дёшево.
+// при выборе и при показе: образ мог закрыться (пересдача в новой сессии) — тогда показывается базовый.
 
 export type SkinResult = { ok: true } | { ok: false; error: string };
 
-/** Сохранённый образ для кнопки помощника и маршрута. Неизвестное значение — базовый. */
-export async function getMySkinId(): Promise<SkinId> {
+async function savedSkinId(): Promise<SkinId> {
   const { studentId } = await requireStudent();
   const p = await prisma.studentProfile.findUniqueOrThrow({ where: { id: studentId }, select: { invictiaSkin: true } });
   return skinById(p.invictiaSkin).id;
 }
 
+/** Образ для кнопки помощника и маршрута. Неизвестный или закрывшийся — базовый; ачивки считаются, только если образ выбран. */
+export async function getMySkinId(): Promise<SkinId> {
+  const id = await savedSkinId();
+  if (id === "base") return id;
+  return isSkinUnlocked(skinById(id), await getMyAchievements()) ? id : "base";
+}
+
 /** Гардероб для профиля: выбранный образ и какие открыты. Открытость — по ачивкам текущего студента. */
 export async function getMyWardrobe(): Promise<{ current: SkinId; unlocked: SkinId[] }> {
-  const [current, flags] = await Promise.all([getMySkinId(), getMyAchievements()]);
+  const [current, flags] = await Promise.all([savedSkinId(), getMyAchievements()]);
   const unlocked = SKINS.filter((s) => isSkinUnlocked(s, flags)).map((s) => s.id);
   // Образ мог закрыться (например, пересдача в новой сессии) — тогда показываем и считаем выбранным базовый.
   return { current: unlocked.includes(current) ? current : "base", unlocked };

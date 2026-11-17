@@ -1,14 +1,14 @@
 "use client";
 
-import { Bell as BellIcon, CalendarDays, CircleUserRound, DoorOpen, Dumbbell, FileText, GraduationCap, House, LayoutGrid, LogOut, type LucideIcon, MapPinned, QrCode } from "lucide-react";
-import Link from "next/link";
+import { Bell as BellIcon, CalendarDays, CircleUserRound, DoorOpen, Dumbbell, FileText, GraduationCap, House, LayoutGrid, LoaderCircle, LogOut, type LucideIcon, MapPinned, QrCode } from "lucide-react";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ViewTransition } from "react";
+import { useEffect, ViewTransition } from "react";
 import { authClient } from "@/lib/auth-client";
 import { UniversityMark } from "./university-mark";
 
-// Нижнее меню телефона — 6 разделов: ядро ТЗ, спорт (решение капитана 14.11: своя вкладка, даже если меню
-// придётся листать) и «Сервисы» (карта, бронирование аудиторий, пропуск, Wi-Fi, печать). Уведомления и профиль — в шапке.
+// Нижнее меню телефона, 6 разделов: ядро ТЗ, спорт (решение капитана 14.11: своя вкладка, даже если меню
+// придётся листать) и «Сервисы» (карта, бронирование аудиторий, пропуск, Wi-Fi, печать). Уведомления и профиль в шапке.
 const items: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/today", label: "Сегодня", icon: House },
   { href: "/schedule", label: "Расписание", icon: CalendarDays },
@@ -39,17 +39,26 @@ const owner: Record<string, string> = {
 };
 
 /**
- * Колокольчик работает как переключатель: на открытых уведомлениях повторное нажатие закрывает их —
- * возвращает на предыдущий экран (или на «Сегодня», если уведомления открыли по прямой ссылке).
+ * Колокольчик работает как переключатель: на открытых уведомлениях повторное нажатие закрывает их и
+ * возвращает на экран, с которого их открыли колокольчиком, иначе на «Сегодня». Длину истории не проверяем:
+ * уведомления могли открыть ссылкой с другого сайта, и «назад» увёл бы туда (ревью Codex 60).
  */
+let openedByBell = false; // общий для колокольчика в шапке телефона и пункта меню на компьютере
+
 function useCloseNotifications() {
   const pathname = usePathname();
   const router = useRouter();
   const open = pathname === "/notifications";
+  useEffect(() => {
+    if (pathname !== "/notifications") openedByBell = false;
+  }, [pathname]);
   return (e: React.MouseEvent) => {
-    if (!open) return;
+    if (!open) {
+      openedByBell = true; // ссылка сейчас добавит /notifications поверх текущего экрана кабинета
+      return;
+    }
     e.preventDefault();
-    if (window.history.length > 1) router.back();
+    if (openedByBell) router.back();
     else router.replace("/today");
   };
 }
@@ -59,7 +68,7 @@ export function Nav({ unread, avatar }: { unread: number; avatar: string | null 
   const section = owner[pathname.split("/")[1]] ?? pathname;
   const active = (href: string) => section === href || section.startsWith(`${href}/`);
   // На десктопе у карты, брони и пропуска свои пункты меню, на телефоне они открываются из «Сервисов».
-  // Схема корпуса (/rooms/kronv) — часть «Карты», а поиск свободной (/rooms/find) — «Бронирования».
+  // Схема корпуса (/rooms/kronv) относится к «Карте», а поиск свободной (/rooms/find) к «Бронированию».
   const own = (href: string) =>
     /^\/rooms\/(?!find)/.test(pathname) ? href === "/map" : pathname === href || pathname.startsWith(`${href}/`);
   const ownItem = desktopItems.find((i) => own(i.href));
@@ -92,6 +101,7 @@ export function Nav({ unread, avatar }: { unread: number; avatar: string | null 
                       <span aria-hidden className="absolute top-1.5 h-7 w-12 rounded-full bg-brand-soft" />
                     </ViewTransition>
                   )}
+                  <TabPending />
                   <Icon aria-hidden className="relative size-5.5" strokeWidth={on ? 2.3 : 1.8} />
                   {label}
                 </Link>
@@ -132,6 +142,7 @@ export function Nav({ unread, avatar }: { unread: number; avatar: string | null 
                   {href === "/notifications" && unread > 0 && (
                     <span className="rounded-full bg-bad-fill px-1.5 text-xs leading-5 text-on-brand">{unread}</span>
                   )}
+                  <RowPending />
                 </Link>
               </li>
             );
@@ -143,7 +154,34 @@ export function Nav({ unread, avatar }: { unread: number; avatar: string | null 
   );
 }
 
-/** Собственный знак University: буква U на «фундаменте» — без символики реальных вузов. */
+// Разделы динамические и без loading.tsx: пока сервер готовит страницу, история не меняется и касание на медленной
+// сети кажется потерянным. Нажатый пункт отвечает сразу. Элементы есть всегда и меняют только прозрачность: без сдвига.
+
+/** Вкладка телефона: под иконкой сразу проявляется пилюля, как у выбранной, и мягко пульсирует до перехода. */
+function TabPending() {
+  const { pending } = useLinkStatus();
+  return (
+    <span
+      aria-hidden
+      className={`absolute top-1.5 h-7 w-12 rounded-full bg-brand-soft transition-opacity duration-150 motion-reduce:transition-none ${
+        pending ? "opacity-100 motion-safe:animate-pulse" : "opacity-0"
+      }`}
+    />
+  );
+}
+
+/** Пункт боковой панели: крутящийся значок справа, пока раздел загружается. */
+function RowPending() {
+  const { pending } = useLinkStatus();
+  return (
+    <LoaderCircle
+      aria-hidden
+      className={`size-4 shrink-0 text-brand transition-opacity duration-150 motion-reduce:transition-none ${pending ? "opacity-100 motion-safe:animate-spin" : "opacity-0"}`}
+    />
+  );
+}
+
+/** Собственный знак University: буква U на «фундаменте», без символики реальных вузов. */
 export function Logo({ size = 36 }: { size?: number }) {
   return (
     <UniversityMark size={size} />

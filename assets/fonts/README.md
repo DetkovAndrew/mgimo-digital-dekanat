@@ -1,6 +1,7 @@
 # Шрифты для отчёта и превью знака
 
-Шрифты в репозитории не хранятся. `scripts/render-report.py` и `scripts/brand-assets.py` берут кириллический шрифт
+Onest (OFL) для PDF справки и отчёта лежит в `assets/fonts/onest` — с происхождением и хешами. Для превью знака
+`scripts/brand-assets.py` берёт кириллический шрифт
 из системы: DejaVu Sans (`/usr/share/fonts/truetype/dejavu/`, пакет `fonts-dejavu-core`, свободная лицензия
 Bitstream Vera / DejaVu) или пути из `REPORT_FONT_REGULAR` и `REPORT_FONT_BOLD`.
 

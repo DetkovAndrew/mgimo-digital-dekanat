@@ -115,7 +115,9 @@ export function InvictusHair({ skin = BASE }: { skin?: Skin }) {
   );
 }
 
-const polar = (r: number, deg: number) => [r * Math.cos((deg * Math.PI) / 180), r * Math.sin((deg * Math.PI) / 180)] as const;
+// Округление до тысячных: последний знак Math.cos/sin в Node и браузере может различаться — иначе ошибка гидратации.
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
+const polar = (r: number, deg: number) => [round3(r * Math.cos((deg * Math.PI) / 180)), round3(r * Math.sin((deg * Math.PI) / 180))] as const;
 
 function Speckles() {
   return (

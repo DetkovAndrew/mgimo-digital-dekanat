@@ -30,7 +30,7 @@ export function LessonCard({ lesson }: { lesson: ScheduleLesson }) {
       href={lesson.href}
       transitionTypes={["nav-forward"]}
       className={`group relative flex items-center gap-3 overflow-hidden rounded-2xl bg-surface py-2.5 pr-3.5 pl-3.5 ring-1 transition active:scale-[0.99] md:hover:ring-brand/30 ${
-        cancelled ? "ring-bad/30" : moved ? "ring-warn/40" : "ring-hairline"
+        cancelled ? "ring-bad/30" : moved ? `ring-warn/40 lesson-wash ${kindStyle(lesson.kind).wash}` : `ring-hairline lesson-wash ${kindStyle(lesson.kind).wash}`
       }`}
     >
       {/* Полоска цвета типа занятия: тип читается с края карточки ещё до подписи. */}

@@ -24,7 +24,7 @@ export function RoomSearch({ index, children }: { index: RoomIndexItem[]; childr
           inputMode="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Номер или название: 1117, атриум, переговорная"
+          placeholder="Например, 1117 или атриум"
           autoComplete="off"
           className="min-h-12 w-full rounded-xl border border-field bg-surface py-2.5 pr-12 pl-11 text-body outline-none [&::-webkit-search-cancel-button]:hidden focus:border-brand focus:ring-2 focus:ring-brand/20"
         />

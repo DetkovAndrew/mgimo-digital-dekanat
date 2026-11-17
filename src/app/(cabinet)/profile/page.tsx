@@ -38,7 +38,7 @@ export default async function ProfilePage() {
     <>
       <div className="mb-6 flex flex-col items-center pt-2 text-center">
         <AvatarEditor src={avatar} initials={initials} />
-        <h1 className="text-[22px] leading-tight font-bold tracking-tight">{p.fullName}</h1>
+        <h1 className="text-title leading-tight font-bold tracking-tight">{p.fullName}</h1>
         <p className="text-sm text-ink-2">
           {p.group} · {p.course} курс
         </p>
@@ -56,7 +56,7 @@ export default async function ProfilePage() {
       <Section title="Образ Инвиктии" aside={<span className="text-sm text-ink-2">открыто {wardrobe.unlocked.length} из {SKINS.length}</span>}>
         <Wardrobe current={wardrobe.current} unlocked={wardrobe.unlocked} />
       </Section>
-      <SignOut className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-surface text-[15px] font-medium text-bad ring-1 ring-hairline transition active:scale-[0.98] md:hidden" />
+      <SignOut className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-surface text-body font-medium text-bad ring-1 ring-hairline transition active:scale-[0.98] md:hidden" />
     </>
   );
 }

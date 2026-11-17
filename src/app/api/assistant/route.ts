@@ -1,12 +1,13 @@
 import { z } from "zod";
-import { MAX_ANSWER_CHARS, sanitizeAnswer } from "@/lib/assistant/answer";
+import { completeOfficeContacts, dropCatalogFields, MAX_ANSWER_CHARS, sanitizeAnswer } from "@/lib/assistant/answer";
 import { canonicalLink } from "@/lib/assistant/links";
-import { buildMyContext } from "@/server/ai/context";
+import { buildMyContext, CATALOG_FIELD_NAMES } from "@/server/ai/context";
 import { BOOK_ROOM, FIND_FREE_ROOMS, formatFreeRooms, formatPrepared } from "@/server/ai/functions";
 import { AssistantError, gigachatComplete, type ChatMessage } from "@/server/ai/gigachat";
 import { findFreeRooms, prepareBooking, type BookingProposal } from "@/server/dal/rooms";
 import { wantsRooms } from "@/lib/assistant/intent";
-import { takeStudentSlot, withProviderSlot } from "@/server/ai/limits";
+import { answerTransfer } from "@/lib/assistant/transfer-answer";
+import { ASSISTANT_LIMITS, takeStudentSlot, withProviderSlot } from "@/server/ai/limits";
 import { systemPrompt } from "@/server/ai/prompt";
 import { studentForApi } from "@/server/session";
 
@@ -88,7 +89,7 @@ export async function POST(req: Request) {
 
   const slot = takeStudentSlot(who.student.studentId);
   if (!slot.ok) {
-    const text = { active: "Подождите, помощник ещё отвечает на прошлый вопрос.", minute: "Слишком часто: попробуйте через минуту.", day: "На сегодня лимит вопросов исчерпан (60)." };
+    const text = { active: "Подождите, помощник ещё отвечает на прошлый вопрос.", minute: "Слишком часто: попробуйте через минуту.", day: `На сегодня лимит вопросов исчерпан (${ASSISTANT_LIMITS.perDay}).` };
     return json(429, { error: text[slot.reason] });
   }
 
@@ -101,26 +102,36 @@ export async function POST(req: Request) {
   try {
     const ctx = await buildMyContext();
     if (abort.signal.aborted) throw new AssistantError("unavailable", "aborted");
+    // «Успею ли с X на Y»: ответ из посчитанного перехода, без модели (сценарий 3, живой сайт 17.11).
+    const last = parsed.data.messages.at(-1);
+    const standalone = parsed.data.messages.length === 1;
+    const transfer = last?.role === "user" ? answerTransfer(last.content, ctx.transfers, ctx.asOf, standalone) : null;
+    if (transfer) {
+      console.info(`[assistant] transfer ${Date.now() - started}ms`);
+      return json(200, { answer: sanitizeAnswer(transfer, (href) => canonicalLink(href, ctx.links, ctx.asOf)) });
+    }
     let proposal: BookingProposal | null = null;
-    const raw = await withProviderSlot(async () => {
+    const raw = await withProviderSlot(async (): Promise<{ text: string; fromModel?: true }> => {
       const messages: ChatMessage[] = [{ role: "system", content: systemPrompt(ctx) }, ...parsed.data.messages];
       // Функции аудиторий — только когда студент говорит о брони или свободном месте (src/lib/assistant/intent.ts).
       const rooms = wantsRooms(parsed.data.messages);
       const opts = { maxTokens: 600, signal: abort.signal, ...(rooms ? { functions: [FIND_FREE_ROOMS, BOOK_ROOM] } : {}) };
       const reply = await gigachatComplete(messages, opts);
       // Вызов функции, которую модели не давали, не выполняем: отвечаем обычным текстом или просим уточнить.
-      if (reply.functionCall && !rooms) return reply.content || "Уточните, пожалуйста, вопрос: о чём именно рассказать?";
+      if (reply.functionCall && !rooms) return { text: reply.content || "Уточните, пожалуйста, вопрос: о чём именно рассказать?", fromModel: true };
       // Функции ничего не пишут. Ответ по ним собирает сервер: модель путала интервалы при пересказе.
-      if (reply.functionCall?.name === FIND_FREE_ROOMS.name) return formatFreeRooms(await findFreeRooms(reply.functionCall.arguments, ctx.asOf));
+      if (reply.functionCall?.name === FIND_FREE_ROOMS.name) return { text: formatFreeRooms(await findFreeRooms(reply.functionCall.arguments, ctx.asOf)) };
       if (reply.functionCall?.name === BOOK_ROOM.name) {
         // Карточка брони: параметры проверил сервер; создаст бронь только нажатие студента (bookRoom с сессией).
         const prepared = await prepareBooking(reply.functionCall.arguments, ctx.asOf);
         if (prepared.ok) proposal = prepared.proposal;
-        return formatPrepared(prepared);
+        return { text: formatPrepared(prepared) };
       }
-      return reply.content;
+      return { text: reply.content, fromModel: true };
     }, abort.signal);
-    const answer = sanitizeAnswer(raw, (href) => canonicalLink(href, ctx.links, ctx.asOf));
+    // Поля каталога и справочник служб — только для текста модели: ответы функций собирает сервер (ревью Codex 69).
+    const clean = sanitizeAnswer(raw.text, (href) => canonicalLink(href, ctx.links, ctx.asOf));
+    const answer = raw.fromModel ? completeOfficeContacts(dropCatalogFields(clean, CATALOG_FIELD_NAMES), ctx.offices) : clean;
     console.info(`[assistant] ok ${Date.now() - started}ms`);
     return json(200, { answer: answer || "Не получилось сформулировать ответ. Попробуйте спросить иначе.", ...(proposal ? { proposal } : {}) });
   } catch (e) {
