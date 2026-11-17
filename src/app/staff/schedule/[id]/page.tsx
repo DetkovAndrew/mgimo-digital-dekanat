@@ -5,13 +5,14 @@ import { formatDateTime, formatDay, formatTime, lessonKindLabel, mskDayKey } fro
 import { getFacultyLesson } from "@/server/dal/staff-schedule";
 import { requireStaff } from "@/server/session";
 import { RescheduleForm } from "./reschedule-form";
+import { RestoreForm } from "./restore-form";
 
 const statusLabel = { SCHEDULED: null, RESCHEDULED: { tone: "warn", text: "Изменено" }, CANCELLED: { tone: "bad", text: "Отменено" } } as const;
 
 export default async function StaffLessonPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ updated?: string | string[] }> }) {
   await requireStaff();
   const { id } = await params;
-  const { lesson: l, version, buildings } = await getFacultyLesson(id);
+  const { lesson: l, version, buildings, original } = await getFacultyLesson(id);
   const { updated } = await searchParams;
   const status = statusLabel[l.status];
   const past = l.endsAt <= new Date();
@@ -31,6 +32,23 @@ export default async function StaffLessonPage({ params, searchParams }: { params
           <p className="text-body text-ink-2">{l.online ? "Онлайн" : [l.room, l.building?.title].filter(Boolean).join(", ") || "Место не указано"}</p>
         </Card>
       </Section>
+      {original && !past && (
+        <Section title="Вернуть как было">
+          <Card>
+            {original.previousStartsAt < new Date() ? (
+              <p className="text-body text-ink-2">Исходное время пары уже прошло — вернуть нельзя.</p>
+            ) : (
+              <RestoreForm
+                id={l.id}
+                expected={version}
+                was={`${formatDay(original.previousStartsAt)}, ${formatTime(original.previousStartsAt)}–${formatTime(original.previousEndsAt)}, ${
+                  original.previousOnline ? "онлайн" : [original.previousRoom, original.building?.title].filter(Boolean).join(", ") || "место не указано"
+                }`}
+              />
+            )}
+          </Card>
+        </Section>
+      )}
       <Section title="Перенести или отменить">
         <Card>
           {past ? (
@@ -53,7 +71,7 @@ export default async function StaffLessonPage({ params, searchParams }: { params
             {l.changes.map((c) => (
               <li key={c.id} className="rounded-xl bg-surface px-3 py-2 text-body ring-1 ring-hairline">
                 <span className="font-medium">{c.newStatus === "CANCELLED" ? "Отмена" : "Перенос"}</span>
-                <span className="text-ink-2"> · {formatDateTime(c.createdAt)}</span>
+                <span className="text-ink-2"> · {formatDateTime(c.createdAt)} · {c.staffId ? "деканат" : "демо-данные"}</span>
                 {c.reason && <span className="block text-ink-2">Причина: {c.reason}</span>}
               </li>
             ))}

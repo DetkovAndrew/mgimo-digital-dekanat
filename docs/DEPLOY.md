@@ -81,6 +81,10 @@ ssh root@СЕРВЕР 'cd /opt/dekanat && docker compose up -d --build'
 Миграции применяются автоматически (`migrate`), данные остаются. Аудитории со схем после изменения
 `src/lib/campus/plans.ts` переносятся без стирания: `sudo docker compose run --rm tools npm run db:rooms`.
 
+Действия общего аккаунта сотрудника (переносы и отмены пар, объявления) откатываются без seed — заявки, справки, брони
+и сессии остаются: `sudo docker compose run --rm tools npm run db:undo-staff` (сначала можно `-- --dry-run`).
+Перед показом жюри и при сдаче — после него.
+
 ## Данные и перезапуск
 
 - База лежит в томе `pgdata` и переживает `restart`, `down`, `up --build` и перезагрузку сервера

@@ -11,7 +11,7 @@ export default async function StaffSchedulePage({ searchParams }: { searchParams
   await requireStaff();
   const raw = (await searchParams).group;
   const group = typeof raw === "string" && /^[\p{L}\d-]{1,16}$/u.test(raw) ? raw : undefined;
-  const { groups, lessons } = await listFacultyLessons({ group });
+  const { groups, lessons, changed } = await listFacultyLessons({ group });
   const days = Map.groupBy(lessons, (l) => mskDayKey(l.startsAt));
 
   return (
@@ -31,26 +31,22 @@ export default async function StaffSchedulePage({ searchParams }: { searchParams
           </Link>
         ))}
       </nav>
+      {changed.length > 0 && (
+        <Section title="Изменено деканатом">
+          <p className="mb-2 text-body text-ink-2">Аккаунт общий: в карточке пары можно вернуть время и место, какими они были.</p>
+          <List>
+            {changed.map((l) => (
+              <LessonRow key={l.id} l={l} withDay />
+            ))}
+          </List>
+        </Section>
+      )}
       {lessons.length ? (
         [...days].map(([key, list]) => (
           <Section key={key} title={formatDay(list[0].startsAt)}>
             <List>
               {list.map((l) => (
-                <RowLink key={l.id} href={`/staff/schedule/${l.id}`}>
-                  <span className="flex items-center gap-3">
-                    <KindTime kind={l.kind} start={formatTime(l.startsAt)} end={formatTime(l.endsAt)} struck={l.status === "CANCELLED"} />
-                    <span className="min-w-0">
-                      <span className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-medium">{l.offering.discipline.title}</span>
-                        {l.status === "CANCELLED" && <Badge tone="bad">Отменено</Badge>}
-                        {l.status === "RESCHEDULED" && <Badge tone="warn">Изменено</Badge>}
-                      </span>
-                      <span className="block text-sm text-ink-2">
-                        {lessonKindLabel[l.kind]} · {l.offering.group.code} · {l.online ? "онлайн" : [l.room, l.building?.title].filter(Boolean).join(", ") || "место не указано"}
-                      </span>
-                    </span>
-                  </span>
-                </RowLink>
+                <LessonRow key={l.id} l={l} />
               ))}
             </List>
           </Section>
@@ -59,5 +55,27 @@ export default async function StaffSchedulePage({ searchParams }: { searchParams
         <Empty>{group ? `У группы ${group} в ближайшие две недели пар нет.` : "В ближайшие две недели пар нет."}</Empty>
       )}
     </>
+  );
+}
+
+type Lesson = Awaited<ReturnType<typeof listFacultyLessons>>["lessons"][number];
+
+function LessonRow({ l, withDay = false }: { l: Lesson; withDay?: boolean }) {
+  return (
+    <RowLink href={`/staff/schedule/${l.id}`}>
+      <span className="flex items-center gap-3">
+        <KindTime kind={l.kind} start={formatTime(l.startsAt)} end={formatTime(l.endsAt)} struck={l.status === "CANCELLED"} />
+        <span className="min-w-0">
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span className="font-medium">{l.offering.discipline.title}</span>
+            {l.status === "CANCELLED" && <Badge tone="bad">Отменено</Badge>}
+            {l.status === "RESCHEDULED" && <Badge tone="warn">Изменено</Badge>}
+          </span>
+          <span className="block text-sm text-ink-2">
+            {withDay && <>{formatDay(l.startsAt)} · </>}{lessonKindLabel[l.kind]} · {l.offering.group.code} · {l.online ? "онлайн" : [l.room, l.building?.title].filter(Boolean).join(", ") || "место не указано"}
+          </span>
+        </span>
+      </span>
+    </RowLink>
   );
 }

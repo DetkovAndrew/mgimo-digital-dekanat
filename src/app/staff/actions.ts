@@ -6,7 +6,7 @@ import type { StaffActionState } from "@/lib/staff/requests";
 import type { AnnounceActionState } from "@/lib/staff/announcements";
 import type { ScheduleActionState } from "@/lib/staff/schedule";
 import { changeFacultyRequest } from "@/server/dal/staff";
-import { sendFacultyAnnouncement } from "@/server/dal/staff-announcements";
+import { sendFacultyAnnouncement, withdrawFacultyAnnouncement } from "@/server/dal/staff-announcements";
 import { rescheduleFacultyLesson } from "@/server/dal/staff-schedule";
 import { requireStaff } from "@/server/session";
 
@@ -59,3 +59,12 @@ export async function sendAnnouncementAction(_previous: AnnounceActionState, for
   return result;
 }
 
+
+export async function withdrawAnnouncementAction(_previous: AnnounceActionState, form: FormData): Promise<AnnounceActionState> {
+  await requireStaff();
+  const result = await withdrawFacultyAnnouncement(form.get("id"));
+  revalidatePath("/staff/announcements");
+  revalidatePath("/notifications");
+  revalidatePath("/today");
+  return result;
+}

@@ -185,6 +185,9 @@ model StaffProfile {
   facultyCode String
   faculty     Faculty @relation(fields: [facultyCode], references: [code])
 
+  lessonChanges LessonChange[]
+  notifications Notification[]
+
   @@index([facultyCode])
   @@map("staff_profile")
 }
@@ -340,23 +343,29 @@ model Lesson {
 // Полный переход «было → стало». Занятие при переносе не пересоздаётся;
 // изменение Lesson + LessonChange + уведомление выполняются одной транзакцией.
 model LessonChange {
-  id                 String       @id @default(cuid())
+  id                 String        @id @default(cuid())
   lessonId           String
-  lesson             Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  lesson             Lesson        @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   previousStatus     LessonStatus
   newStatus          LessonStatus
-  previousStartsAt   DateTime     @db.Timestamptz(6)
-  previousEndsAt     DateTime     @db.Timestamptz(6)
+  previousStartsAt   DateTime      @db.Timestamptz(6)
+  previousEndsAt     DateTime      @db.Timestamptz(6)
   previousRoom       String?
   previousBuildingId String?
-  newStartsAt        DateTime     @db.Timestamptz(6)
-  newEndsAt          DateTime     @db.Timestamptz(6)
+  previousOnline     Boolean? // null — запись seed (до переноса сотрудником)
+  newStartsAt        DateTime      @db.Timestamptz(6)
+  newEndsAt          DateTime      @db.Timestamptz(6)
   newRoom            String?
   newBuildingId      String?
   reason             String?
-  createdAt          DateTime     @default(now()) @db.Timestamptz(6)
+  // Кто из деканата изменил пару; null — изменение из демо-данных. По первой записи сотрудника пару можно вернуть
+  // как было (staff-schedule.ts) и откатить всё разом (`npm run db:undo-staff`).
+  staffId            String?
+  staff              StaffProfile? @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  createdAt          DateTime      @default(now()) @db.Timestamptz(6)
 
   @@index([lessonId, createdAt])
+  @@index([staffId])
   @@map("lesson_change")
 }
 
@@ -491,10 +500,14 @@ model Notification {
   lesson      Lesson?          @relation(fields: [lessonId], references: [id], onDelete: SetNull)
   requestId   String?
   request     Request?         @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  // Автор из деканата: объявление или перенос пары. Объявление можно отозвать; null — демо-данные и системные.
+  staffId     String?
+  staff       StaffProfile?    @relation(fields: [staffId], references: [id], onDelete: SetNull)
 
   recipients NotificationRecipient[]
 
   @@index([publishedAt])
+  @@index([staffId])
   @@index([lessonId])
   @@index([requestId])
   @@map("notification")
@@ -653,4 +666,3 @@ model RoomBooking {
   @@index([studentId, startsAt])
   @@map("room_booking")
 }
-

@@ -6,10 +6,13 @@ import { addDays, formatDay, formatTime, mskStartOfDay } from "@/lib/format";
 import { lessonVersion, mskAt, MOVE_WINDOW_DAYS, rescheduleSchema, type ScheduleActionState } from "@/lib/staff/schedule";
 import { prisma } from "../db";
 import { requireStaff } from "../session";
+import { conflictOf, lockLesson, originalOf, revertLesson } from "../staff-undo";
 
 // Перенос и отмена пары сотрудником деканата. Граница — факультет сотрудника (как у заявок, src/server/dal/staff.ts):
 // только пары групп своего факультета. Одна транзакция: пара, запись в истории (LessonChange) и уведомление всей
 // группе — студент видит «Изменено», что поменялось, уведомление и новый путь до аудитории.
+// Демо-аккаунт сотрудника общий для жюри, поэтому любое изменение можно вернуть: «Вернуть как было» — по первой записи
+// сотрудника в истории пары (src/server/staff-undo.ts).
 
 const facultyScope = (facultyCode: string) => ({ offering: { group: { facultyCode } } }) satisfies Prisma.LessonWhereInput;
 
@@ -19,41 +22,54 @@ const lessonSelect = {
   offering: { select: { discipline: { select: { title: true, shortTitle: true } }, group: { select: { id: true, code: true, course: true } } } },
 } satisfies Prisma.LessonSelect;
 
-/** Пары факультета на ближайшие дни (можно одной группы), ещё не закончившиеся, — список для выбора. */
+/**
+ * Пары факультета на ближайшие дни (можно одной группы), ещё не закончившиеся, — список для выбора.
+ * changed — пары, которые менял деканат, на любую дату (перенос — до 60 дней вперёд): их можно вернуть как было.
+ */
 export async function listFacultyLessons(opts: { days?: number; group?: string } = {}) {
   const { facultyCode } = await requireStaff();
-  const from = mskStartOfDay(new Date());
-  const [groups, lessons] = await Promise.all([
+  const now = new Date();
+  const from = mskStartOfDay(now);
+  const scope = { ...facultyScope(facultyCode), ...(opts.group ? { offering: { group: { facultyCode, code: opts.group } } } : {}) } satisfies Prisma.LessonWhereInput;
+  const [groups, lessons, changed] = await Promise.all([
     prisma.studyGroup.findMany({ where: { facultyCode }, orderBy: [{ course: "asc" }, { code: "asc" }], select: { id: true, code: true } }),
     prisma.lesson.findMany({
-      where: { ...facultyScope(facultyCode), endsAt: { gt: new Date() }, startsAt: { lt: addDays(from, opts.days ?? 14) }, ...(opts.group ? { offering: { group: { facultyCode, code: opts.group } } } : {}) },
+      where: { ...scope, endsAt: { gt: now }, startsAt: { lt: addDays(from, opts.days ?? 14) } },
+      orderBy: [{ startsAt: "asc" }, { id: "asc" }],
+      select: lessonSelect,
+    }),
+    prisma.lesson.findMany({
+      where: { ...scope, endsAt: { gt: now }, changes: { some: { staffId: { not: null } } } },
       orderBy: [{ startsAt: "asc" }, { id: "asc" }],
       select: lessonSelect,
     }),
   ]);
-  return { groups, lessons };
+  return { groups, lessons, changed };
 }
 
 export async function getFacultyLesson(id: string) {
   const { facultyCode } = await requireStaff();
   const lesson = await prisma.lesson.findFirst({
     where: { id, ...facultyScope(facultyCode) },
-    select: { ...lessonSelect, changes: { orderBy: { createdAt: "desc" }, take: 5, select: { id: true, newStatus: true, reason: true, createdAt: true } } },
+    select: { ...lessonSelect, changes: { orderBy: { createdAt: "desc" }, take: 5, select: { id: true, newStatus: true, reason: true, createdAt: true, staffId: true } } },
   });
   if (!lesson) notFound();
-  const buildings = await prisma.building.findMany({ orderBy: { title: "asc" }, select: { id: true, title: true } });
-  return { lesson, version: lessonVersion(lesson), buildings };
+  const [buildings, original] = await Promise.all([
+    prisma.building.findMany({ orderBy: { title: "asc" }, select: { id: true, title: true } }),
+    originalOf(prisma, lesson.id),
+  ]);
+  const originalBuilding = original?.previousBuildingId ? (buildings.find((b) => b.id === original.previousBuildingId) ?? null) : null;
+  return { lesson, version: lessonVersion(lesson), buildings, original: original && { ...original, building: originalBuilding } };
 }
 
 const place = (room: string | null, building: { title: string } | null, online: boolean) =>
   online ? "онлайн" : [room, building?.title].filter(Boolean).join(", ") || "место не указано";
 
 export async function rescheduleFacultyLesson(input: unknown): Promise<ScheduleActionState> {
-  const { facultyCode } = await requireStaff();
+  const { facultyCode, staffId } = await requireStaff();
   const parsed = rescheduleSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Проверьте данные" };
   const v = parsed.data;
-  const now = new Date();
 
   // Корпус не выбран — место не меняется. Выбран — нужен и номер; номер — только со схемы корпуса, если схема есть.
   // Аудиторию ищем до транзакции: это справочник.
@@ -69,24 +85,43 @@ export async function rescheduleFacultyLesson(input: unknown): Promise<ScheduleA
   }
 
   return prisma.$transaction(async (tx) => {
-    // Блокируем только пару своего факультета. Значения — параметрами tagged SQL.
-    const locked = await tx.$queryRaw<{ id: string }[]>`
-      SELECT l."id" FROM "lesson" l
-      JOIN "course_offering" o ON o."id" = l."offeringId"
-      JOIN "study_group" g ON g."id" = o."groupId"
-      WHERE l."id" = ${v.id} AND g."facultyCode" = ${facultyCode}
-      FOR UPDATE OF l
-    `;
-    if (!locked.length) notFound();
+    // Блокируем группу и пару своего факультета (чужая → 404). Значения — параметрами tagged SQL.
+    if (!(await lockLesson(tx, v.id, facultyCode))) notFound();
+    // Время — после ожидания блокировок: пока ждали, пара могла начаться (ревью Codex 79).
+    const now = new Date();
     const lesson = await tx.lesson.findFirstOrThrow({
       where: { id: v.id, ...facultyScope(facultyCode) },
       select: { ...lessonSelect, buildingId: true, roomId: true, offering: { select: { groupId: true, discipline: { select: { title: true, shortTitle: true } } } } },
     });
     if (lessonVersion(lesson) !== v.expected) return { ok: false, message: "Пару уже изменили. Обновите страницу и проверьте историю." };
     if (lesson.endsAt <= now) return { ok: false, message: "Пара уже прошла — её не изменить" };
-    if (lesson.status === "CANCELLED") return { ok: false, message: "Пара уже отменена" };
 
     const title = lesson.offering.discipline.shortTitle ?? lesson.offering.discipline.title;
+    const students = () => tx.studentProfile.findMany({ where: { groupId: lesson.offering.groupId }, select: { userId: true } });
+
+    if (v.action === "restore") {
+      const original = await originalOf(tx, lesson.id);
+      if (!original) return { ok: false, message: "Деканат эту пару не менял — возвращать нечего" };
+      if (original.previousStartsAt < now) return { ok: false, message: "Исходное время пары уже прошло — вернуть нельзя" };
+      const res = await revertLesson(tx, { id: lesson.id, groupId: lesson.offering.groupId, online: lesson.online }, original, { future: true });
+      if (!res.ok) return { ok: false, message: `Вернуть нельзя: ${res.message.charAt(0).toLowerCase()}${res.message.slice(1)}` };
+      const r = res.lesson;
+      const group = await students();
+      await tx.notification.create({
+        data: {
+          kind: "SCHEDULE_CHANGE",
+          title: `Снова по расписанию: ${title}`,
+          body: `«${title}» — как раньше: ${formatDay(r.startsAt)}, ${formatTime(r.startsAt)}–${formatTime(r.endsAt)}, ${place(r.room, r.building, r.online)}. Прежнее изменение деканат отменил.`,
+          important: true,
+          lessonId: lesson.id,
+          staffId,
+          recipients: { create: group.map((s) => ({ userId: s.userId })) },
+        },
+      });
+      return { ok: true, message: `Пара снова по исходному расписанию. Уведомление получили студенты группы: ${group.length}.` };
+    }
+    if (lesson.status === "CANCELLED") return { ok: false, message: "Пара уже отменена" };
+
     const was = `${formatDay(lesson.startsAt)}, ${formatTime(lesson.startsAt)}`;
     let data: Prisma.LessonUncheckedUpdateInput;
     let body: string;
@@ -105,20 +140,14 @@ export async function rescheduleFacultyLesson(input: unknown): Promise<ScheduleA
 
       // Аудиторию блокируем так же, как бронь (bookRoom): перенос и бронь на одно время не пройдут одновременно.
       if (next.roomId) await tx.$queryRaw`SELECT 1 FROM "room" WHERE "id" = ${next.roomId} FOR UPDATE`;
-      const overlap = { startsAt: { lt: endsAt }, endsAt: { gt: startsAt } };
-      const [groupBusy, roomLesson, roomBooking] = await Promise.all([
-        tx.lesson.findFirst({ where: { id: { not: lesson.id }, offering: { groupId: lesson.offering.groupId }, status: { not: "CANCELLED" }, ...overlap }, select: { startsAt: true, endsAt: true } }),
-        lesson.online && !target
-          ? null
-          : tx.lesson.findFirst({
-              where: { id: { not: lesson.id }, status: { not: "CANCELLED" }, ...overlap, ...(next.roomId ? { roomId: next.roomId } : { buildingId: next.buildingId, room: next.room }) },
-              select: { startsAt: true, endsAt: true },
-            }),
-        next.roomId ? tx.roomBooking.findFirst({ where: { roomId: next.roomId, status: "CONFIRMED", ...overlap }, select: { startsAt: true, endsAt: true } }) : null,
-      ]);
-      if (groupBusy) return { ok: false, message: `У группы в это время другая пара: ${formatTime(groupBusy.startsAt)}–${formatTime(groupBusy.endsAt)}` };
-      if (roomLesson) return { ok: false, message: `Аудитория занята другой парой: ${formatTime(roomLesson.startsAt)}–${formatTime(roomLesson.endsAt)}` };
-      if (roomBooking) return { ok: false, message: `Аудитория забронирована студентом: ${formatTime(roomBooking.startsAt)}–${formatTime(roomBooking.endsAt)}. Выберите другую аудиторию или время.` };
+      const conflict = await conflictOf(tx, {
+        lessonId: lesson.id, groupId: lesson.offering.groupId, startsAt, endsAt,
+        online: lesson.online && !target, roomId: next.roomId, buildingId: next.buildingId, room: next.room,
+      });
+      if (conflict) return { ok: false, message: conflict };
+      // Повторно после блокировки аудитории: ожидание могло сделать время прошедшим (ревью Codex 80).
+      const after = new Date();
+      if (startsAt < after || lesson.endsAt <= after) return { ok: false, message: "Время уже прошло. Обновите страницу." };
 
       data = { status: "RESCHEDULED", startsAt, endsAt, ...(target ? { buildingId: target.buildingId, room: target.room, roomId: target.roomId, online: false } : {}) };
       const where = place(target ? target.room : lesson.room, target ? { title: target.title } : lesson.building, target ? false : lesson.online);
@@ -135,15 +164,17 @@ export async function rescheduleFacultyLesson(input: unknown): Promise<ScheduleA
         previousEndsAt: lesson.endsAt,
         previousRoom: lesson.room,
         previousBuildingId: lesson.buildingId,
+        previousOnline: lesson.online,
         newStartsAt: updated.startsAt,
         newEndsAt: updated.endsAt,
         newRoom: updated.room,
         newBuildingId: updated.buildingId,
         reason: v.reason,
+        staffId,
         createdAt: now,
       },
     });
-    const students = await tx.studentProfile.findMany({ where: { groupId: lesson.offering.groupId }, select: { userId: true } });
+    const group = await students();
     await tx.notification.create({
       data: {
         kind: "SCHEDULE_CHANGE",
@@ -151,10 +182,11 @@ export async function rescheduleFacultyLesson(input: unknown): Promise<ScheduleA
         body: `${body} Причина: ${v.reason}`,
         important: true,
         lessonId: lesson.id,
-        recipients: { create: students.map((s) => ({ userId: s.userId })) },
+        staffId,
+        recipients: { create: group.map((s) => ({ userId: s.userId })) },
       },
     });
-    const n = students.length;
+    const n = group.length;
     return { ok: true, message: `${v.action === "cancel" ? "Пара отменена" : "Пара перенесена"}. Уведомление получили студенты группы: ${n}.` };
   });
 }

@@ -10,6 +10,12 @@ describe("перенос и отмена пары: проверка ввода",
     expect(ok({ action: "cancel", id: "l1", expected: "x", reason: "  " })).toBe(false);
   });
 
+  it("вернуть как было — без причины; лишние поля формы отбрасываются", () => {
+    const parsed = rescheduleSchema.safeParse({ ...move, action: "restore", reason: "" });
+    expect(parsed.success && parsed.data).toEqual({ action: "restore", id: "l1", expected: "x" });
+    expect(ok({ action: "restore", id: "", expected: "x" })).toBe(false);
+  });
+
   it("перенос: длительность 30 минут – 4 часа, в часы занятий, время в формате ЧЧ:ММ", () => {
     expect(ok(move)).toBe(true);
     expect(ok({ ...move, end: "10:15" })).toBe(false); // короче получаса

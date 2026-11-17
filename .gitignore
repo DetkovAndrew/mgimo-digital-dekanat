@@ -37,3 +37,6 @@ video/out/
 video/music/
 # Отчёт: промежуточный HTML сборки (абсолютные пути file://) — PDF и исходник в git
 docs/submission/report.html
+
+# Рабочая папка Claude Code: черновики и планы, не часть проекта
+NewBrench/

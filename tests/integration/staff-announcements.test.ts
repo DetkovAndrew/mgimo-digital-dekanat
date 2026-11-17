@@ -2,14 +2,25 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ANNOUNCE_LIMIT } from "@/lib/staff/announcements";
 import { prisma } from "@/server/db";
-import { sendFacultyAnnouncement } from "@/server/dal/staff-announcements";
+import { sendFacultyAnnouncement, withdrawFacultyAnnouncement } from "@/server/dal/staff-announcements";
 import * as session from "@/server/session";
+import { expect404 } from "./helpers";
 
 vi.mock("@/server/session", () => ({ requireStudent: vi.fn(), requireStaff: vi.fn(), getCurrentRole: vi.fn() }));
 
 const TITLE = "Тест объявления";
 let staff: session.StaffContext;
-const as = (staffId: string) => vi.mocked(session.requireStaff).mockResolvedValue({ ...staff, staffId });
+const userIds: string[] = [];
+// Новый сотрудник (по умолчанию того же факультета) — свой счётчик частоты; автор объявления — настоящий StaffProfile.
+async function newStaff(facultyCode = staff.facultyCode) {
+  const id = crypto.randomUUID();
+  await prisma.user.create({ data: { id, name: "Тестовый сотрудник", email: `${id}@test.example`, role: "staff" } });
+  userIds.push(id);
+  const profile = await prisma.staffProfile.create({ data: { userId: id, position: "Сотрудник деканата", facultyCode } });
+  const ctx = { userId: id, staffId: profile.id, facultyCode };
+  vi.mocked(session.requireStaff).mockResolvedValue(ctx);
+  return ctx;
+}
 const send = (over: Record<string, unknown> = {}) =>
   sendFacultyAnnouncement({ audience: "faculty", course: "", group: "", title: TITLE, body: "Консультации переносятся на пятницу.", important: false, ...over });
 const recipientsOfLast = async () => {
@@ -21,9 +32,10 @@ beforeAll(async () => {
   const user = await prisma.user.findFirstOrThrow({ where: { username: "dekanat.fhb" }, include: { staff: true } });
   staff = { userId: user.id, staffId: user.staff!.id, facultyCode: user.staff!.facultyCode };
 });
-beforeEach(() => void as(`ann-${Math.random()}`)); // свой счётчик частоты у каждого теста
+beforeEach(() => newStaff().then(() => undefined));
 afterAll(async () => {
   await prisma.notification.deleteMany({ where: { title: TITLE } });
+  await prisma.user.deleteMany({ where: { id: { in: userIds } } });
   await prisma.$disconnect();
 });
 
@@ -49,8 +61,25 @@ describe("объявления деканата", () => {
   });
 
   it(`не больше ${ANNOUNCE_LIMIT.perHour} в час с одного аккаунта`, async () => {
-    as("ann-rate");
     for (let i = 0; i < ANNOUNCE_LIMIT.perHour; i++) expect((await send({ audience: "group", group: (await prisma.studyGroup.findFirstOrThrow({ where: { facultyCode: staff.facultyCode, students: { some: {} } } })).code })).ok).toBe(true);
     expect((await send()).message).toMatch(/Не больше 10 объявлений в час/);
+  });
+
+  it("отозвать: объявление сотрудника своего факультета исчезает у всех; чужой факультет и демо-объявление — 404", async () => {
+    const author = await newStaff();
+    expect((await send()).ok).toBe(true);
+    const n = await prisma.notification.findFirstOrThrow({ where: { title: TITLE, staffId: author.staffId } });
+
+    const foreign = await prisma.faculty.findFirstOrThrow({ where: { code: { not: staff.facultyCode } } });
+    await newStaff(foreign.code);
+    await expect404(withdrawFacultyAnnouncement(n.id));
+    expect(await prisma.notification.count({ where: { id: n.id } })).toBe(1);
+
+    await newStaff(); // другой сотрудник того же деканата может отозвать
+    const demo = await prisma.notification.findFirstOrThrow({ where: { kind: "ANNOUNCEMENT", staffId: null } });
+    await expect404(withdrawFacultyAnnouncement(demo.id));
+    expect((await withdrawFacultyAnnouncement(n.id)).ok).toBe(true);
+    expect(await prisma.notification.count({ where: { id: n.id } })).toBe(0);
+    expect(await prisma.notificationRecipient.count({ where: { notificationId: n.id } })).toBe(0);
   });
 });

@@ -19,6 +19,8 @@ const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 
 
 export const rescheduleSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("cancel"), id, expected, reason }),
+  // Вернуть время, место и статус, какими они были до первого изменения деканатом (src/server/staff-undo.ts).
+  z.object({ action: z.literal("restore"), id, expected }),
   z
     .object({
       action: z.literal("move"),

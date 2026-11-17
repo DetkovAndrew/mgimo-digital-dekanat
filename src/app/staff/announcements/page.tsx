@@ -4,6 +4,7 @@ import { formatDateTime } from "@/lib/format";
 import { getFacultyAnnouncements } from "@/server/dal/staff-announcements";
 import { requireStaff } from "@/server/session";
 import { AnnouncementForm } from "./announcement-form";
+import { WithdrawButton } from "./withdraw-button";
 
 // Объявления деканата студентам своего факультета: всем, курсу или группе. Приходят в «Уведомления» студента.
 
@@ -31,7 +32,9 @@ export default async function StaffAnnouncementsPage() {
                 <p className="mt-1 text-body break-words whitespace-pre-line">{n.body}</p>
                 <p className="mt-1 text-sm text-ink-2">
                   {formatDateTime(n.publishedAt)} · получателей: {n._count.recipients}
+                  {!n.canWithdraw && " · из демо-данных"}
                 </p>
+                {n.canWithdraw && <WithdrawButton id={n.id} />}
               </li>
             ))}
           </ul>
