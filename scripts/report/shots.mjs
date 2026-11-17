@@ -196,6 +196,16 @@ if (want("staff") || want("staff-request")) {
   await q.close();
   await shot(st, href, "staff-request", { full: true, maxHeight: 1400 });
 }
+if (want("staff-schedule") || want("staff-lesson") || want("staff-announcements")) {
+  const st = await context(DESK, "light", "dekanat.fhb", S);
+  await shot(st, "/staff/schedule", "staff-schedule", { full: true, maxHeight: 1400 });
+  // Первая пара списка: если деканат что-то менял, это пара из «Изменено деканатом» — с блоком «Вернуть как было».
+  const q = await open(st, "/staff/schedule");
+  const href = await q.locator('a[href^="/staff/schedule/"]').first().getAttribute("href");
+  await q.close();
+  await shot(st, href, "staff-lesson", { full: true, maxHeight: 1600 });
+  await shot(st, "/staff/announcements", "staff-announcements", { full: true, maxHeight: 1400 });
+}
 
 console.log("ошибки консоли:", JSON.stringify(errors, null, 1));
 await browser.close();
