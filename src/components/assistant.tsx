@@ -462,7 +462,9 @@ export function Assistant({ configured, owner, skinId }: { configured: boolean; 
           {/* Голова поверх ушек (у образа с ободком): основания ушек уходят за неё, как на схеме. */}
           {skin.hat === "ears" && <circle r={8} fill={skin.head} />}
         </svg>
-        <span ref={face} aria-hidden className={`block size-full transition-transform duration-300 ease-(--ease-out) ${joy ? "mascot-joy" : ""}`}>
+        {/* relative: лицо поверх слоя волос (он absolute). Без этого на телефоне, где лицо не сдвигается за курсором,
+            круг головы Котика под ушками закрывал лицо. */}
+        <span ref={face} aria-hidden className={`relative block size-full transition-transform duration-300 ease-(--ease-out) ${joy ? "mascot-joy" : ""}`}>
           <svg viewBox="-8 -8 16 16" className="size-full overflow-visible">
             <InvictusHat skin={skin} layer="band" />
             <InvictusFace skin={skin} />
