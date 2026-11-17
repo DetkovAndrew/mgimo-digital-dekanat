@@ -9,7 +9,7 @@ type LessonLike = {
   building: { id: string; lat: number; lon: number; title: string } | null;
 };
 
-export type Transfer = { afterLessonId: string; toTitle: string; toStartsAt: Date; verdict: TransferVerdict };
+export type Transfer = { afterLessonId: string; toLessonId: string; toTitle: string; toStartsAt: Date; verdict: TransferVerdict };
 
 /**
  * Переходы к очным парам одного дня (отменённые пропускаем). Откуда идти — последний корпус, где студент был очно;
@@ -31,7 +31,7 @@ export function transfersForDay(lessons: LessonLike[], opts: { sameBuilding?: bo
     if (gapMin < 0 || gapMin > 120) continue; // пересечение или длинное окно — не переход
     const verdict = judgeTransfer(place, next.building, gapMin);
     if (verdict.kind !== "same-building" || opts.sameBuilding) {
-      result.set(cur.id, { afterLessonId: cur.id, toTitle: next.building.title, toStartsAt: next.startsAt, verdict });
+      result.set(cur.id, { afterLessonId: cur.id, toLessonId: next.id, toTitle: next.building.title, toStartsAt: next.startsAt, verdict });
     }
   }
   return result;

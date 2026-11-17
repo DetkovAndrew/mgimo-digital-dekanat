@@ -1,9 +1,11 @@
 import "server-only";
 import { addDays, mskDayKey, controlFormLabel, formatDate, formatDateTime, formatDay, formatShortDate, formatTime, lessonKindLabel, mskStartOfDay, requestStatusLabel } from "@/lib/format";
 import { assessmentDate, courseProgress, courseStatus, formatPoints, nextAssessment } from "@/lib/grading";
+import type { TransferVerdict } from "@/lib/geo";
 import { transfersForDay, transferText } from "@/lib/transfers";
 import { formatRequestNumber, isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { requestGuide } from "@/lib/requests/guide";
+import type { OfficeFacts } from "@/lib/assistant/answer";
 import { officeHref, officeSubject, SUPPORT_OFFICES } from "@/lib/support/offices";
 import { getMyGrades } from "../dal/grades";
 import { listMyNotifications } from "../dal/notifications";
@@ -30,6 +32,13 @@ const clip = (s: string | null | undefined, n: number) => {
   const t = (s ?? "").replace(/\s+/g, " ").trim();
   return t.length > n ? `${t.slice(0, n - 1)}…` : t;
 };
+const TRANSFER_ANSWER: Record<TransferVerdict["kind"], string> = {
+  ok: "Да, успеваете",
+  tight: "Впритык",
+  impossible: "Нет, не успеваете",
+  "same-building": "Это тот же корпус",
+};
+
 /** Квадратные скобки и переводы строк из пользовательских текстов не должны ломать разметку ссылок и блоков. */
 const quote = (s: string | null | undefined, n: number) => `«${clip(s, n).replace(/[[\]«»]/g, "")}»`;
 
@@ -49,7 +58,10 @@ export const STATIC_LINKS = [
   "/pass",
 ] as const;
 
-export type AssistantContext = { text: string; links: Set<string>; asOf: Date };
+/** Имена «полей ссылки» каталога: по ним сервер узнаёт их пересказ в ответе модели (dropCatalogFields). */
+export const CATALOG_FIELD_NAMES: ReadonlySet<string> = new Set(Object.values(requestCatalog).flatMap((spec) => spec.fields.map((f) => f.name)));
+
+export type AssistantContext = { text: string; links: Set<string>; asOf: Date; offices: OfficeFacts[] };
 
 export async function buildMyContext(now = new Date()): Promise<AssistantContext> {
   const today = mskStartOfDay(now);
@@ -90,7 +102,11 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
   const byDay = new Map<string, typeof lessons>();
   for (const l of lessons) byDay.set(mskDayKey(l.startsAt), [...(byDay.get(mskDayKey(l.startsAt)) ?? []), l]);
   const transfers = new Map([...byDay.values()].flatMap((d) => [...transfersForDay(d, { sameBuilding: true })]));
-  if (transfers.size) out.push("Строки «↳ до пары» посчитал сервер: на вопросы «успею ли» отвечай ими, время сам не вычисляй.");
+  if (transfers.size) {
+    out.push(
+      "Строки «↳ переход с … на …» посчитал сервер. На «успею ли» найди строку, где совпадают обе пары, и ответь ею: после двоеточия в ней готовый ответ, затем перерыв и дорога; время сам не вычисляй.",
+    );
+  }
   let day = "";
   for (const l of lessons.slice(0, 60)) {
     const d = formatDay(l.startsAt);
@@ -109,10 +125,14 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
     );
     const t = transfers.get(l.id);
     if (t) {
-      // «Успеваете» — только когда сервер посчитал дорогу; про тот же корпус — нейтрально (этажи и аудитории разные).
-      const ok = t.verdict.kind === "ok" ? "успеваете. " : "";
-      const to = t.verdict.kind === "same-building" ? "" : ` (${t.toTitle})`;
-      out.push(`  ↳ до пары в ${formatTime(t.toStartsAt)}${to}: ${ok}${transferText(t.verdict)}`);
+      // Готовый ответ первым словом: по строке «Не успеть: перерыв 10 мин, дорога ≈ 17 мин» модель ответила
+      // «Да, успеете» (живой сайт 17.11, сценарий 3). Про тот же корпус — нейтрально (этажи и аудитории разные).
+      const next = lessons.find((x) => x.id === t.toLessonId);
+      const to = t.verdict.kind === "same-building" ? "" : `, ${t.toTitle}`;
+      const facts = transferText(t.verdict).replace(/^(Не успеть: |Впритык: |Тот же корпус, )/, "");
+      out.push(
+        `  ↳ переход с «${clip(l.title, 50)}» на «${clip(next?.title, 50)}» в ${formatTime(t.toStartsAt)}${to}: ${TRANSFER_ANSWER[t.verdict.kind]}. ${facts[0].toUpperCase()}${facts.slice(1)}`,
+      );
     }
   }
 
@@ -220,29 +240,36 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
   }
 
   out.push("\n## Куда обратиться [/services/support] (службы университета, демо; адреса вымышленные)");
+  // Место, часы и почта — отдельными подписанными полями: из сплошной строки модель теряла почту и часы
+  // и подставляла адрес соседней службы (живой сайт 17.11, сценарии 34 и 35).
+  const offices: OfficeFacts[] = [];
   for (const o of SUPPORT_OFFICES) {
-    const reqs = o.requests.map((t) => requestCatalog[t].title).join(", ");
-    out.push(
-      `- ${o.title}: ${o.topics.join("; ")}. ${o.where}, ${o.hours}. Почта ${o.email}, тема письма: «${officeSubject(o, profile.group)}»` +
-        `${reqs ? `; заявки по теме: ${reqs}` : ""}${o.note ? `. ${o.note}` : ""} [${link(officeHref(o))}]`,
-    );
+    offices.push({ href: officeHref(o), title: o.title, where: o.where, hours: o.hours, email: o.email, subject: officeSubject(o, profile.group) });
+    out.push(`- ${o.title}: ${o.topics.join("; ")}${o.note ? `. ${o.note}` : ""} [${link(officeHref(o))}]`);
+    out.push(`  где: ${o.where}; часы: ${o.hours}; почта: ${o.email}; тема письма: «${officeSubject(o, profile.group)}»`);
+    if (o.requests.length) {
+      out.push(`  заявки по теме: ${o.requests.map((t) => `${requestCatalog[t].title} [${link(`/requests/new?type=${t}`)}]`).join("; ")}`);
+    }
   }
 
   out.push("\n## Каталог заявок [/requests/new] (подать конкретную: ссылка у пункта; сроки и перечни «подготовить» демонстрационные)");
   for (const [key, spec] of Object.entries(requestCatalog)) {
     const guide = requestGuide[key as keyof typeof requestGuide];
-    // Поля для предзаполнения ссылки: имя и допустимые значения (тексты — свободные, до 100 символов).
+    // Поля для предзаполнения ссылки: имя и допустимые значения (тексты — свободные, до 100 символов). «Подготовить» —
+    // отдельной строкой: из общей модель пересказывала его вместе с полями (17.11, сценарий 32). Поля — в первой
+    // строке: отдельную служебную строку она показывала целиком (сценарии 11 и 20); остаток режет sanitizeAnswer.
     const fields = spec.fields
       .filter((f) => f.kind === "text" || f.kind === "select" || f.kind === "number")
-      .map((f) => `${f.name} (${f.label.toLowerCase()}${f.kind === "select" ? `: ${f.options!.map((o) => o.value).join("|")}` : f.kind === "number" ? ": число" : ""})`)
+      .map((f) => `&${f.name}=${f.kind === "select" ? f.options!.map((o) => o.value).join("|") : f.kind === "number" ? "число" : "текст"} (${f.label.toLowerCase()})`)
       .join(", ");
     out.push(
-      `- ${spec.title}: ${clip(spec.description, 160)}; ещё называют: ${guide.aka.join(", ")}; подготовить: ${guide.prepare.join("; ")}; срок ≈ ${spec.slaDays} раб. дн.` +
-        `${fields ? `; поля: ${fields}` : ""} [${link(`/requests/new?type=${key}`)}]`,
+      `- ${spec.title}: ${clip(spec.description, 160)}; ещё называют: ${guide.aka.join(", ")}; срок ≈ ${spec.slaDays} раб. дн.` +
+        `${fields ? `; поля ссылки: ${fields}` : ""} [${link(`/requests/new?type=${key}`)}]`,
     );
+    out.push(`  подготовить: ${guide.prepare.join("; ")}`);
   }
 
   let text = out.join("\n");
   if (text.length > MAX_CONTEXT_CHARS) text = `${text.slice(0, MAX_CONTEXT_CHARS)}\n…(снимок обрезан)`;
-  return { text, links, asOf: now };
+  return { text, links, asOf: now, offices };
 }
