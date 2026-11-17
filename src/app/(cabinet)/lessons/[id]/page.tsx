@@ -98,7 +98,7 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
                 className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand-fill text-body font-semibold text-on-brand transition active:scale-[0.98]"
               >
                 <Navigation aria-hidden className="size-4" />
-                Маршрут
+                Как доехать до корпуса
               </a>
             )}
             {indoorHref && (
@@ -108,7 +108,7 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
                 className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-surface text-body font-semibold text-brand ring-1 ring-hairline transition active:scale-[0.98]"
               >
                 <Route aria-hidden className="size-4" />
-                Как пройти внутри корпуса
+                Как пройти к аудитории
               </Link>
             )}
           </>

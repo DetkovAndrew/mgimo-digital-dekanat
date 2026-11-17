@@ -123,7 +123,7 @@ export function NextLesson({ next, upcoming, now, indoorHref = null }: { next: S
             className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-surface px-4 text-sm font-semibold text-brand transition active:scale-95 focus-visible:outline-focus-on-brand"
           >
             <Route aria-hidden className="size-4" />
-            Как пройти
+            Как пройти к аудитории
           </Link>
         )}
         {next.building && !next.online && (
@@ -134,7 +134,7 @@ export function NextLesson({ next, upcoming, now, indoorHref = null }: { next: S
             className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-surface px-4 text-sm font-semibold text-brand transition active:scale-95 focus-visible:outline-focus-on-brand"
           >
             <Navigation aria-hidden className="size-4" />
-            Маршрут
+            Как доехать до корпуса
           </a>
         )}
         </span>

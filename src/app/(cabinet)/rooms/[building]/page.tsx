@@ -247,7 +247,7 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
             ) : route ? (
               <p className="mt-4 flex items-center gap-2 text-sm text-ink-2">
                 <Route aria-hidden className="size-4 text-brand" />
-                Маршрут открыт под схемой: листайте шаги кнопкой «Дальше».
+                Путь к аудитории — под схемой: листайте шаги кнопкой «Дальше».
               </p>
             ) : (
               <>
@@ -257,10 +257,10 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
                   className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand-fill text-body font-semibold text-on-brand transition active:scale-[0.98]"
                 >
                   <Route aria-hidden className="size-4" />
-                  Маршрут
+                  Как пройти к аудитории
                 </Link>
                 <p className="mt-1.5 text-center text-xs text-ink-2">{smartFrom === "entrance" ? "от главного входа" : `из аудитории ${smartFrom}, где была пара`}</p>
-                {fromParam && <p className="mt-2 text-sm text-ink-2">Маршрут построить не получилось: такой аудитории в корпусе нет.</p>}
+                {fromParam && <p className="mt-2 text-sm text-ink-2">Путь построить не получилось: такой аудитории в корпусе нет.</p>}
               </>
             )}
 
