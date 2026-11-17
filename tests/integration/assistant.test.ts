@@ -3,6 +3,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/assistant/route";
 import { formatRequestNumber } from "@/lib/requests/catalog";
+import { SUPPORT_OFFICES } from "@/lib/support/offices";
+import { answerTransfer } from "@/lib/assistant/transfer-answer";
 import { buildMyContext } from "@/server/ai/context";
 import { gigachatComplete, type ChatMessage } from "@/server/ai/gigachat";
 import { resetAssistantLimits } from "@/server/ai/limits";
@@ -83,6 +85,35 @@ describe("снимок кабинета", () => {
     }
   });
 
+  it("переходы между парами посчитаны сервером: строка «↳ переход» после пары, с готовым ответом и перерывом", async () => {
+    await as("alina.lebedeva");
+    // Вторник в середине семестра: у Алины несколько пар подряд, часть — в разных корпусах.
+    const { text } = await buildMyContext(new Date("2026-11-17T07:00:00+03:00"));
+    const lines = text.split("\n");
+    const hops = lines.map((l, i) => [l, lines[i - 1]] as const).filter(([l]) => l.startsWith("  ↳ переход с «"));
+    expect(hops.length).toBeGreaterThan(0);
+    for (const [hop, prev] of hops) {
+      expect(prev, hop).toMatch(/^- \d\d:\d\d/); // сразу после строки пары
+      expect(hop).toMatch(/перерыв \d+ мин/i);
+      expect(hop).toMatch(/: (Да, успеваете|Нет, не успеваете|Впритык|Это тот же корпус)\. (Перерыв|Пешком|Транспортом)/);
+    }
+    // Сценарий 3: английский (Ломоносова) → Гривцова за 10 минут — готовый ответ «нет», а не только числа.
+    expect(hops.some(([h]) => /^  ↳ переход с «[^»]*Английский[^»]*» на «Хемоинформатика» в 09:50, Гривцова, 14: Нет, не успеваете\. Перерыв \d+ мин, а дорога/.test(h))).toBe(true);
+    expect(text).toContain("Строки «↳ переход с … на …» посчитал сервер");
+  });
+
+  it("«успею ли с английского на хемоинформатику» — готовый ответ сервера, а не пятничный переход на английский", async () => {
+    await as("alina.lebedeva");
+    const now = new Date("2026-11-17T07:00:00+03:00");
+    const { transfers, links } = await buildMyContext(now);
+    const answer = answerTransfer("Успею ли я во вторник с английского на хемоинформатику?", transfers, now);
+    expect(answer).toMatch(
+      /^Нет, не успеваете: вторник, 17 ноября, после «English C1 \/ Английский язык C1» \(до 09:40, Ломоносова, 9, лит\. Е\) на «Хемоинформатика» в 09:50 \(Гривцова, 14\)\. Перерыв 10 мин, а дорога ≈ \d+ мин на транспорте\./,
+    );
+    const href = answer!.match(/\[Пара в расписании\]\((\/lessons\/[^)]+)\)/)?.[1];
+    expect(href && links.has(href)).toBe(true);
+  });
+
   it("ссылки снимка ведут только на объекты A", async () => {
     await as("alina.lebedeva");
     const { links } = await buildMyContext();
@@ -99,6 +130,11 @@ describe("снимок кабинета", () => {
     expect(text).toContain("## Куда обратиться [/services/support]");
     expect(text).toContain(`тема письма: «<Тема вопроса>, группа ${group}»`);
     expect(text).toContain("ещё называют: академ");
+    // Место, часы и почта — подписанными полями у каждой службы; поля ссылки — отдельной служебной строкой.
+    expect(text.split("\n").filter((l) => l.startsWith("  где: ")).length).toBe(SUPPORT_OFFICES.length);
+    expect(text).toContain("поля ссылки: &document=student_card|record_book (документ)");
+    expect(text).toContain("  подготовить: Что случилось с документом; ");
+    expect(text).not.toMatch(/подготовить: .*&\w+=/);
     // Каталог стоит в конце снимка: обрезка съела бы именно его.
     expect(text).not.toContain("снимок обрезан");
     expect(links.has("/services/support#dean")).toBe(true);
@@ -125,6 +161,23 @@ describe("POST /api/assistant", () => {
     const res = await ask(question());
     expect(res.headers.get("cache-control")).toBe("private, no-store");
     expect((await res.json()).answer).toBe("См. [баллы](/grades), фишинг и чужое.");
+  });
+
+  it("ответ со службой без почты и места: сервер дописывает их из справочника, тема — с группой спрашивающего", async () => {
+    const who = await as("timur.orlov");
+    const group = (await prisma.studentProfile.findUniqueOrThrow({ where: { id: who.studentId }, select: { group: { select: { code: true } } } })).group.code;
+    vi.mocked(gigachatComplete).mockResolvedValue({ content: "Напишите в [стипендиальный отдел](/services/support#scholarship)." });
+    const { answer } = await (await ask(question("Не пришла стипендия"))).json();
+    expect(answer).toContain("\nКронверкский, 49, 1-й этаж, вт и чт с 11 до 16.");
+    expect(answer).toContain(`\nПочта stipend@university.example, тема письма: «Стипендия за <месяц>: <что случилось>, группа ${group}».`);
+  });
+
+  it("пересказ «полей ссылки» каталога вырезается из ответа модели, ссылка с полями остаётся", async () => {
+    await as("timur.orlov");
+    const link = "/requests/new?type=document_duplicate&document=student_card&reason=lost";
+    vi.mocked(gigachatComplete).mockResolvedValue({ content: `[Подать заявку](${link}).\nПоля: &document=student_card|record_book (документ).\nСрок ≈ 5 раб. дн.` });
+    const { answer } = await (await ask(question("Потерял студенческий"))).json();
+    expect(answer).toBe(`[Подать заявку](${link}).\nСрок ≈ 5 раб. дн.`);
   });
 
   it("функции аудиторий — только при разговоре о брони; вызов, которого не давали, не выполняется (прогон 14.11)", async () => {

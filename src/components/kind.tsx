@@ -1,14 +1,15 @@
 import { BookOpen, Dumbbell, Languages, type LucideIcon, MessagesSquare, Presentation, Users } from "lucide-react";
 
 // Тип занятия → цвет и иконка. Классы записаны целиком: Tailwind собирает только то, что видит в исходниках.
-type KindStyle = { text: string; soft: string; bar: string; icon: LucideIcon };
+// wash — цвет для градиента карточки пары в тёмной теме (.lesson-wash в globals.css).
+type KindStyle = { text: string; soft: string; bar: string; wash: string; icon: LucideIcon };
 const KINDS: Record<string, KindStyle> = {
-  LECTURE: { text: "text-k-lecture", soft: "bg-k-lecture-soft", bar: "bg-k-lecture", icon: Presentation },
-  SEMINAR: { text: "text-k-practice", soft: "bg-k-practice-soft", bar: "bg-k-practice", icon: Users },
-  PRACTICE: { text: "text-k-practice", soft: "bg-k-practice-soft", bar: "bg-k-practice", icon: BookOpen },
-  LANGUAGE: { text: "text-k-language", soft: "bg-k-language-soft", bar: "bg-k-language", icon: Languages },
-  CONSULTATION: { text: "text-k-consult", soft: "bg-k-consult-soft", bar: "bg-k-consult", icon: MessagesSquare },
-  SPORT: { text: "text-k-sport", soft: "bg-k-sport-soft", bar: "bg-k-sport", icon: Dumbbell },
+  LECTURE: { text: "text-k-lecture", soft: "bg-k-lecture-soft", bar: "bg-k-lecture", wash: "[--wash:var(--k-lecture-soft)]", icon: Presentation },
+  SEMINAR: { text: "text-k-practice", soft: "bg-k-practice-soft", bar: "bg-k-practice", wash: "[--wash:var(--k-practice-soft)]", icon: Users },
+  PRACTICE: { text: "text-k-practice", soft: "bg-k-practice-soft", bar: "bg-k-practice", wash: "[--wash:var(--k-practice-soft)]", icon: BookOpen },
+  LANGUAGE: { text: "text-k-language", soft: "bg-k-language-soft", bar: "bg-k-language", wash: "[--wash:var(--k-language-soft)]", icon: Languages },
+  CONSULTATION: { text: "text-k-consult", soft: "bg-k-consult-soft", bar: "bg-k-consult", wash: "[--wash:var(--k-consult-soft)]", icon: MessagesSquare },
+  SPORT: { text: "text-k-sport", soft: "bg-k-sport-soft", bar: "bg-k-sport", wash: "[--wash:var(--k-sport-soft)]", icon: Dumbbell },
 };
 
 export const kindStyle = (kind: string): KindStyle => KINDS[kind] ?? KINDS.LECTURE;

@@ -32,9 +32,11 @@ describe("образы Инвиктии", () => {
       // Чужой профиль не тронут.
       expect((await prisma.studentProfile.findUniqueOrThrow({ where: { id: timur.studentId } })).invictiaSkin).toBe(timurBefore);
 
-      // Брони больше нет — образ закрылся: в гардеробе выбран базовый.
+      // Брони больше нет — образ закрылся: в гардеробе и на кнопке помощника базовый, хотя в профиле ещё записан cat.
       await prisma.roomBooking.delete({ where: { id: booking.id } });
       expect((await getMyWardrobe()).current).toBe("base");
+      expect(await getMySkinId()).toBe("base");
+      expect((await prisma.studentProfile.findUniqueOrThrow({ where: { id: b.studentId } })).invictiaSkin).toBe("cat");
       // Базовый снимает образ: в профиле снова null.
       expect(await setMySkin("base")).toEqual({ ok: true });
       expect((await prisma.studentProfile.findUniqueOrThrow({ where: { id: b.studentId } })).invictiaSkin).toBeNull();

@@ -19,14 +19,9 @@ export default async function NewRequestPage({ searchParams }: PageProps<"/reque
       <>
         <BackLink href="/requests/new">Виды заявок</BackLink>
         <PageTitle sub={`${spec.description} Обычно готово за ${spec.slaDays} раб. дн. (демо-срок).`}>{spec.title}</PageTitle>
-        <Card>
-          {/* Описание полей сериализуемо; схема валидации остаётся на сервере. */}
-          {prefilled && <p className="mb-4 rounded-xl bg-info-soft px-3 py-2 text-sm text-info">Часть полей заполнена по ссылке. Проверьте их перед отправкой.</p>}
-          {/* key: другая ссылка с другими значениями пересоздаёт форму без старых значений. */}
-          <RequestForm key={JSON.stringify(defaults)} type={type} fields={spec.fields.map((f) => ({ ...f }))} defaults={defaults} />
-        </Card>
-        {/* Что подготовить — из опроса 15.11: студенты не знают, какие документы нужны (docs/research/survey.md). */}
-        <section aria-labelledby="prepare-title" className="mt-4 rounded-2xl bg-fill px-4 py-3">
+        {/* Что подготовить — из опроса 15.11: студенты не знают, какие документы нужны (docs/research/survey.md).
+            Над формой: список нужен до заполнения, а не после отправки. */}
+        <section aria-labelledby="prepare-title" className="mb-4 rounded-2xl bg-fill px-4 py-3">
           <h2 id="prepare-title" className="mb-1 font-semibold">
             Что подготовить
           </h2>
@@ -37,6 +32,12 @@ export default async function NewRequestPage({ searchParams }: PageProps<"/reque
           </ul>
           <p className="mt-1.5 text-xs text-ink-3">Перечень демонстрационный.</p>
         </section>
+        <Card>
+          {/* Описание полей сериализуемо; схема валидации остаётся на сервере. */}
+          {prefilled && <p className="mb-4 rounded-xl bg-info-soft px-3 py-2 text-sm text-info">Часть полей заполнена по ссылке. Проверьте их перед отправкой.</p>}
+          {/* key: другая ссылка с другими значениями пересоздаёт форму без старых значений. */}
+          <RequestForm key={JSON.stringify(defaults)} type={type} fields={spec.fields.map((f) => ({ ...f }))} defaults={defaults} />
+        </Card>
       </>
     );
   }

@@ -15,6 +15,7 @@ export function FilterMenu({ label, items, align = "left" }: { label: string; it
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLUListElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
   const id = useId();
   const current = items.find((i) => i.on) ?? items[0];
 
@@ -26,7 +27,10 @@ export function FilterMenu({ label, items, align = "left" }: { label: string; it
       if (!root.current?.contains(e.target as Node)) setOpen(false);
     };
     const esc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key !== "Escape") return;
+      // Фокус был на варианте — вернуть его на кнопку, иначе он пропадёт вместе со списком.
+      if (list.current?.contains(document.activeElement)) button.current?.focus();
+      setOpen(false);
     };
     document.addEventListener("pointerdown", away);
     document.addEventListener("keydown", esc);
@@ -39,6 +43,7 @@ export function FilterMenu({ label, items, align = "left" }: { label: string; it
   return (
     <div ref={root} className="relative min-w-0">
       <button
+        ref={button}
         type="button"
         aria-expanded={open}
         aria-controls={id}

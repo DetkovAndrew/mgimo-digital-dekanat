@@ -54,4 +54,43 @@ describe("ачивки", () => {
       await prisma.gradeResult.createMany({ data: finals });
     }
   });
+
+  it("«Непобедимая» — нужны итоги в каждой из двух последних сессий, все сданы с первой попытки", async () => {
+    const a = await actAs("alina.lebedeva");
+    const recent = await prisma.academicTerm.findFirstOrThrow({ where: { sessionEndsOn: { lt: new Date() }, offerings: { some: { groupId: a.groupId } } }, orderBy: { sessionEndsOn: "desc" } });
+    const assessments = await prisma.assessment.findMany({
+      where: { kind: { in: ["EXAM", "CREDIT", "GRADED_CREDIT"] }, offering: { termId: recent.id, groupId: a.groupId } },
+      select: { id: true, kind: true },
+    });
+    const saved = await prisma.gradeResult.findMany({ where: { studentId: a.studentId, assessmentId: { in: assessments.map((x) => x.id) } } });
+    // В сиде одна прошедшая сессия: добавляем группе более ранний семестр — сессия прошла, итогов в ней пока нет.
+    const base = await prisma.courseOffering.findFirstOrThrow({ where: { termId: recent.id, groupId: a.groupId } });
+    const old = await prisma.academicTerm.create({
+      data: { title: `Тест ${tag}`, startsOn: new Date("2025-09-01"), endsOn: new Date("2025-12-31"), sessionStartsOn: new Date("2026-01-09"), sessionEndsOn: new Date("2026-01-31") },
+    });
+    const offering = await prisma.courseOffering.create({
+      data: { disciplineId: base.disciplineId, groupId: a.groupId, termId: old.id, leadTeacherId: base.leadTeacherId, controlForm: base.controlForm, credits: 3 },
+    });
+    try {
+      // Последняя сессия сдана с первой попытки целиком.
+      await prisma.gradeResult.deleteMany({ where: { id: { in: saved.map((r) => r.id) } } });
+      await prisma.gradeResult.createMany({
+        data: assessments.map((x) => ({ studentId: a.studentId, assessmentId: x.id, attempt: 1, gradedAt: new Date(), ...(x.kind === "CREDIT" ? { passed: true } : { grade: 5 }) })),
+      });
+      // В ранней сессии итогов нет — одной сессии мало.
+      expect((await getMyAchievements()).invicta).toBe(false);
+      // Экзамен ранней сессии сдан с первой попытки — открыта.
+      const exam = await prisma.assessment.create({ data: { offeringId: offering.id, kind: "EXAM", title: "Экзамен" } });
+      await prisma.gradeResult.create({ data: { studentId: a.studentId, assessmentId: exam.id, attempt: 1, grade: 4, gradedAt: new Date() } });
+      expect((await getMyAchievements()).invicta).toBe(true);
+      // Тот же экзамен со второй попытки — пересдача, закрыта.
+      await prisma.gradeResult.create({ data: { studentId: a.studentId, assessmentId: exam.id, attempt: 2, grade: 5, gradedAt: new Date() } });
+      expect((await getMyAchievements()).invicta).toBe(false);
+    } finally {
+      await prisma.courseOffering.delete({ where: { id: offering.id } }); // аттестации и результаты — каскадом
+      await prisma.academicTerm.delete({ where: { id: old.id } });
+      await prisma.gradeResult.deleteMany({ where: { studentId: a.studentId, assessmentId: { in: assessments.map((x) => x.id) } } });
+      await prisma.gradeResult.createMany({ data: saved });
+    }
+  });
 });
