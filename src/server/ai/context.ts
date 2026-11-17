@@ -14,7 +14,7 @@ import { getMyProfile } from "../dal/profile";
 import { getMyRequest, listMyRequests } from "../dal/requests";
 import { listBuildingsBrief } from "../dal/buildings";
 import { getMyPrintBalance } from "../dal/print";
-import { getMySchedule } from "../dal/schedule";
+import { countMyRemainingLessons, getMySchedule } from "../dal/schedule";
 import { bookableFreeRanges, listMyRoomBookings } from "../dal/rooms";
 import { bookingDays, getMySport } from "../dal/sport";
 import { roomKindLabel } from "@/lib/campus/plans";
@@ -154,16 +154,35 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
     out.push(
       `\n## Учёба (баллы) [/grades]: ${term.title}. Сессия с ${formatDate(term.sessionStartsOn)} по ${formatDate(term.sessionEndsOn)}. Баллы накопительные из 100, порог зачёта 60.`,
     );
-    for (const o of term.offerings.slice(0, 15)) {
+    const offerings = term.offerings.slice(0, 15);
+    // Сколько пар осталось по предмету считает сервер по всему семестру: в расписании снимка только 7 дней.
+    const remaining = await countMyRemainingLessons(offerings.map((o) => o.id), now);
+    for (const o of offerings) {
       const p = courseProgress(o.controlForm, o.assessments, now);
+      const left = remaining.get(o.id);
+      const leftText = left
+        ? `осталось занятий до конца семестра: ${left.total} (${left.byKind.map(([k, n]) => `${(lessonKindLabel[k] ?? k).toLowerCase()} — ${n}`).join(", ")})`
+        : "занятий до конца семестра больше нет";
       const st = courseStatus(o.controlForm, o.assessments, now);
       const next = nextAssessment(o.assessments, now);
       const nd = next && assessmentDate(next);
       out.push(
         `- ${clip(o.discipline.title, 80)} (${controlFormLabel[o.controlForm] ?? o.controlForm}): ${formatPoints(p.earned)} из 100; ${st.text}` +
           `${next ? `; ближайшая работа: ${clip(next.title, 60)}${nd ? ` до ${formatShortDate(nd)}` : ""}${next.maxPoints ? ` (до ${next.maxPoints} б.)` : ""}` : ""}` +
-          `; преподаватель ${clip(o.leadTeacher.fullName, 60)} [${link(`/courses/${o.id}`)}]`,
+          `; ${leftText}; преподаватель ${clip(o.leadTeacher.fullName, 60)} [${link(`/courses/${o.id}`)}]`,
       );
+    }
+
+    // Сроки на три недели одним списком — для «составь план» (опрос 15–16.11). Только несданные работы, по датам.
+    const horizon = addDays(today, 21);
+    const due = offerings
+      .flatMap((o) => o.assessments.filter((a) => !a.results.length).map((a) => ({ a, o, at: assessmentDate(a) })))
+      .filter((x): x is typeof x & { at: Date } => x.at !== null && x.at >= now && x.at < horizon)
+      .sort((x, y) => x.at.getTime() - y.at.getTime());
+    out.push(`\n## Сроки работ на 3 недели (до ${formatShortDate(horizon)}; только несданные) [/grades]`);
+    if (!due.length) out.push("Несданных работ со сроком в эти три недели нет.");
+    for (const { a, o, at } of due.slice(0, 25)) {
+      out.push(`- ${formatDay(at)}: ${clip(a.title, 60)} — ${clip(o.discipline.title, 60)}${a.maxPoints ? ` (до ${a.maxPoints} б.)` : ""}`);
     }
   }
 

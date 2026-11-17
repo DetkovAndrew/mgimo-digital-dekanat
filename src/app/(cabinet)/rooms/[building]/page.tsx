@@ -7,6 +7,7 @@ import { CampusMap, MapLegend, ROOM_KIND_STYLE } from "@/components/campus-map";
 import { RouteFloor, RouteFloorTabs, RouteLayer, RoutePlayer, RouteProvider } from "@/components/route-player";
 import { KindTime } from "@/components/kind";
 import { Badge, Disclosure, Empty, List, PageTitle, RowLink, Section } from "@/components/ui";
+import { freeWindows } from "@/lib/campus/free-windows";
 import { planFor, roomIndexOf, roomKindLabel } from "@/lib/campus/plans";
 import { findRoute, type RouteEnd } from "@/lib/campus/route";
 import { ROOM_RULES, roomDayKeys } from "@/lib/campus/rules";
@@ -283,6 +284,12 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
             </nav>
 
             <h3 className="mt-5 mb-2 text-lead font-semibold first-letter:uppercase">{formatDay(noon(day))}</h3>
+            {/* Свободное время словами, а не только по занятым интервалам (опрос 15–16.11). */}
+            {selected.bookable && (
+              <p className="mb-2 rounded-xl bg-ok-soft px-3 py-2 text-sm text-ok">
+                {roomDay.free.length ? `Свободно для брони: ${freeWindows(roomDay.free).join(", ")}` : "Свободного времени для брони в этот день нет"}
+              </p>
+            )}
             {roomDay.items.length ? (
               <List>
                 {roomDay.items.map((it) =>
