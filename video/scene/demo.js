@@ -40,6 +40,17 @@ export const STEPS = [
     ],
   },
   {
+    title: "Перенос пары",
+    sub: "Деканат переносит семинар\nв аудиторию — сервер проверяет\nнакладки и уведомляет группу",
+    shots: [
+      { name: "reschedule", in: "flash" },
+      { name: "moved-bell", in: "flash", sub: "Студентка сразу получает\nуведомление о переносе" },
+      { name: "moved-notifications", in: "slide", sub: "Студентка сразу получает\nуведомление о переносе" },
+      { name: "moved-schedule", in: "slide", sub: "В расписании — «Изменено»,\nбыло и стало, причина" },
+      { name: "moved-lesson", in: "slide", sub: "Новая аудитория\nи путь до неё по схеме" },
+    ],
+  },
+  {
     title: "Помощница Инвиктия",
     sub: "Отвечает по данным кабинета\nи готовит бронь. Бронирует —\nсам студент, одним нажатием",
     shots: [{ name: "ask", in: "fade" }, { name: "answer", in: "fade" }],
@@ -96,23 +107,26 @@ export function createDemo(ctx) {
   const { phone, phoneShadow, phoneScreen, laptop, laptopScreen, laptopScene, key2, glow, laptopShadow, track } = ctx;
   let edit;
   let phoneKeys;
-  let deskStills;
+  const deskStills = new Map();
 
   async function load() {
     const meta = await fetch("/captures/demo/meta.json").then((r) => r.json());
     edit = buildEdit(meta);
-    // Ключи камеры: в начале и в конце каждого шага на телефоне — медленный наезд внутри шага.
+    // Ключи камеры: в начале и в конце телефонной части каждого шага — медленный наезд внутри шага.
     phoneKeys = [];
     edit.steps.forEach((step, si) => {
-      if (edit.items.find((it) => it.step === si).m.device === "laptop") return;
+      const ph = edit.items.filter((it) => it.step === si && it.m.device === "phone");
+      if (!ph.length) return;
+      const from = ph[0].start;
+      const to = ph.at(-1).start + ph.at(-1).dur;
       const p = POSES[si % 2];
       const [x, y, z, tx, ty, tz, fov] = p.cam;
-      const a = phoneKeys.length ? step.start + 0.9 : step.start;
+      const a = phoneKeys.length ? from + 0.9 : from;
       phoneKeys.push([a, [x, y, z, tx, ty, tz, fov, p.yaw]]);
-      phoneKeys.push([step.end, [x + 0.03, y - 0.01, z - 0.06, tx + 0.01, ty, tz, fov, p.yaw + 0.02]]);
+      phoneKeys.push([to, [x + 0.03, y - 0.01, z - 0.06, tx + 0.01, ty, tz, fov, p.yaw + 0.02]]);
     });
-    const staff = edit.items.find((it) => it.m.device === "laptop");
-    deskStills = await Promise.all(staff.m.stills.map((s) => image(`/captures/demo/staff/${s.file}`)));
+    for (const it of edit.items.filter((x) => x.m.device === "laptop"))
+      deskStills.set(it.name, await Promise.all(it.m.stills.map((s) => image(`/captures/demo/${it.name}/${s.file}`))));
     return edit.duration;
   }
 
@@ -150,7 +164,8 @@ export function createDemo(ctx) {
     const m = it.m;
     let s = 0;
     while (s + 1 < m.stills.length && m.stills[s + 1].t <= lt) s++;
-    // Переход в заявку из списка — сдвигом, как в кабинете; дальше статус меняется на месте.
+    const imgs = deskStills.get(it.name);
+    // Переход из списка в карточку — сдвигом, как в кабинете; дальше всё меняется на месте.
     const slide = s === 1 ? clamp01((lt - m.stills[1].t) / SLIDE) : 1;
     const scrollAt = (u) => (u < m.stills[1].t ? 0 : track(m.scroll.map(([a, y]) => [a, [y]]), u)[0]);
     const scroll = scrollAt(lt);
@@ -171,7 +186,7 @@ export function createDemo(ctx) {
     }
     const last = [...pts.slice(1)].reverse().find((p) => lt >= p.t);
     const ring = last ? { x: last.x, y: last.y, p: (lt - last.t) / 0.5 } : null;
-    laptopScreen.drawDesk({ img: deskStills[s], prev: s === 1 ? deskStills[0] : null, slide, scroll, cursor: { x: c.x, y: c.y, press }, ring });
+    laptopScreen.drawDesk({ img: imgs[s], prev: s === 1 ? imgs[0] : null, slide, scroll, cursor: { x: c.x, y: c.y, press }, ring });
   }
 
   /** Состояние сцены на момент t демонстрации; возвращает, какую сцену рисовать, и подписи. */
@@ -180,8 +195,7 @@ export function createDemo(ctx) {
     const it = edit.items[k];
     const lt = t - it.start;
     if (it.m.device === "laptop") {
-      const step = edit.steps[it.step];
-      setCamera(DESK_CAM.map(([u, v]) => [step.start + u * (step.end - step.start), v]), t);
+      setCamera(DESK_CAM.map(([u, v]) => [it.start + u * it.dur, v]), t);
       laptop.group.updateMatrixWorld();
       laptopScene.environmentIntensity = 1;
       key2.intensity = 1.5;

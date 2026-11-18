@@ -4,8 +4,9 @@
 //
 //   PW_A=… PW_STAFF=… node demo-capture.mjs [акты через запятую]   → captures/demo/<план>/, captures/demo/meta.json
 //
-// Акты: login, browse, request, staff, status, assistant, route, profile. Пишут в локальную БД: request — заявка
-// на справку, staff — её обработка (выпуск справки), assistant — бронь переговорной. Пароли — только из окружения.
+// Акты: login, browse, request, staff, status, reschedule, moved, assistant, route, profile. Пишут в локальную БД:
+// request — заявка на справку, staff — её обработка (выпуск справки), reschedule — перенос пары деканатом (после съёмки:
+// npm run db:undo-staff), assistant — бронь переговорной. Пароли — только из окружения.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import { chromium } from "playwright";
@@ -88,6 +89,42 @@ async function phone(browser, { session = true } = {}) {
     await ready(page);
   };
   return { ctx, page, open, clock: { t: 0 } };
+}
+
+/**
+ * Ноутбук деканата: снимки всей страницы до и после каждого щелчка; курсор и прокрутку рисует сцена.
+ * run({ page, snap, click }) — сценарий; click(at, локатор, ожидание) — курсор к центру цели к моменту at, снимок «после».
+ */
+async function desk(browser, name, run) {
+  const ctx = await browser.newContext({ viewport: DESK, deviceScaleFactor: 2, colorScheme: "light", locale: "ru-RU", timezoneId: "Europe/Moscow" });
+  await signIn(ctx, "dekanat.fhb", process.env.PW_STAFF);
+  const page = await ctx.newPage();
+  const dir = `${OUT}${name}/`;
+  await fs.rm(dir, { recursive: true, force: true });
+  await fs.mkdir(dir, { recursive: true });
+  const stills = [];
+  const cursor = [];
+  // Снимок всей страницы: прокрутку сцена делает сама (шапка деканата не закреплена — так честно).
+  const snap = async (t) => {
+    const file = `${String(stills.length).padStart(2, "0")}.png`;
+    await page.screenshot({ path: dir + file, fullPage: true });
+    stills.push({ t, file, h: await page.evaluate(() => document.documentElement.scrollHeight) });
+  };
+  const click = async (at, loc, wait) => {
+    const box = await loc.boundingBox();
+    const y = await page.evaluate(() => window.scrollY);
+    cursor.push({ t: at, x: Math.round(box.x + box.width / 2), y: Math.round(box.y + y + box.height / 2), click: true });
+    await loc.click();
+    if (wait) await wait();
+    await settle(page);
+    await page.mouse.move(0, 0); // без подсветки наведения на снимке
+    await page.waitForTimeout(300);
+    await snap(at + 0.12);
+  };
+  const extra = await run({ page, snap, click });
+  await ctx.close();
+  console.log(`${name}:`, stills.length, "снимков");
+  return { stills, cursor, ...extra };
 }
 
 const tab = (page, name) => page.locator("nav").getByRole("link", { name, exact: true }).filter({ visible: true });
@@ -175,56 +212,29 @@ const ACTS = {
   // 4. Деканат на ноутбуке: список → заявка → «Взять в работу» → «Отметить готовой». Пишет в БД.
   async staff(browser) {
     if (!meta.requestId) throw new Error("сначала акт request");
-    const ctx = await browser.newContext({ viewport: DESK, deviceScaleFactor: 2, colorScheme: "light", locale: "ru-RU", timezoneId: "Europe/Moscow" });
-    await signIn(ctx, "dekanat.fhb", process.env.PW_STAFF);
-    const page = await ctx.newPage();
-    const dir = `${OUT}staff/`;
-    await fs.rm(dir, { recursive: true, force: true });
-    await fs.mkdir(dir, { recursive: true });
-    const stills = [];
-    const cursor = [];
-    // Снимок всей страницы: прокрутку сцена делает сама (шапка деканата не закреплена — так честно).
-    const snap = async (t) => {
-      const file = `${String(stills.length).padStart(2, "0")}.png`;
-      await page.screenshot({ path: dir + file, fullPage: true });
-      stills.push({ t, file, h: await page.evaluate(() => document.documentElement.scrollHeight) });
-    };
-    // Щелчок: курсор приходит к центру цели к моменту at; снимок «после» — с этого же момента.
-    const click = async (at, loc, wait) => {
-      const box = await loc.boundingBox();
-      const y = await page.evaluate(() => window.scrollY);
-      cursor.push({ t: at, x: Math.round(box.x + box.width / 2), y: Math.round(box.y + y + box.height / 2), click: true });
-      await loc.click();
-      if (wait) await wait();
+    const shot = await desk(browser, "staff", async ({ page, snap, click }) => {
+      await page.goto(`${BASE}/staff`);
       await settle(page);
-      await page.mouse.move(0, 0); // без подсветки наведения на снимке
-      await page.waitForTimeout(300);
-      await snap(at + 0.12);
-    };
-    await page.goto(`${BASE}/staff`);
-    await settle(page);
-    await snap(0);
-    const row = page.locator(`a[href="/staff/requests/${meta.requestId}"]`);
-    const rowBox = await row.boundingBox();
-    await click(1.6, row, () => page.waitForURL(/\/staff\/requests\//));
-    const apply = () => page.getByRole("button", { name: /Применить/ });
-    const saved = (status) => () => page.locator("h1").locator("..").getByText(status).first().waitFor({ timeout: 15_000 });
-    await click(4.4, page.getByText("Взять в работу", { exact: true }));
-    await click(5.4, apply(), saved("В работе"));
-    await click(6.9, page.getByText("Отметить готовой", { exact: true }));
-    await click(7.9, apply(), saved("Готова"));
+      await snap(0);
+      const row = page.locator(`a[href="/staff/requests/${meta.requestId}"]`);
+      const rowBox = await row.boundingBox();
+      await click(1.6, row, () => page.waitForURL(/\/staff\/requests\//));
+      const apply = () => page.getByRole("button", { name: /Применить/ });
+      const saved = (status) => () => page.locator("h1").locator("..").getByText(status).first().waitFor({ timeout: 15_000 });
+      await click(4.4, page.getByText("Взять в работу", { exact: true }));
+      await click(5.4, apply(), saved("В работе"));
+      await click(6.9, page.getByText("Отметить готовой", { exact: true }));
+      await click(7.9, apply(), saved("Готова"));
+      return { row: { x: rowBox.x, y: rowBox.y, width: rowBox.width, height: rowBox.height } };
+    });
     meta.shots.staff = {
       device: "laptop",
       seconds: 10.4,
-      stills,
-      cursor,
+      ...shot,
       start: { x: 1010, y: 620 },
-      row: { x: rowBox.x, y: rowBox.y, width: rowBox.width, height: rowBox.height },
       // Прокрутка страницы заявки: вниз к «Обработке» и наверх — к новому статусу.
       scroll: [[0, 0], [2.3, 0], [3.5, 470], [5.7, 470], [6.4, 620], [8.6, 620], [9.7, 0]],
     };
-    console.log("staff:", stills.length, "снимков");
-    await ctx.close();
   },
 
   // 5. Студент видит результат: уведомление → заявка «Готова» → PDF → страница проверки по QR.
@@ -260,6 +270,63 @@ const ACTS = {
     await settle(g);
     await shot(g, "verify", 5.4, { clock, scroll: [[0, 0], [1.8, 0], [3.6, 200], [5.4, 200]] });
     await guest.close();
+    await ctx.close();
+  },
+
+  // 5а. Деканат на ноутбуке переносит онлайн-семинар группы Алины очно в переговорную. Пишет в БД (откат —
+  // npm run db:undo-staff). Пара — первая завтрашняя «Философия» группы H3301 в списке расписания факультета.
+  async reschedule(browser) {
+    const shot = await desk(browser, "reschedule", async ({ page, snap, click }) => {
+      await page.goto(`${BASE}/staff/schedule?group=H3301`);
+      await settle(page);
+      await snap(0);
+      const row = page.locator('a[href^="/staff/schedule/"]').filter({ hasText: "онлайн" }).filter({ hasText: "Философия" }).first();
+      await click(1.6, row, () => page.waitForURL(/\/staff\/schedule\/[^/?]+$/));
+      meta.movedLessonId = new URL(page.url()).pathname.split("/").pop();
+      // Форма — на экран: корпус примерно на трети высоты.
+      const select = page.locator('select[name="building"]');
+      const form = Math.round((await select.evaluate((el) => el.getBoundingClientRect().top + window.scrollY)) - 260);
+      await page.evaluate((y) => window.scrollTo(0, y), form);
+      await click(3.4, select);
+      await select.selectOption("kronv");
+      await snap(3.8);
+      const room = page.locator('input[name="room"]');
+      await click(4.6, room);
+      await room.fill("1206");
+      await snap(5.2);
+      const reason = page.locator('textarea[name="reason"]');
+      await click(6.0, reason);
+      await reason.fill("Семинар пройдёт очно: обсуждение эссе в переговорной");
+      await snap(6.9);
+      await click(8.2, page.getByRole("button", { name: /Перенести и уведомить/ }), () => page.waitForURL(/updated=1/));
+      return { form };
+    });
+    meta.shots.reschedule = {
+      device: "laptop",
+      seconds: 11.6,
+      ...shot,
+      start: { x: 1010, y: 620 },
+      // Вниз к форме, после сохранения — наверх: «Сохранено», «Изменено» и «Вернуть как было».
+      scroll: [[0, 0], [2.3, 0], [3.3, shot.form], [8.5, shot.form], [9.4, 0], [11.6, 0]],
+    };
+  },
+
+  // 5б. Алина: уведомление о переносе → расписание недели → пара «Изменено», новая аудитория и путь до неё.
+  async moved(browser) {
+    if (!meta.movedLessonId) throw new Error("сначала акт reschedule");
+    const { ctx, page, open, clock } = await phone(browser);
+    await open("/today");
+    await shot(page, "moved-bell", 3, { clock, steps: [{ at: 2.5, tap: page.locator('a[href="/notifications"]').filter({ visible: true }).first(), nav: /\/notifications/ }] });
+    await shot(page, "moved-notifications", 4.6, { clock, steps: [{ at: 4.1, tap: page.locator('main a[href="/schedule"]').first(), nav: /\/schedule/ }] });
+    const card = page.locator(`a[href="/lessons/${meta.movedLessonId}"]`).first();
+    const y = Math.max(0, Math.round((await card.evaluate((el) => el.getBoundingClientRect().top + window.scrollY)) - 300));
+    await shot(page, "moved-schedule", 6.4, {
+      clock,
+      scroll: [[0, 0], [1.2, 0], [3.6, y], [6.4, y]],
+      steps: [{ at: 5.9, tap: card, nav: /\/lessons\// }],
+    });
+    // Причина и новая аудитория с кнопками маршрута остаются на экране.
+    await shot(page, "moved-lesson", 7, { clock, scroll: [[0, 0], [2.4, 0], [4.0, 170], [7, 170]] });
     await ctx.close();
   },
 

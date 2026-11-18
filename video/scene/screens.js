@@ -17,7 +17,7 @@ export async function image(url) {
   cache.set(url, bmp);
   while (cache.size > 48) {
     const [k, old] = cache.entries().next().value;
-    if (k.includes("/flow/") || k.includes("/demo/staff/")) {
+    if (k.includes("/flow/") || k.includes("/demo/staff/") || k.includes("/demo/reschedule/")) {
       cache.delete(k);
       cache.set(k, old); // снимки ноутбука и карточки нужны до конца (у сцены остаются ссылки на них)
       continue;
