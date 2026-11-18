@@ -69,7 +69,7 @@ export default async function NotificationsPage() {
           })}
         </List>
       ) : (
-        <Empty>Уведомлений пока нет.</Empty>
+        <Empty art="notifications">Уведомлений пока нет.</Empty>
       )}
     </>
   );

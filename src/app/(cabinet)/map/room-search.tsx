@@ -59,7 +59,7 @@ export function RoomSearch({ index, children }: { index: RoomIndexItem[]; childr
               ))}
             </List>
           ) : (
-            <Empty>Такой аудитории нет на схемах. Проверьте номер: первая цифра — крыло, вторая — этаж.</Empty>
+            <Empty art="search">Такой аудитории нет на схемах. Проверьте номер: первая цифра — крыло, вторая — этаж.</Empty>
           )}
         </Section>
       ) : (

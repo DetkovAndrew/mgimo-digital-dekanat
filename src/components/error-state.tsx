@@ -1,9 +1,10 @@
 "use client";
 
-import { CloudOff, RotateCw } from "lucide-react";
+import { RotateCw } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useLayoutEffect } from "react";
 import { themeScript } from "@/lib/theme";
+import { InvictiaScene } from "./invictia-scenes";
 
 export type ErrorBoundaryProps = { error: unknown; retry: () => void };
 
@@ -34,9 +35,7 @@ export function ErrorState({
 
   return (
     <div role="alert" className="mx-auto flex max-w-md flex-col items-center py-12 text-center">
-      <span aria-hidden className="mb-5 grid size-14 place-items-center rounded-full bg-warn-soft text-warn">
-        <CloudOff className="size-7" />
-      </span>
+      <InvictiaScene name="error" className="mb-4 w-52" />
       <h1 className="mb-2 text-title font-semibold">{title}</h1>
       <p className="mb-6 text-body text-ink-2">Сервер не смог подготовить страницу. Обычно помогает повторить через несколько секунд.</p>
       <div className="flex flex-wrap justify-center gap-2">

@@ -404,7 +404,7 @@ async function WeekView({ week }: { week: unknown }) {
               </Section>
             ))
           ) : (
-            <Empty>На этой неделе занятий нет.</Empty>
+            <Empty art="today">На этой неделе занятий нет.</Empty>
           )}
         </div>
       </ViewTransition>
