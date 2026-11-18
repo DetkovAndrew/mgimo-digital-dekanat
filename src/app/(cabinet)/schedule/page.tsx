@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarSync, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Fragment, ViewTransition } from "react";
 import { kindStyle } from "@/components/kind";
@@ -34,7 +34,16 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
   return (
     // Широкий экран: месяц в две колонки (календарь и день), неделя — обычной лентой.
     <div className="xl:-mx-40">
-      <PageTitle>Расписание</PageTitle>
+      <PageTitle
+        aside={
+          <Link href="/schedule/export" transitionTypes={["nav-forward"]} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-brand ring-1 ring-hairline">
+            <CalendarSync aria-hidden className="size-4" />
+            В календарь
+          </Link>
+        }
+      >
+        Расписание
+      </PageTitle>
       <nav aria-label="Вид расписания" className="mb-4 grid grid-cols-2 gap-1 rounded-2xl bg-surface p-1 ring-1 ring-hairline xl:max-w-sm">
         {(
           [

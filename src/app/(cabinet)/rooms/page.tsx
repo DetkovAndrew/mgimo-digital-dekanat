@@ -1,5 +1,6 @@
 import { ChevronRight, DoorOpen, MapPinned, Search } from "lucide-react";
 import Link from "next/link";
+import { CalendarIconLink } from "@/components/calendar-link";
 import { ROOM_KIND_STYLE } from "@/components/campus-map";
 import { Disclosure, IconTile, List, PageTitle, RowLink, Section } from "@/components/ui";
 import { roomKindLabel } from "@/lib/campus/plans";
@@ -49,6 +50,7 @@ export default async function RoomsPage() {
                     </span>
                     <span className="block truncate text-xs text-ink-2">{b.purpose}</span>
                   </Link>
+                  <CalendarIconLink kind="room" id={b.id} label={`бронь ${b.room.number}`} />
                   <CancelRoomBooking id={b.id} />
                 </li>
               );

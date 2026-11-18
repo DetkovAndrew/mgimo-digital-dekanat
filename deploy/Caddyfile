@@ -1,12 +1,12 @@
 # HTTPS для домена: сертификат Let's Encrypt Caddy получает и продлевает сам (нужны открытые 80 и 443).
 {
-	# Токен справки в адресе /verify/… не пишется в журналы: при ошибке прокси Caddy логирует URI запроса
-	# (ревью Codex 58; проверено на 502 — без фильтра токен в журнале, с фильтром нет).
+	# Токены в адресе — справки /verify/… и подписки на календарь /api/calendar/feed/… — не пишутся в журналы:
+	# при ошибке прокси Caddy логирует URI запроса (ревью Codex 58; проверено на 502 — без фильтра токен в журнале).
 	log {
 		format filter {
 			wrap json
 			fields {
-				request>uri regexp "^/verify/[^/?#]*" "/verify/REDACTED"
+				request>uri regexp "^/(verify|api/calendar/feed)/[^/?#]*" "/$1/REDACTED"
 			}
 		}
 	}

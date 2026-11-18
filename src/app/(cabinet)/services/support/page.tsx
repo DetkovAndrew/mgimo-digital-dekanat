@@ -1,4 +1,4 @@
-import { BookOpen, Dumbbell, FileText, GraduationCap, House, Languages, LifeBuoy, type LucideIcon, MessagesSquare, ShieldCheck, Sparkles, Wallet } from "lucide-react";
+import { BookOpen, Dumbbell, FileText, GraduationCap, House, Languages, LifeBuoy, type LucideIcon, MessagesSquare, ShieldCheck, Sparkles, UserPlus, Wallet } from "lucide-react";
 import Link from "next/link";
 import { BackLink } from "@/components/back-link";
 import { IconTile, PageTitle } from "@/components/ui";
@@ -97,6 +97,10 @@ export default async function SupportPage() {
                   </p>
                   <CopyButton value={subject} label={`Тема письма: ${o.title}`} />
                 </div>
+                <a href={`/api/contacts/${o.id}`} className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-brand underline-offset-2 hover:underline">
+                  <UserPlus aria-hidden className="size-4" />
+                  Добавить в контакты
+                </a>
               </div>
             </section>
           );

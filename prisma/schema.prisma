@@ -121,6 +121,7 @@ model StudentProfile {
   avatar        StudentAvatar?
   printJobs     PrintJob[]
   wifi          WifiCredential?
+  calendarFeed  CalendarFeed?
 
   @@index([groupId])
   @@map("student_profile")
@@ -174,6 +175,18 @@ model WifiCredential {
   rotatedAt DateTime       @default(now()) @db.Timestamptz(6)
 
   @@map("wifi_credential")
+}
+
+/// Подписка на календарь (docs/plans/calendar.md): токен — HMAC от секрета сервера и версии, в БД только его SHA-256.
+/// Новая ссылка — version + 1; старый токен перестаёт находиться.
+model CalendarFeed {
+  studentId String         @id
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  version   Int            @default(1)
+  tokenHash String         @unique
+  rotatedAt DateTime       @default(now()) @db.Timestamptz(6)
+
+  @@map("calendar_feed")
 }
 
 model StaffProfile {

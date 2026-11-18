@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ViewTransition } from "react";
 import { BackLink } from "@/components/back-link";
 import { KindTile, kindStyle } from "@/components/kind";
+import { CalendarButton } from "@/components/calendar-link";
 import { Badge, Card, Disclosure, IconTile, List, RowLink, Section } from "@/components/ui";
 import { indoorRouteHref, lessonRoomOnPlan } from "@/lib/campus/route-link";
 import { formatDate, formatDateTime, formatDay, formatTime, lessonKindLabel, mskDayKey } from "@/lib/format";
@@ -115,6 +116,7 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
         ) : (
           <p className="text-ink-2">Аудитория не указана.</p>
         )}
+        <CalendarButton kind="lesson" id={l.id} />
       </Card>
 
       <Section title="Преподаватель">

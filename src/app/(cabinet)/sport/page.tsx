@@ -1,6 +1,7 @@
 import { MapPin } from "lucide-react";
 import Link from "next/link";
 import { ViewTransition } from "react";
+import { CalendarIconLink } from "@/components/calendar-link";
 import { KindTile, KindTime } from "@/components/kind";
 import { Badge, Card, Empty, List, PageTitle, Section } from "@/components/ui";
 import { formatDate, formatDay, formatTime } from "@/lib/format";
@@ -101,6 +102,7 @@ export default async function SportPage({ searchParams }: PageProps<"/sport">) {
                   )}
                   {b.conflict && <span className="block text-xs text-bad">Расписание изменилось: {b.conflict}</span>}
                 </span>
+                {b.status === "CONFIRMED" && <CalendarIconLink kind="sport" id={b.id} label={b.slot.section.title} />}
                 <CancelBookingButton id={b.id} waitlist={b.status === "WAITLIST"} />
               </li>
             ))}
