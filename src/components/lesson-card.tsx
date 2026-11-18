@@ -4,7 +4,7 @@ import { ViewTransition } from "react";
 import { formatDateTime, formatTime, lessonKindLabel, shortName } from "@/lib/format";
 import type { ScheduleLesson } from "@/server/dal/schedule";
 import { lessonTitleName } from "@/lib/view-transitions";
-import { KindTime, kindStyle } from "./kind";
+import { KindPill, KindTime, kindStyle } from "./kind";
 import { Chevron } from "./pending";
 import { Badge } from "./ui";
 
@@ -29,16 +29,16 @@ export function LessonCard({ lesson }: { lesson: ScheduleLesson }) {
     <Link
       href={lesson.href}
       transitionTypes={["nav-forward"]}
-      className={`group relative flex items-center gap-3 overflow-hidden rounded-2xl bg-surface py-2.5 pr-3.5 pl-3.5 ring-1 transition active:scale-[0.99] md:hover:ring-brand/30 ${
+      className={`group relative flex items-center gap-3 overflow-hidden rounded-2xl bg-surface py-2.5 pr-3.5 pl-4 ring-1 transition active:scale-[0.99] md:hover:ring-brand/30 ${
         cancelled ? "ring-bad/30" : moved ? `ring-warn/40 lesson-wash ${kindStyle(lesson.kind).wash}` : `ring-hairline lesson-wash ${kindStyle(lesson.kind).wash}`
       }`}
     >
       {/* Полоска цвета типа занятия: тип читается с края карточки ещё до подписи. */}
-      <span aria-hidden className={`absolute inset-y-0 left-0 w-1 ${cancelled ? "bg-hairline" : kindStyle(lesson.kind).bar}`} />
+      <span aria-hidden className={`absolute inset-y-0 left-0 w-1.5 ${cancelled ? "bg-hairline" : kindStyle(lesson.kind).bar}`} />
       <KindTime kind={lesson.kind} start={formatTime(lesson.startsAt)} end={formatTime(lesson.endsAt)} struck={cancelled} />
       <span className="min-w-0 flex-1">
-        <span className="mb-0.5 flex flex-wrap items-center gap-1.5">
-          <span className={`text-xs font-semibold ${kindStyle(lesson.kind).text}`}>{lessonKindLabel[lesson.kind]}</span>
+        <span className="mb-1 flex flex-wrap items-center gap-1.5">
+          <KindPill kind={lesson.kind} label={lessonKindLabel[lesson.kind]} muted={cancelled} />
           {cancelled && <Badge tone="bad">Отменено</Badge>}
           {moved && <Badge tone="warn">Изменено</Badge>}
         </span>

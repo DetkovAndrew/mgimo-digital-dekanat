@@ -25,6 +25,18 @@ export function KindTime({ kind, start, end, struck }: { kind: string; start: st
   );
 }
 
+/** Плашка «иконка + тип» для карточки пары: тонкую полоску у края легко не заметить (NursuUwU, 18.11). */
+export function KindPill({ kind, label, muted }: { kind: string; label: string; muted?: boolean }) {
+  const k = kindStyle(kind);
+  const Icon = k.icon;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${muted ? "bg-hairline text-ink-2" : `${k.soft} ${k.text}`}`}>
+      <Icon aria-hidden className="size-3.5" />
+      {label}
+    </span>
+  );
+}
+
 /** Плитка с иконкой типа занятия — для строк, где время показано текстом. */
 export function KindTile({ kind }: { kind: string }) {
   const k = kindStyle(kind);

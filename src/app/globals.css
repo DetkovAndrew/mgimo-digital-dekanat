@@ -526,29 +526,82 @@ body {
     scale: 1.05;
   }
 }
-@keyframes mascot-tilt {
-  35%,
-  70% {
-    rotate: 9deg;
+/* Без наклонов (NursuUwU, 18.11): эмоцию передают глаза, пульс и эффект вокруг портрета. */
+@keyframes mascot-pulse-soft {
+  35% {
+    scale: 1.1;
+  }
+  65% {
+    scale: 0.98;
   }
 }
-@keyframes mascot-droop {
+@keyframes mascot-sink {
   30%,
-  75% {
+  70% {
     translate: 0 3px;
-    rotate: -7deg;
-    scale: 0.96;
+    scale: 0.93;
   }
+}
+/* Кольцо расходится от портрета: при радости и подмигивании — цветом бренда, при грусти — приглушённое и медленнее. */
+@keyframes mascot-ring {
+  from {
+    scale: 1;
+    opacity: 0.7;
+  }
+  to {
+    scale: 1.55;
+    opacity: 0;
+  }
+}
+/* Искорки радости разлетаются по кругу: угол — --a, дальность — --r (разметка в assistant.tsx). */
+@keyframes mascot-spark {
+  0% {
+    transform: rotate(var(--a)) translateY(0) scale(0.4);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--a)) translateY(calc(-1 * var(--r))) scale(1);
+    opacity: 0;
+  }
+}
+.mascot-react::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid var(--brand);
+  opacity: 0;
+  pointer-events: none;
+}
+.mascot-react.mascot-sad::after {
+  border-color: var(--ink-2);
+}
+.mascot-spark {
+  display: none;
 }
 @media (prefers-reduced-motion: no-preference) {
   .mascot-react.mascot-joy {
     animation: mascot-pulse 0.9s cubic-bezier(0.34, 1.4, 0.64, 1);
   }
   .mascot-react.mascot-wink {
-    animation: mascot-tilt 1.2s ease-in-out;
+    animation: mascot-pulse-soft 0.8s ease-in-out;
   }
   .mascot-react.mascot-sad {
-    animation: mascot-droop 1.4s ease-in-out;
+    animation: mascot-sink 1.4s ease-in-out;
+  }
+  .mascot-react.mascot-joy::after,
+  .mascot-react.mascot-wink::after {
+    animation: mascot-ring 0.8s var(--ease-out);
+  }
+  .mascot-react.mascot-sad::after {
+    animation: mascot-ring 1.3s ease-out;
+  }
+  .mascot-joy .mascot-spark {
+    display: block;
+    animation: mascot-spark 0.85s var(--ease-out) both;
   }
 }
 /* Финиш: звезда на лбу Инвиктии загорается зелёным и светится. */

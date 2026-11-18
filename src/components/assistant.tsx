@@ -135,6 +135,8 @@ function fit(owner: string, full: Msg[]) {
 
 /** Пасхалка: эмоции Инвиктии по нажатию на портрет (наброски NursuUwU) — радость, подмигивание, лёгкая грусть. */
 const MOODS = ["mascot-joy", "mascot-wink", "mascot-sad"] as const;
+/** Искорки радости: шесть лучей через 60°, чередуются дальность и цвет (не синий — он сливается с волосами). */
+const SPARKS = [0, 60, 120, 180, 240, 300].map((a, i) => ({ a, r: i % 2 ? 40 : 48, color: i % 2 ? "bg-k-sport" : "bg-k-language" }));
 
 /**
  * Портрет в шапке окна: живой, как кнопка в углу (моргает, волосы и убор покачиваются), при наведении чуть крупнее.
@@ -162,9 +164,18 @@ function ReactivePortrait({ skin }: { skin: Skin }) {
         requestAnimationFrame(() => setMood(m));
         timer.current = window.setTimeout(() => setMood(null), 1500);
       }}
-      className={`mascot-react grid size-18 shrink-0 place-items-center rounded-full bg-brand-soft transition-[scale] duration-200 hover:scale-110 active:scale-95 motion-reduce:transition-none ${mood ?? ""}`}
+      className={`mascot-react relative grid size-18 shrink-0 place-items-center rounded-full bg-brand-soft transition-[scale] duration-200 hover:scale-110 active:scale-95 motion-reduce:transition-none ${mood ?? ""}`}
     >
       <MascotIcon skin={skin} size={64} alive />
+      {mood === "mascot-joy" &&
+        SPARKS.map(({ a, r, color }) => (
+          <span
+            key={a}
+            aria-hidden
+            style={{ "--a": `${a}deg`, "--r": `${r}px` } as React.CSSProperties}
+            className={`mascot-spark pointer-events-none absolute top-1/2 left-1/2 -mt-1 -ml-1 size-2 rounded-full ${color}`}
+          />
+        ))}
     </button>
   );
 }
