@@ -10,8 +10,8 @@ import { rotateFeedAction } from "./actions";
 export function FeedAddress({ url }: { url: string }) {
   const [shown, setShown] = useState(false);
   return (
-    <div className="relative flex min-w-0 items-center gap-1 rounded-xl bg-fill px-3">
-      <span className="min-w-0 flex-1 truncate py-2 font-mono text-sm" aria-live="polite">
+    <div className="flex min-w-0 items-center gap-1 rounded-xl bg-fill px-3">
+      <span className="relative min-w-0 flex-1 truncate py-2 font-mono text-sm" aria-live="polite">
         {shown ? url : url.replace(/feed\/.+$/, "feed/••••••••••••")}
         {!shown && <span className="sr-only">Адрес скрыт</span>}
       </span>
