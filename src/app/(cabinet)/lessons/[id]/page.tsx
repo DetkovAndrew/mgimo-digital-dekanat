@@ -2,7 +2,7 @@ import { BookOpen, ClipboardCheck, MapPin, Navigation, Route, UserRound } from "
 import Link from "next/link";
 import { ViewTransition } from "react";
 import { BackLink } from "@/components/back-link";
-import { KindTile, kindStyle } from "@/components/kind";
+import { KindPill, KindTile } from "@/components/kind";
 import { Badge, Card, Disclosure, IconTile, List, RowLink, Section } from "@/components/ui";
 import { indoorRouteHref, lessonRoomOnPlan } from "@/lib/campus/route-link";
 import { formatDate, formatDateTime, formatDay, formatTime, lessonKindLabel, mskDayKey } from "@/lib/format";
@@ -50,9 +50,7 @@ export default async function LessonPage({ params }: PageProps<"/lessons/[id]">)
     <>
       <BackLink href="/schedule">Расписание</BackLink>
       <p className="flex items-center gap-2 text-sm">
-        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${kindStyle(l.kind).soft} ${kindStyle(l.kind).text}`}>
-          {lessonKindLabel[l.kind]}
-        </span>
+        <KindPill kind={l.kind} label={lessonKindLabel[l.kind]} />
         {statusText[l.status] && <Badge tone={cancelled ? "bad" : "warn"}>{statusText[l.status]}</Badge>}
       </p>
       <ViewTransition name={lessonTitleName(l.id)} share="morph" default="none">
