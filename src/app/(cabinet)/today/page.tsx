@@ -138,7 +138,7 @@ export default async function TodayPage() {
               })}
             </div>
           ) : (
-            <Empty>Сегодня пар нет, можно выдохнуть.</Empty>
+            <Empty art="today">Сегодня пар нет, можно выдохнуть.</Empty>
           )}
         </Section>
       </div>

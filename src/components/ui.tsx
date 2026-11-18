@@ -2,6 +2,7 @@ import { ChevronDown, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Tone } from "@/lib/format";
+import { InvictiaScene, type SceneName } from "./invictia-scenes";
 import { Chevron } from "./pending";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
@@ -119,6 +120,13 @@ export function Badge({ tone = "neutral", children }: { tone?: Tone; children: R
   return <span className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${tones[tone]}`}>{children}</span>;
 }
 
-export function Empty({ children }: { children: ReactNode }) {
-  return <p className="rounded-2xl bg-surface/60 p-6 text-center text-sm text-ink-2 ring-1 ring-hairline">{children}</p>;
+/** Пустое состояние. art — сцена с Инвиктией, только для «хороших» пустых экранов (не оценки и долги, MASCOT.md). */
+export function Empty({ children, art }: { children: ReactNode; art?: SceneName }) {
+  if (!art) return <p className="rounded-2xl bg-surface/60 p-6 text-center text-sm text-ink-2 ring-1 ring-hairline">{children}</p>;
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-2xl bg-surface/60 px-6 pt-5 pb-6 text-center ring-1 ring-hairline">
+      <InvictiaScene name={art} className="w-36" />
+      <p className="max-w-sm text-sm text-ink-2">{children}</p>
+    </div>
+  );
 }
