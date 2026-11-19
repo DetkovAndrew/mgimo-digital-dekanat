@@ -32,7 +32,7 @@ export const CertificateContent = z.object({
 });
 export type CertificateContent = z.infer<typeof CertificateContent>;
 
-/** «Деморина Алина Витальевна» → «Деморина А. В.»: открытая страница показывает только фамилию и инициалы. */
+/** «Морозова Алина Витальевна» → «Морозова А. В.»: открытая страница показывает только фамилию и инициалы. */
 export function shortName(fullName: string): string {
   const [last = "", ...rest] = fullName.trim().split(/\s+/);
   return [last, ...rest.map((part) => `${Array.from(part)[0]?.toUpperCase() ?? ""}.`)].join(" ");
