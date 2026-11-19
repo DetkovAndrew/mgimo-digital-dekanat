@@ -111,7 +111,8 @@ export default async function SportPage({ searchParams }: PageProps<"/sport">) {
       )}
 
       <Section title="Записаться">
-        <nav aria-label="День" className="-mx-4 mb-3 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+        {/* Полоса с overflow-x обрезает и по вертикали: рамки дней внутрь (ring-inset), py-1 оставляет место кольцу фокуса. */}
+        <nav aria-label="День" className="-mx-4 -mt-1 mb-2 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none]">
           {s.days.map((d) => {
             const on = d === s.day;
             return (
@@ -122,7 +123,7 @@ export default async function SportPage({ searchParams }: PageProps<"/sport">) {
                 replace
                 aria-current={on ? "date" : undefined}
                 className={`flex min-h-14 w-12 shrink-0 snap-start flex-col items-center justify-center rounded-2xl text-sm transition-colors ${
-                  on ? "bg-brand-soft font-semibold text-brand ring-2 ring-brand ring-inset" : "bg-surface text-ink ring-1 ring-hairline"
+                  on ? "bg-brand-soft font-semibold text-brand ring-2 ring-brand ring-inset" : "bg-surface text-ink ring-1 ring-hairline ring-inset"
                 }`}
               >
                 <span className={`text-micro ${on ? "text-brand" : "text-ink-3"}`}>{weekday.format(noon(d))}</span>

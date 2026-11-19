@@ -265,7 +265,7 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
               </>
             )}
 
-            <nav aria-label="День" className="-mx-4 mt-4 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:-mx-5 md:px-5">
+            <nav aria-label="День" className="-mx-4 mt-3 flex snap-x scroll-px-4 gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] md:-mx-5 md:px-5">
               {days.map((d) => (
                 <Link
                   key={d}
@@ -274,7 +274,7 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
                   replace
                   aria-current={d === day ? "date" : undefined}
                   className={`flex min-h-14 w-12 shrink-0 snap-start flex-col items-center justify-center rounded-2xl text-sm transition-colors ${
-                    d === day ? "bg-brand-soft font-semibold text-brand ring-2 ring-brand ring-inset" : "bg-page text-ink ring-1 ring-hairline"
+                    d === day ? "bg-brand-soft font-semibold text-brand ring-2 ring-brand ring-inset" : "bg-page text-ink ring-1 ring-hairline ring-inset"
                   }`}
                 >
                   <span className={`text-micro ${d === day ? "text-brand" : "text-ink-3"}`}>{weekday.format(noon(d))}</span>
