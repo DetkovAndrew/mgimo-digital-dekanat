@@ -18,6 +18,16 @@ def cubic(p0, p1, p2, p3):
             for t in (n/64 for n in range(1, 65))]
 
 
+def quad(p0, p1, p2):
+    return [tuple((1-t)**2*p0[i] + 2*(1-t)*t*p1[i] + t*t*p2[i] for i in (0, 1))
+            for t in (n/32 for n in range(1, 33))]
+
+
+# Звезда Инвиктии над U — как в mark.svg (четыре квадратичных луча).
+STAR = [(45.5, 9), (46.57, 14.93), (52.5, 16), (46.57, 17.07), (45.5, 23),
+        (44.43, 17.07), (38.5, 16), (44.43, 14.93), (45.5, 9)]
+
+
 def mark(size):
     scale = size * 4 / 64
     canvas = Image.new("RGBA", (size*4, size*4), (0, 0, 0, 0))
@@ -30,7 +40,10 @@ def mark(size):
     points += cubic((50, 35), (50, 47), (43, 55), (32, 55))
     points += cubic((32, 55), (21, 55), (14, 47), (14, 35))
     draw.polygon([(x*scale, y*scale) for x, y in points], fill="white")
-    draw.rounded_rectangle((41*scale, 12*scale, 50*scale, 21*scale), radius=2*scale, fill="white")
+    star = []
+    for i in range(0, 8, 2):
+        star += quad(STAR[i], STAR[i+1], STAR[i+2])
+    draw.polygon([(x*scale, y*scale) for x, y in star], fill="white")
     return canvas.resize((size, size), Image.Resampling.LANCZOS)
 
 

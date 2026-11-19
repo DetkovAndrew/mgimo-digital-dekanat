@@ -17,11 +17,11 @@ export function RequestTabs({ current, active }: { current: "catalog" | "my"; ac
           scroll={false}
           transitionTypes={["nav-tab"]}
           aria-current={current === v ? "page" : undefined}
-          className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold transition-colors ${current === v ? "bg-brand-fill text-on-brand" : "text-ink-2 hover:bg-fill"}`}
+          className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold transition-colors ${current === v ? "bg-brand-soft text-brand" : "text-ink-2 hover:bg-fill"}`}
         >
           {label}
           {v === "my" && active > 0 && (
-            <span className={`min-w-5 rounded-full px-1.5 text-xs leading-5 ${current === v ? "bg-on-brand text-brand-fill" : "bg-brand-soft text-brand"}`}>
+            <span className={`min-w-5 rounded-full px-1.5 text-xs leading-5 ${current === v ? "bg-brand-fill text-on-brand" : "bg-brand-soft text-brand"}`}>
               <span className="sr-only">в работе: </span>
               {active}
             </span>
