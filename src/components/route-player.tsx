@@ -78,7 +78,7 @@ export function RouteFloorTabs({ floors }: { floors: number[] }) {
             onClick={() => ctx.showFloor(f === ctx.route.steps[ctx.step].floor ? null : f)}
             aria-pressed={on}
             className={`relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl px-3 text-sm font-semibold tabular-nums transition-colors ${
-              on ? "bg-brand-fill text-on-brand" : "bg-surface text-ink ring-1 ring-hairline hover:bg-fill/70"
+              on ? "bg-brand-soft font-semibold text-brand ring-2 ring-brand ring-inset" : "bg-surface text-ink ring-1 ring-hairline hover:bg-fill/70"
             }`}
           >
             {f} эт.

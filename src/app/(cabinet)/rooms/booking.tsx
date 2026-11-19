@@ -7,7 +7,7 @@ import { ROOM_RULES } from "@/lib/campus/rules";
 import { bookRoomAction, cancelRoomBookingAction } from "./actions";
 
 const chip = "inline-flex min-h-11 min-w-16 items-center justify-center rounded-xl px-3 text-sm font-medium tabular-nums ring-1 transition active:scale-95";
-const on = "bg-brand-fill text-on-brand ring-brand-fill";
+const on = "bg-brand-soft font-semibold text-brand ring-2 ring-brand";
 const off = "bg-surface text-ink ring-hairline hover:bg-fill/70";
 
 const dur = (m: number) => (m < 60 ? `${m} мин` : m % 60 ? `${Math.floor(m / 60)} ч ${m % 60} мин` : `${m / 60} ч`);
