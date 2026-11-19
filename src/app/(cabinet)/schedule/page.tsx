@@ -66,7 +66,7 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
       </nav>
       {view === "week" ? (
         <div className="xl:mx-40">
-          <WeekView week={sp.week} />
+          <WeekView week={sp.week} on={sp.on} />
         </div>
       ) : (
         <MonthView m={sp.m} d={sp.d} />
@@ -321,10 +321,14 @@ async function MonthView({ m, d }: { m: unknown; d: unknown }) {
 }
 
 // ─── Неделя ─────────────────────────────────────────────────────────────────────────────────────────────────
-async function WeekView({ week }: { week: unknown }) {
+async function WeekView({ week, on }: { week: unknown; on: unknown }) {
   // В воскресенье учебная неделя уже прошла: без ?week= открываем следующую (сегодняшнее — на «Сегодня»).
   const sunday = new Date(`${mskDayKey(new Date())}T12:00:00Z`).getUTCDay() === 0;
-  const parsed = Number.parseInt(String(week ?? ""), 10);
+  // ?on=ГГГГ-ММ-ДД (ссылка из уведомления о переносе) — неделя с этой датой, считается при открытии.
+  const day = typeof on === "string" && /^\d{4}-\d{2}-\d{2}$/.test(on) ? new Date(`${on}T12:00:00+03:00`) : null;
+  const parsed = day && !Number.isNaN(day.getTime())
+    ? Math.round((mskWeekStart(day).getTime() - mskWeekStart(new Date()).getTime()) / (7 * 86_400_000))
+    : Number.parseInt(String(week ?? ""), 10);
   const offset = Math.max(-40, Math.min(40, Number.isNaN(parsed) ? (sunday ? 1 : 0) : parsed));
   const start = addDays(mskWeekStart(new Date()), offset * 7);
   const [lessons, events] = await Promise.all([getMySchedule({ from: start, to: addDays(start, 7) }), getMyStudyEvents({ from: start, to: addDays(start, 7) })]);

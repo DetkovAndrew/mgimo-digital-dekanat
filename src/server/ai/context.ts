@@ -80,6 +80,8 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
   out.push(`Сейчас: ${formatDay(now)} (дата ${mskDayKey(now)}), ${formatTime(now)} (Москва).`);
   // «Завтра» модель путала с ближайшим учебным днём (прогон 14.11: понедельник назвала завтрашним в субботу).
   out.push(`Завтра: ${formatDay(addDays(now, 1))} (дата ${mskDayKey(addDays(now, 1))}). Про другие дни говори день недели и дату, а не «завтра».`);
+  // «В понедельник» модель сама переводила в дату дальше недели и отказывала в брони (съёмка 19.11): даём таблицу дней.
+  out.push(`Дни на неделю вперёд (день недели → дата для функций): ${Array.from({ length: 5 }, (_, i) => addDays(now, i + 2)).map((d) => `${formatDay(d)} — ${mskDayKey(d)}`).join("; ")}.`);
   // Адреса и метро — из базы: без них модель выдумывала станции (прогон 14.11).
   const buildings = await listBuildingsBrief();
   out.push(`Корпуса (открытые данные): ${buildings.map((b) => `${b.title} — ${b.address}${b.metro ? `, м. ${b.metro}` : ""} [${link(`/buildings/${b.id}`)}]`).join("; ")}.`);

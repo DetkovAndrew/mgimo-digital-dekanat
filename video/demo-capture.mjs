@@ -174,20 +174,16 @@ const ACTS = {
     await ctx.close();
   },
 
-  // 3. Заявка на справку об обучении: каталог, поиск, форма, отправка. Пишет в БД.
+  // 3. Заявка на справку об обучении: каталог (вкладка «Заявки»), поиск, форма, отправка. Пишет в БД.
   async request(browser) {
     const { ctx, page, open, clock } = await phone(browser);
     await open("/requests");
-    await shot(page, "requests", 3.4, {
-      clock,
-      steps: [{ at: 2.9, tap: page.locator('a[href="/requests/new"]').filter({ visible: true }).first(), nav: /\/requests\/new$/ }],
-    });
-    await shot(page, "catalog", 4.6, {
+    await shot(page, "requests", 5.6, {
       clock,
       steps: [
-        { at: 0.6, tap: page.locator('input[type="search"]') },
-        { at: 0.9, type: "справка", dur: 0.9 },
-        { at: 4.1, tap: page.locator('a[href="/requests/new?type=study_certificate"]'), nav: /type=study_certificate/ },
+        { at: 1.4, tap: page.locator('input[type="search"]') },
+        { at: 1.7, type: "справка", dur: 0.9 },
+        { at: 5.1, tap: page.locator('a[href="/requests/new?type=study_certificate"]'), nav: /type=study_certificate/ },
       ],
     });
     await shot(page, "form", 9.4, {
@@ -274,7 +270,7 @@ const ACTS = {
   },
 
   // 5а. Деканат на ноутбуке переносит онлайн-семинар группы Алины очно в переговорную. Пишет в БД (откат —
-  // npm run db:undo-staff). Пара — первая завтрашняя «Философия» группы H3301 в списке расписания факультета.
+  // npm run db:undo-staff). Пара — ближайшая онлайн-«Философия» группы H3301 в списке расписания факультета (уведомление ведёт на её неделю).
   async reschedule(browser) {
     const shot = await desk(browser, "reschedule", async ({ page, snap, click }) => {
       await page.goto(`${BASE}/staff/schedule?group=H3301`);
@@ -317,7 +313,7 @@ const ACTS = {
     const { ctx, page, open, clock } = await phone(browser);
     await open("/today");
     await shot(page, "moved-bell", 3, { clock, steps: [{ at: 2.5, tap: page.locator('a[href="/notifications"]').filter({ visible: true }).first(), nav: /\/notifications/ }] });
-    await shot(page, "moved-notifications", 4.6, { clock, steps: [{ at: 4.1, tap: page.locator('main a[href="/schedule"]').first(), nav: /\/schedule/ }] });
+    await shot(page, "moved-notifications", 4.6, { clock, steps: [{ at: 4.1, tap: page.locator('main a[href^="/schedule"]').first(), nav: /\/schedule/ }] });
     const card = page.locator(`a[href="/lessons/${meta.movedLessonId}"]`).first();
     const y = Math.max(0, Math.round((await card.evaluate((el) => el.getBoundingClientRect().top + window.scrollY)) - 300));
     await shot(page, "moved-schedule", 6.4, {
@@ -349,7 +345,7 @@ const ACTS = {
       const plain = window.setTimeout;
       window.setTimeout = (fn, ms, ...rest) => (ms === 380 ? ((window.__joy = fn), 0) : plain(fn, ms, ...rest));
     });
-    const question = "Забронируй переговорную завтра с 15 до 16 для встречи по проекту";
+    const question = "Забронируй переговорную в понедельник с 15 до 16 для встречи по проекту";
     await shot(page, "ask", 7.4, {
       clock,
       steps: [

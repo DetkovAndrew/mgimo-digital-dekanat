@@ -22,7 +22,6 @@ export const STEPS = [
     sub: "Найти вид заявки, заполнить\nдва поля и отправить в деканат",
     shots: [
       { name: "requests", in: "fade" },
-      { name: "catalog", in: "slide" },
       { name: "form", in: "slide" },
       { name: "submitted", in: "slide", sub: "Заявка подана — статус\nвиден сразу и после перезахода" },
     ],

@@ -67,7 +67,7 @@ async function phoneScreens(browser, only) {
   }
   if (want("certificate")) {
     // Заявка со справкой: PDF и QR-проверка.
-    await open("/requests");
+    await open("/requests/my");
     const ready = await page.locator('a[href^="/requests/c"]').filter({ hasText: "Готова" }).first().getAttribute("href");
     await open(ready);
     meta.fps.certificate = FPS;
@@ -143,7 +143,7 @@ async function flow(browser) {
   await settle(p);
   await p.screenshot({ path: `${OUT}flow/phone-submitted.jpg`, type: "jpeg", quality: 92 });
   // Карточка заявки из списка — она «вылетает» из телефона.
-  await p.goto(`${BASE}/requests`);
+  await p.goto(`${BASE}/requests/my`);
   await settle(p);
   await p.locator(`a[href="/requests/${meta.requestId}"]`).screenshot({ path: `${OUT}flow/card-phone.png` });
   await phone.close();
@@ -152,7 +152,7 @@ async function flow(browser) {
   const desk = await browser.newContext({ viewport: DESK, deviceScaleFactor: 2, colorScheme: "light", locale: "ru-RU", timezoneId: "Europe/Moscow" });
   await signIn(desk, "alina.lebedeva", process.env.PW_A);
   const d = await desk.newPage();
-  await d.goto(`${BASE}/requests`);
+  await d.goto(`${BASE}/requests/my`);
   await settle(d);
   const row = d.locator(`a[href="/requests/${meta.requestId}"]`);
   meta.deskCard = await row.boundingBox();
@@ -176,7 +176,7 @@ async function flow(browser) {
   await staff.close();
 
   // 4. Ноутбук после: список (статус и колокольчик) и сама заявка — светлая и тёмная.
-  await d.goto(`${BASE}/requests`);
+  await d.goto(`${BASE}/requests/my`);
   await settle(d);
   await d.screenshot({ path: `${OUT}flow/desk-list-ready.png` });
   await d.goto(`${BASE}/requests/${meta.requestId}`);

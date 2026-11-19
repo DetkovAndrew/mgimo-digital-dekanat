@@ -26,6 +26,7 @@ export async function listMyNotifications(opts: { unreadOnly?: boolean; take?: n
           important: true,
           publishedAt: true,
           lessonId: true,
+          lesson: { select: { startsAt: true } },
           requestId: true,
         },
       },
