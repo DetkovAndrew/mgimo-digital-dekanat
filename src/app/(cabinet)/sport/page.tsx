@@ -122,10 +122,10 @@ export default async function SportPage({ searchParams }: PageProps<"/sport">) {
                 replace
                 aria-current={on ? "date" : undefined}
                 className={`flex min-h-14 w-12 shrink-0 snap-start flex-col items-center justify-center rounded-2xl text-sm transition-colors ${
-                  on ? "bg-brand-fill text-on-brand" : "bg-surface text-ink ring-1 ring-hairline"
+                  on ? "bg-brand-soft font-semibold text-brand ring-2 ring-brand ring-inset" : "bg-surface text-ink ring-1 ring-hairline"
                 }`}
               >
-                <span className={`text-micro ${on ? "text-on-brand" : "text-ink-3"}`}>{weekday.format(noon(d))}</span>
+                <span className={`text-micro ${on ? "text-brand" : "text-ink-3"}`}>{weekday.format(noon(d))}</span>
                 <span className="font-semibold">{dayNum.format(noon(d))}</span>
               </Link>
             );

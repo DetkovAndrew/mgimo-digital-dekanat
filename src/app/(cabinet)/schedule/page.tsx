@@ -58,7 +58,7 @@ export default async function SchedulePage({ searchParams }: PageProps<"/schedul
             scroll={false}
             transitionTypes={["nav-tab"]}
             aria-current={view === v ? "page" : undefined}
-            className={`grid min-h-11 place-items-center rounded-xl text-sm font-semibold transition-colors ${view === v ? "bg-brand-fill text-on-brand" : "text-ink-2 hover:bg-fill"}`}
+            className={`grid min-h-11 place-items-center rounded-xl text-sm font-semibold transition-colors ${view === v ? "bg-brand-soft text-brand" : "text-ink-2 hover:bg-fill"}`}
           >
             {label}
           </Link>
@@ -191,7 +191,7 @@ async function MonthView({ m, d }: { m: unknown; d: unknown }) {
       href={to}
       scroll={false}
       aria-current={on ? "true" : undefined}
-      className={`inline-flex min-h-11 shrink-0 items-center rounded-xl px-3 text-sm font-medium transition-colors ${on ? "bg-brand-fill text-on-brand" : "bg-surface text-ink ring-1 ring-hairline hover:bg-fill/70"}`}
+      className={`inline-flex min-h-11 shrink-0 items-center rounded-xl px-3 text-sm font-medium transition-colors ${on ? "bg-brand-soft font-semibold text-brand ring-2 ring-brand ring-inset" : "bg-surface text-ink ring-1 ring-hairline hover:bg-fill/70"}`}
     >
       {label}
     </Link>
@@ -360,7 +360,8 @@ async function WeekView({ week }: { week: unknown }) {
         {step(offset + 1, "Следующая неделя", ChevronRight)}
       </div>
 
-      {/* Полоса дней: число пар точками, нажатие прокручивает к дню. На пустой неделе не нужна. */}
+      {/* Полоса дней: нажатие прокручивает к дню; на пустой неделе не нужна. Без точек типов (NursuUwU, 19.11): цвет на 6 px
+          не различить, а кнопки выходили высокими. День без занятий — бледное число, срок или аттестация — точка в углу. */}
       {(lessons.length > 0 || events.length > 0) && (
         <nav aria-label="Дни недели" className="mb-6 grid auto-cols-fr grid-flow-col gap-0.5">
           {days.map((d) => {
@@ -372,18 +373,13 @@ async function WeekView({ week }: { week: unknown }) {
                 key={d.key}
                 href={`#d-${d.key}`}
                 aria-label={`${formatDay(d.date)}: ${count ? `событий ${count}` : "нет занятий"}`}
-                className={`flex min-h-18 flex-col items-center justify-center gap-0.5 rounded-2xl transition-colors ${
-                  on ? "bg-brand-fill text-on-brand" : "bg-surface text-ink ring-1 ring-hairline md:hover:bg-fill"
+                className={`relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-2xl transition-colors ${
+                  on ? "bg-brand-soft text-brand ring-2 ring-brand ring-inset" : "bg-surface ring-1 ring-hairline md:hover:bg-fill"
                 }`}
               >
-                <span className={`text-sm font-semibold ${on ? "text-on-brand" : "text-ink-2"}`}>{weekdayShort.format(d.date)}</span>
-                <span className="text-title leading-none font-bold tabular-nums">{dayNum.format(d.date)}</span>
-                <span aria-hidden className="flex h-2 items-center gap-0.5">
-                  {held.slice(0, 4).map((l) => (
-                    <span key={l.id} className={`size-1.5 rounded-full ${on ? "bg-on-brand" : kindStyle(l.kind).bar}`} />
-                  ))}
-                  {d.events.length > 0 && held.length < 4 && <span className={`size-1.5 rounded-full ring-[1.5px] ring-inset ${on ? "ring-on-brand" : "ring-warn"}`} />}
-                </span>
+                <span className={`text-xs font-semibold ${on ? "text-brand" : "text-ink-2"}`}>{weekdayShort.format(d.date)}</span>
+                <span className={`text-title leading-none font-bold tabular-nums ${on ? "" : held.length ? "text-ink" : "text-ink-3"}`}>{dayNum.format(d.date)}</span>
+                {d.events.length > 0 && <span aria-hidden className={`absolute top-1.5 right-1.5 size-1.5 rounded-full bg-warn`} />}
               </a>
             );
           })}

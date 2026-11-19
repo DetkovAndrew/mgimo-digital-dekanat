@@ -25,7 +25,7 @@ export default async function StaffSchedulePage({ searchParams }: { searchParams
             key={g.label}
             href={g.code ? `/staff/schedule?group=${encodeURIComponent(g.code)}` : "/staff/schedule"}
             aria-current={group === g.code ? "page" : undefined}
-            className={`inline-flex min-h-11 items-center rounded-xl px-3 text-body font-medium ${group === g.code ? "bg-brand-fill text-on-brand" : "bg-surface text-ink-2 ring-1 ring-hairline"}`}
+            className={`inline-flex min-h-11 items-center rounded-xl px-3 text-body font-medium ${group === g.code ? "bg-brand-soft font-semibold text-brand ring-2 ring-brand ring-inset" : "bg-surface text-ink-2 ring-1 ring-hairline"}`}
           >
             {g.label}
           </Link>
