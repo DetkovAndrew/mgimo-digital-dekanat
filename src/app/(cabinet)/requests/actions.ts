@@ -16,12 +16,12 @@ export async function submitRequest(type: string, _prev: FormState, formData: Fo
 
 export async function cancelRequest(id: string) {
   await cancelMyRequest(id);
-  revalidatePath(`/requests/${id}`);
+  revalidatePath("/requests", "layout"); // и «Мои заявки» со счётчиком на вкладке (ревью Codex 90)
 }
 
 export async function answerRequest(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
   const result = await answerMyRequest(id, String(formData.get("comment") ?? ""));
   if (!result.ok) return { formError: result.error };
-  revalidatePath(`/requests/${id}`);
+  revalidatePath("/requests", "layout");
   return {};
 }

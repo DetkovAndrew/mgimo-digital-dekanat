@@ -533,9 +533,13 @@ model NotificationRecipient {
   userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   readAt         DateTime?    @db.Timestamptz(6)
+  // Студент убрал уведомление у себя (смахнул или выбрал и удалил). Само уведомление общее — скрывается только доставка;
+  // метка момента — «Вернуть» отменяет именно эту операцию. Демо-аккаунты: `npm run db:restore-notifications`.
+  hiddenAt       DateTime?    @db.Timestamptz(6)
 
   @@id([notificationId, userId])
   @@index([userId, readAt])
+  @@index([userId, hiddenAt])
   @@map("notification_recipient")
 }
 
