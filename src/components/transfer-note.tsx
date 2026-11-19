@@ -20,7 +20,7 @@ export function TransferNote({ transfer }: { transfer: Transfer }) {
         return <Icon aria-hidden className="mt-px size-3.5 shrink-0" />;
       })()}
       <span>
-        <b>Переход → {transfer.toTitle}.</b> {text}
+        <b>Переход в корпус {transfer.toTitle}.</b> {text}
       </span>
     </p>
   );

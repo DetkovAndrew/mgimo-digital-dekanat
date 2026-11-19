@@ -62,7 +62,7 @@ export default async function ScheduleExportPage() {
 
       <Section title="Печать">
         <Card>
-          <p className="mb-3 text-body text-ink-2">Лист A4: на холодильник или в PDF («Печать» → «Сохранить как PDF»; на iPhone — «Поделиться» → «Напечатать»).</p>
+          <p className="mb-3 text-body text-ink-2">Лист A4: распечатать или сохранить в PDF («Печать» → «Сохранить как PDF»; на iPhone — «Поделиться» → «Напечатать»).</p>
           <div className="grid gap-2 sm:grid-cols-2">
             <Link href="/print/schedule?range=week" className={secondary}>
               <Printer aria-hidden className="size-5" />

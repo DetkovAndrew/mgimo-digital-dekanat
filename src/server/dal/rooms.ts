@@ -314,7 +314,7 @@ export async function prepareBooking(
 ): Promise<{ ok: true; proposal: BookingProposal } | { ok: false; error: string; alternatives?: string[]; windows?: string[] }> {
   const { studentId } = await requireStudent();
   const parsed = PrepareInput.safeParse(args);
-  if (!parsed.success) return { ok: false, error: "Не понял, что бронировать: назовите день, время и, если нужно, аудиторию" };
+  if (!parsed.success) return { ok: false, error: "Не получилось понять, что бронировать: назовите день, время и, если нужно, аудиторию" };
   const { building, room, day, start, purpose, kinds, minCapacity } = parsed.data;
   const minutes = parsed.data.minutes ?? 60;
   const problem = intervalProblem(day, start, minutes, now);

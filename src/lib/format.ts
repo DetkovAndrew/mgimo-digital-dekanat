@@ -10,6 +10,10 @@ const shortDateFmt = fmt({ day: "numeric", month: "long" });
 const dateTimeFmt = fmt({ day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const isoDayFmt = fmt({ year: "numeric", month: "2-digit", day: "2-digit" });
 
+/** Русское склонение по числу: plural(2, "день", "дня", "дней") → «дня». */
+export const plural = (n: number, one: string, few: string, many: string) =>
+  n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many;
+
 export const formatTime = (d: Date) => timeFmt.format(d);
 export const formatDay = (d: Date) => dayFmt.format(d);
 // Без «г.»: после даты часто идёт точка или запятая, и выходило «2026 г..».

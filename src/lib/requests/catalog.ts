@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { plural } from "@/lib/format";
 import { addDays, mskDayKey } from "@/lib/format";
 
 // Каталог заявок и справок. Одна схема проверяет форму на клиенте и данные на сервере
@@ -30,7 +31,7 @@ export type RequestTypeSpec = {
 };
 
 const text = (min: number, max: number) =>
-  z.string().trim().min(min, `Минимум ${min} симв.`).max(max, `Максимум ${max} симв.`);
+  z.string().trim().min(min, `Минимум ${min} ${plural(min, "символ", "символа", "символов")}`).max(max, `Максимум ${max} символов`);
 const isoDate = z.iso.date("Укажите дату");
 const isoMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Укажите месяц");
 
@@ -68,8 +69,8 @@ export const requestCatalog = {
     category: "certificate",
     slaDays: 3,
     fields: [
-      { name: "periodFrom", label: "С месяца", kind: "month" },
-      { name: "periodTo", label: "По месяц", kind: "month" },
+      { name: "periodFrom", label: "С какого месяца", kind: "month" },
+      { name: "periodTo", label: "По какой месяц", kind: "month" },
       { name: "destination", label: "Куда предоставить", kind: "text" },
       { name: "format", label: "Формат", kind: "select", options: formats },
     ],
@@ -125,8 +126,8 @@ export const requestCatalog = {
           { value: "other", label: "Другое" },
         ],
       },
-      { name: "dateFrom", label: "С даты", kind: "date" },
-      { name: "dateTo", label: "По дату", kind: "date" },
+      { name: "dateFrom", label: "Дата начала", kind: "date" },
+      { name: "dateTo", label: "Дата окончания", kind: "date" },
       { name: "details", label: "Подробности", kind: "textarea", hint: "Что важно знать деканату" },
     ],
     schema: z
@@ -149,7 +150,7 @@ export const requestCatalog = {
     ],
     schema: z.object({
       discipline: text(2, 200),
-      reason: z.string().trim().max(2000, "Максимум 2000 симв.").optional().default(""),
+      reason: z.string().trim().max(2000, "Максимум 2000 символов").optional().default(""),
     }),
   },
   military_certificate: {
@@ -173,8 +174,8 @@ export const requestCatalog = {
     slaDays: 3,
     fields: [
       { name: "employer", label: "Организация", kind: "text", hint: "Где вы работаете" },
-      { name: "dateFrom", label: "Сессия с", kind: "date" },
-      { name: "dateTo", label: "Сессия по", kind: "date" },
+      { name: "dateFrom", label: "Начало сессии", kind: "date" },
+      { name: "dateTo", label: "Конец сессии", kind: "date" },
       { name: "format", label: "Формат", kind: "select", options: formats },
     ],
     schema: z
@@ -226,7 +227,7 @@ export const requestCatalog = {
       discipline: text(2, 200),
       source: text(2, 200),
       credits: z.coerce.number().int().min(1, "Минимум 1").max(30, "Максимум 30"),
-      details: z.string().trim().max(2000, "Максимум 2000 симв.").optional().default(""),
+      details: z.string().trim().max(2000, "Максимум 2000 символов").optional().default(""),
     }),
   },
   course_topic: {
@@ -262,7 +263,7 @@ export const requestCatalog = {
           { value: "other", label: "Другое" },
         ],
       },
-      { name: "dateFrom", label: "С даты", kind: "date" },
+      { name: "dateFrom", label: "Дата начала", kind: "date" },
       {
         name: "duration",
         label: "Срок",
@@ -308,7 +309,7 @@ export const requestCatalog = {
     }),
   },
   document_duplicate: {
-    title: "Дубликат студенческого или зачётки",
+    title: "Дубликат студенческого билета или зачётной книжки",
     description: "Если документ потерян, испорчен или сменилась фамилия.",
     category: "status",
     slaDays: 5,
@@ -337,7 +338,7 @@ export const requestCatalog = {
     schema: z.object({
       document: z.enum(["student_card", "record_book"]),
       reason: z.enum(["lost", "damaged", "name_change"]),
-      details: z.string().trim().max(2000, "Максимум 2000 симв.").optional().default(""),
+      details: z.string().trim().max(2000, "Максимум 2000 символов").optional().default(""),
     }),
   },
   material_aid: {
@@ -412,7 +413,7 @@ export const requestCatalog = {
     ],
     schema: z.object({
       topic: z.enum(["wifi", "print", "account", "classroom", "other"]),
-      place: z.string().trim().max(200, "Максимум 200 симв.").optional().default(""),
+      place: z.string().trim().max(200, "Максимум 200 символов").optional().default(""),
       details: text(10, 2000),
     }),
   },

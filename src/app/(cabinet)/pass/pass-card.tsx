@@ -157,7 +157,7 @@ export function PassCard({ owner, avatar, profile }: PassPageData) {
             </div>
             <div className="min-w-0">
               <p className="text-body leading-snug font-semibold wrap-break-word">{profile.fullName}</p>
-              <p className="mt-0.5 text-micro text-ink-2">Группа {profile.group} · Зачётка № {profile.recordBookNumber}</p>
+              <p className="mt-0.5 text-micro text-ink-2">Группа {profile.group} · зачётная книжка № {profile.recordBookNumber}</p>
             </div>
           </div>
 

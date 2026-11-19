@@ -44,6 +44,7 @@ export default async function NotificationsPage() {
           body: n.body,
           important: n.important,
           when: formatDateTime(n.publishedAt),
+          at: n.publishedAt.getTime(),
           read: Boolean(n.readAt),
           link: n.requestId ? { href: `/requests/${n.requestId}`, label: "Открыть заявку" } : n.kind === "SCHEDULE_CHANGE" ? { href: "/schedule", label: "К расписанию" } : null,
         }))}

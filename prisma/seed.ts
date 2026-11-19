@@ -158,7 +158,7 @@ const STUDENTS: StudentSeed[] = [
       { key: "phys", title: "Физическая химия", control: "EXAM", credits: 5, teacher: "gromov", level: 0.48 },
       { key: "chinf", title: "Хемоинформатика", control: "GRADED_CREDIT", credits: 4, teacher: "nazarov", level: 0.92 },
       { key: "bio", title: "Биохимия", control: "CREDIT", credits: 3, teacher: "vetrova", level: 0.74 },
-      { key: "eng", title: "English C1 / Английский язык C1", short: "Английский C1", control: "CREDIT", credits: 2, teacher: "harris", level: 0.81 },
+      { key: "eng", title: "Английский язык C1", control: "CREDIT", credits: 2, teacher: "harris", level: 0.81 },
       { key: "phil", title: "Философия", control: "EXAM", credits: 3, teacher: "sadykov", level: 0.67 },
     ],
     weekly: [
@@ -187,7 +187,7 @@ const STUDENTS: StudentSeed[] = [
       { title: "Неорганическая химия", control: "EXAM", credits: 5, teacher: "zorina", attempts: [79] },
       { title: "Основы программирования и алгоритмизации", control: "GRADED_CREDIT", credits: 3, teacher: "nazarov", attempts: [95] },
       { title: "Физика", control: "EXAM", credits: 4, teacher: "gromov", attempts: [71] },
-      { title: "English B2 / Английский язык B2", control: "CREDIT", credits: 2, teacher: "harris", attempts: [86] },
+      { title: "Английский язык B2", control: "CREDIT", credits: 2, teacher: "harris", attempts: [86] },
       { title: "История России", control: "CREDIT", credits: 2, teacher: "kalinin", attempts: [77] },
     ],
   },
@@ -206,11 +206,11 @@ const STUDENTS: StudentSeed[] = [
       course: 2,
     },
     current: [
-      { key: "algo", title: "Алгоритмы и структуры данных", short: "АиСД", control: "EXAM", credits: 6, teacher: "nazarov", level: 0.78 },
+      { key: "algo", title: "Алгоритмы и структуры данных", control: "EXAM", credits: 6, teacher: "nazarov", level: 0.78 },
       { key: "db", title: "Базы данных", control: "EXAM", credits: 5, teacher: "frolova", level: 0.9 },
-      { key: "java", title: "Программирование на Java", short: "Java", control: "GRADED_CREDIT", credits: 4, teacher: "kalinin", level: 0.95 },
-      { key: "dm", title: "Дискретная математика", short: "Дискретка", control: "EXAM", credits: 4, teacher: "zorina", level: 0.42 },
-      { key: "eng", title: "English B2 / Английский язык B2", short: "Английский B2", control: "CREDIT", credits: 2, teacher: "shults", level: 0.7 },
+      { key: "java", title: "Программирование на Java", control: "GRADED_CREDIT", credits: 4, teacher: "kalinin", level: 0.95 },
+      { key: "dm", title: "Дискретная математика", control: "EXAM", credits: 4, teacher: "zorina", level: 0.42 },
+      { key: "eng", title: "Английский язык B2", control: "CREDIT", credits: 2, teacher: "shults", level: 0.7 },
       { key: "hist", title: "История России", control: "CREDIT", credits: 2, teacher: "sadykov", level: 0.83 },
     ],
     weekly: [
@@ -235,7 +235,7 @@ const STUDENTS: StudentSeed[] = [
       { title: "Программирование", control: "EXAM", credits: 5, teacher: "kalinin", attempts: [92] },
       { title: "Основы профессиональной деятельности", control: "GRADED_CREDIT", credits: 4, teacher: "nazarov", attempts: [84] },
       { title: "Линейная алгебра", control: "EXAM", credits: 4, teacher: "gromov", attempts: [75] },
-      { title: "English B1 / Английский язык B1", control: "CREDIT", credits: 2, teacher: "shults", attempts: [80] },
+      { title: "Английский язык B1", control: "CREDIT", credits: 2, teacher: "shults", attempts: [80] },
       { title: "Физическая культура и спорт", control: "CREDIT", credits: 0, teacher: "osipov", attempts: [65] },
     ],
   },
@@ -857,8 +857,8 @@ async function seedAnnouncements() {
 
 // ─── Физкультура ────────────────────────────────────────────────────────────
 const SPORT_SECTIONS = [
-  { key: "volley", title: "Волейбол", description: "Игровые тренировки, уровень — любой." },
-  { key: "fitness", title: "Фитнес", description: "Функциональный тренинг в зале." },
+  { key: "volley", title: "Волейбол", description: "Игровые тренировки для любого уровня подготовки." },
+  { key: "fitness", title: "Фитнес", description: "Функциональные тренировки в зале." },
   { key: "swim", title: "Плавание", description: "Бассейн 25 м, нужна справка из медпункта (демо)." },
   { key: "tennis", title: "Настольный теннис", description: "Столы в спортзале корпуса на Ломоносова." },
   { key: "yoga", title: "Йога", description: "Растяжка и дыхание, коврики выдают." },

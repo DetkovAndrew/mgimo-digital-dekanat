@@ -2,7 +2,7 @@ import { ChevronRight, DoorOpen, Dumbbell, LifeBuoy, type LucideIcon, MapPinned,
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { IconTile, List, PageTitle, RowLink, Section } from "@/components/ui";
-import type { Tone } from "@/lib/format";
+import { plural, type Tone } from "@/lib/format";
 import { getMyPrintBalance } from "@/server/dal/print";
 import { listMyRoomBookings } from "@/server/dal/rooms";
 import { getMySport } from "@/server/dal/sport";
@@ -41,12 +41,6 @@ function Row({ href, icon, tone, title, sub }: { href: string; icon: LucideIcon;
     </RowLink>
   );
 }
-
-const plural = (n: number, one: string, few: string, many: string) => {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many;
-};
 
 export default async function ServicesPage() {
   const [print, wifi, sport, bookings] = await Promise.all([getMyPrintBalance(), getMyWifi(), getMySport(), listMyRoomBookings()]);

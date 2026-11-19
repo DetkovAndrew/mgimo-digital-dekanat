@@ -185,7 +185,7 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
         <CampusMap {...mapProps} floor={floor} />
       )}
       <MapLegend />
-      <p className="mt-2 text-xs text-ink-2">Схема условная. Номер XYAB: крыло, этаж, номер аудитории.</p>
+      <p className="mt-2 text-xs text-ink-2">Схема условная. В номере аудитории первая цифра — крыло, вторая — этаж.</p>
       {/* Та же схема списком: для экранных дикторов и тем, кому мелко на телефоне (в режиме маршрута текстовая версия — шаги). */}
       {!route && (
       <Disclosure title={`Все аудитории ${floor} этажа списком`} className="mt-3">

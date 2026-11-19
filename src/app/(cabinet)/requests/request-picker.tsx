@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 import { REQUEST_GROUPS, requestGroup } from "@/components/request-groups";
 import { Empty, IconTile, List, RowLink, Section } from "@/components/ui";
+import { plural } from "@/lib/format";
 import type { RequestCategory } from "@/lib/requests/catalog";
 
 /** aka — как заявку называют своими словами (src/lib/requests/guide.ts): ищется, но не показывается. */
@@ -21,7 +22,7 @@ function Row({ item }: { item: PickerItem }) {
         <span className="min-w-0">
           <span className="block font-medium">{item.title}</span>
           <span className="block text-sm text-ink-2">{item.description}</span>
-          <span className="mt-0.5 block text-xs text-ink-3">Обычно {item.slaDays} раб. дн. (демо)</span>
+          <span className="mt-0.5 block text-xs text-ink-3">Обычно {item.slaDays} {plural(item.slaDays, "рабочий день", "рабочих дня", "рабочих дней")} (демо)</span>
         </span>
       </span>
     </RowLink>

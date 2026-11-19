@@ -23,7 +23,7 @@ export default async function ProfilePage() {
     ["Профиль", p.programProfile ?? "—"],
     ["Форма обучения", `${p.studyForm}, ${p.funding}`],
     ["Зачётная книжка", p.recordBookNumber],
-    ["Зачислен(а)", formatDate(p.enrolledAt)],
+    ["Дата зачисления", formatDate(p.enrolledAt)],
     ["Логин", p.login ?? "—"],
   ];
   const rows = (xs: [string, string][]) =>

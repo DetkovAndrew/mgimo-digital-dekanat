@@ -1,5 +1,5 @@
 import "server-only";
-import { addDays, mskDayKey, controlFormLabel, formatDate, formatDateTime, formatDay, formatShortDate, formatTime, lessonKindLabel, mskStartOfDay, requestStatusLabel } from "@/lib/format";
+import { addDays, mskDayKey, controlFormLabel, formatDate, formatDateTime, formatDay, formatShortDate, formatTime, lessonKindLabel, mskStartOfDay, plural, requestStatusLabel } from "@/lib/format";
 import { assessmentDate, courseProgress, courseStatus, formatPoints, nextAssessment } from "@/lib/grading";
 import type { TransferVerdict } from "@/lib/geo";
 import { transfersForDay, transferText } from "@/lib/transfers";
@@ -295,7 +295,7 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
       .map((f) => `&${f.name}=${f.kind === "select" ? f.options!.map((o) => o.value).join("|") : f.kind === "number" ? "число" : "текст"} (${f.label.toLowerCase()})`)
       .join(", ");
     out.push(
-      `- ${spec.title}: ${clip(spec.description, 160)}; ещё называют: ${guide.aka.join(", ")}; срок ≈ ${spec.slaDays} раб. дн.` +
+      `- ${spec.title}: ${clip(spec.description, 160)}; ещё называют: ${guide.aka.join(", ")}; срок около ${spec.slaDays} ${plural(spec.slaDays, "рабочего дня", "рабочих дней", "рабочих дней")}` +
         `${fields ? `; поля ссылки: ${fields}` : ""} [${link(`/requests/new?type=${key}`)}]`,
     );
     out.push(`  подготовить: ${guide.prepare.join("; ")}`);

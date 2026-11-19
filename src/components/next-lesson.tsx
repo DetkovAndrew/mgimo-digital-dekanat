@@ -1,6 +1,6 @@
 import { ChevronRight, MapPin, Navigation, Route, UserRound } from "lucide-react";
 import Link from "next/link";
-import { addDays, formatDay, formatTime, lessonKindLabel, mskDayKey, mskStartOfDay, shortName } from "@/lib/format";
+import { addDays, formatDay, formatTime, lessonKindLabel, mskDayKey, mskStartOfDay, plural, shortName } from "@/lib/format";
 import { yandexRouteUrl } from "@/lib/geo";
 import type { ScheduleLesson } from "@/server/dal/schedule";
 
@@ -11,9 +11,6 @@ function startsIn(d: Date, now: Date) {
   if (mskDayKey(d) === mskDayKey(addDays(now, 1))) return "завтра";
   return formatDay(d);
 }
-
-const plural = (n: number, one: string, few: string, many: string) =>
-  n % 10 === 1 && n % 100 !== 11 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? few : many;
 
 /** Лента дня: пары как отрезки на шкале времени, текущий момент отмечен чертой. Только украшение: список пар ниже. */
 function DayStrip({ lessons, next, now }: { lessons: ScheduleLesson[]; next: ScheduleLesson; now: Date }) {

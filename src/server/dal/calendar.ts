@@ -38,12 +38,20 @@ const feedLinks = (token: string) => {
 export async function getMyFeed() {
   const { studentId } = await requireStudent();
   for (let attempt = 0; attempt < 3; attempt++) {
-    const feed = await prisma.calendarFeed.upsert({
-      where: { studentId },
-      create: { studentId, version: 1, tokenHash: sha256(feedToken(studentId, 1)) },
-      update: {},
-      select: { version: true, tokenHash: true, rotatedAt: true },
-    });
+    // Upsert Prisma здесь не атомарный (поиск, затем вставка): второе одновременное открытие получает P2002 —
+    // строку уже создал первый, следующая попытка её прочитает.
+    const feed = await prisma.calendarFeed
+      .upsert({
+        where: { studentId },
+        create: { studentId, version: 1, tokenHash: sha256(feedToken(studentId, 1)) },
+        update: {},
+        select: { version: true, tokenHash: true, rotatedAt: true },
+      })
+      .catch((e: unknown) => {
+        if ((e as { code?: string }).code === "P2002") return null;
+        throw e;
+      });
+    if (!feed) continue;
     const token = feedToken(studentId, feed.version);
     const links = { ...feedLinks(token), rotatedAt: feed.rotatedAt, nextRotationAt: new Date(feed.rotatedAt.getTime() + FEED_ROTATE_COOLDOWN_MS) };
     if (feed.tokenHash === sha256(token)) return links;
@@ -88,7 +96,7 @@ type Range = { from: Date; to: Date };
 /** detailed — выгрузка по сессии (файл, одно событие): с причиной переноса и целью брони. В подписке — без них. */
 type Opts = { detailed: boolean };
 
-const assessmentLabel: Record<string, string> = { EXAM: "Экзамен", CREDIT: "Зачёт", GRADED_CREDIT: "Дифзачёт", MIDTERM: "Рубежный контроль", ASSIGNMENT: "Работа" };
+const assessmentLabel: Record<string, string> = { EXAM: "Экзамен", CREDIT: "Зачёт", GRADED_CREDIT: "Зачёт с оценкой", MIDTERM: "Контрольная", ASSIGNMENT: "Работа" };
 const place = (room: string | null, building: { title: string } | null, online: boolean) =>
   online ? "онлайн" : [room, building?.title].filter(Boolean).join(", ") || null;
 

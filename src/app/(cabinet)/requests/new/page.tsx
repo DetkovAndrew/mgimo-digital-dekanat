@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { BackLink } from "@/components/back-link";
 import { Card, PageTitle } from "@/components/ui";
+import { plural } from "@/lib/format";
 import { isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { requestGuide } from "@/lib/requests/guide";
 import { prefillFor } from "@/lib/requests/prefill";
@@ -18,7 +19,7 @@ export default async function NewRequestPage({ searchParams }: PageProps<"/reque
     return (
       <>
         <BackLink href="/requests">Заявки</BackLink>
-        <PageTitle sub={`${spec.description} Обычно готово за ${spec.slaDays} раб. дн. (демо-срок).`}>{spec.title}</PageTitle>
+        <PageTitle sub={`${spec.description} Обычно готово за ${spec.slaDays} ${plural(spec.slaDays, "рабочий день", "рабочих дня", "рабочих дней")} (демо-срок).`}>{spec.title}</PageTitle>
         {/* Что подготовить — из опроса 15.11: студенты не знают, какие документы нужны (docs/research/survey.md).
             Над формой: список нужен до заполнения, а не после отправки. */}
         <section aria-labelledby="prepare-title" className="mb-4 rounded-2xl bg-fill px-4 py-3">

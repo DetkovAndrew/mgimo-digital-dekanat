@@ -21,6 +21,7 @@ export type NotificationItem = {
   body: string;
   important: boolean;
   when: string;
+  at: number;
   read: boolean;
   link: { href: string; label: string } | null;
 };
@@ -36,7 +37,11 @@ export function NotificationList({ owner, items }: { owner: string; items: Notif
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const visible = items.filter((n) => !hidden.has(n.id));
+  // Удалённые строки держим у себя: после «Вернуть» они видны сразу, до ответа сервера (на медленной сети список иначе
+  // пустеет на секунды). Порядок — по времени публикации, как на сервере.
+  const [kept, setKept] = useState<ReadonlyMap<string, NotificationItem>>(new Map());
+  const fresh = new Set(items.map((n) => n.id));
+  const visible = [...items, ...[...kept.values()].filter((n) => !fresh.has(n.id))].filter((n) => !hidden.has(n.id)).sort((a, b) => b.at - a.at);
 
   const hideLocal = (ids: string[], on: boolean) =>
     setHidden((h) => {
@@ -50,11 +55,14 @@ export function NotificationList({ owner, items }: { owner: string; items: Notif
 
   async function remove(ids: string[]) {
     if (!ids.length) return;
+    const byId = new Map(visible.map((n) => [n.id, n]));
+    setKept((k) => new Map([...k, ...ids.flatMap((id) => (byId.has(id) ? [[id, byId.get(id)!] as const] : []))]));
     hideLocal(ids, true);
     setSelecting(false);
     setSelected(new Set());
     const r = await hideNotifications(owner, ids).catch(() => ({ ok: false as const, error: OFFLINE }));
     if (!r.ok) {
+      setKept((k) => new Map([...k].filter(([id]) => !ids.includes(id)))); // дальше — только данные сервера
       hideLocal(ids, false);
       toast(false, r.error);
       return;
@@ -65,6 +73,8 @@ export function NotificationList({ owner, items }: { owner: string; items: Notif
       run: async () => {
         hideLocal(r.ids, false);
         const back = await restoreNotifications(owner, r.ids, r.at).catch(() => null);
+        // Дальше список — снова только с сервера: отозванное за это время объявление не «воскреснет» локально.
+        if (back?.ok) setKept((k) => new Map([...k].filter(([id]) => !r.ids.includes(id))));
         if (!back?.ok) {
           hideLocal(r.ids, true);
           toast(false, back ? "Не удалось вернуть уведомления" : OFFLINE);

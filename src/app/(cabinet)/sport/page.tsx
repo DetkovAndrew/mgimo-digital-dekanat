@@ -4,7 +4,7 @@ import { ViewTransition } from "react";
 import { CalendarIconLink } from "@/components/calendar-link";
 import { KindTile, KindTime } from "@/components/kind";
 import { Badge, Card, Empty, List, PageTitle, Section } from "@/components/ui";
-import { formatDate, formatDay, formatTime } from "@/lib/format";
+import { formatDate, formatDay, formatTime, plural } from "@/lib/format";
 import { getMySport } from "@/server/dal/sport";
 import { Booked, BookButton, CancelBookingButton } from "./buttons";
 
@@ -29,9 +29,9 @@ export default async function SportPage({ searchParams }: PageProps<"/sport">) {
             <span className="ml-1 text-body font-medium text-ink-2">из {s.rules.total} баллов</span>
           </p>
           {p.trainingsNeeded === 0 ? (
-            <Badge tone="ok">тренировки закрыты</Badge>
+            <Badge tone="ok">минимум за тренировки набран</Badge>
           ) : (
-            <span className="text-sm text-ink-2">ещё {p.trainingsNeeded} трен.</span>
+            <span className="text-sm text-ink-2">ещё {p.trainingsNeeded} {plural(p.trainingsNeeded, "тренировка", "тренировки", "тренировок")}</span>
           )}
         </div>
         <div className="relative mt-4 h-2.5 overflow-hidden rounded-full bg-fill" role="img" aria-label={`${p.total} из ${s.rules.total}`}>

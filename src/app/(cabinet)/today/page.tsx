@@ -88,7 +88,7 @@ export default async function TodayPage() {
                 <li key={t.afterLessonId} className="flex items-center gap-3 px-4 py-3 text-sm">
                   <IconTile icon={Footprints} tone="bad" />
                   <span className="min-w-0">
-                    <b className="block font-medium text-bad">Не успеть на переход → {t.toTitle}</b>
+                    <b className="block font-medium text-bad">Не успеть доехать: {t.toTitle}</b>
                     <span className="block text-ink-2">
                       {t.verdict.kind === "impossible" && `Перерыв ${t.verdict.gapMin} мин, дорога ≈ ${t.verdict.estimate.transitMin} мин.`}
                     </span>
@@ -112,7 +112,7 @@ export default async function TodayPage() {
           </Section>
         ) : (
           <Section title="Требует внимания" className={`hidden xl:block ${side}`}>
-            <Empty>Срочного нет: заявки в работе, дедлайны далеко.</Empty>
+            <Empty>Срочного нет: заявки в работе, до сроков сдачи далеко.</Empty>
           </Section>
         )}
 
