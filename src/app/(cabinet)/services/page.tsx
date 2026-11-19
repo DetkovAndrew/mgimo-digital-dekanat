@@ -53,14 +53,14 @@ export default async function ServicesPage() {
       <Link
         href="/pass"
         transitionTypes={["nav-forward"]}
-        className="group mb-3 flex items-center gap-4 rounded-3xl bg-brand-fill p-5 text-on-brand transition active:scale-[0.99]"
+        className="group mb-3 flex items-center gap-4 rounded-3xl bg-brand-soft p-5 text-ink ring-1 ring-brand/15 transition active:scale-[0.99]"
       >
-        <span aria-hidden className="grid size-14 shrink-0 place-items-center rounded-2xl bg-on-brand/15">
+        <span aria-hidden className="grid size-14 shrink-0 place-items-center rounded-2xl bg-surface text-brand">
           <QrCode className="size-8" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-title leading-tight font-bold">Пропуск</span>
-          <span className="block text-sm opacity-90">QR для турникета, обновляется каждые 30 секунд</span>
+          <span className="block text-sm text-ink-2">QR для турникета, обновляется каждые 30 секунд</span>
         </span>
         <ChevronRight aria-hidden className="size-5 shrink-0 transition-transform group-hover:translate-x-0.5" />
       </Link>

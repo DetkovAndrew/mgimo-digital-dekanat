@@ -18,7 +18,7 @@ export default async function StaffPage({ searchParams }: { searchParams: Promis
       <nav aria-label="Статус заявок" className="mb-5 flex flex-wrap gap-2">
         {staffFilters.map((f) => (
           <Link key={f.value} href={`/staff?status=${f.value}`} transitionTypes={["nav-tab"]} aria-current={filter === f.value ? "page" : undefined}
-            className={`inline-flex min-h-11 items-center rounded-xl px-3 text-body font-medium ${filter === f.value ? "bg-brand-fill text-on-brand" : "bg-surface text-ink-2 ring-1 ring-hairline"}`}>
+            className={`inline-flex min-h-11 items-center rounded-xl px-3 text-body font-medium ${filter === f.value ? "bg-brand-soft font-semibold text-brand ring-2 ring-brand ring-inset" : "bg-surface text-ink-2 ring-1 ring-hairline"}`}>
             {f.label}
           </Link>
         ))}

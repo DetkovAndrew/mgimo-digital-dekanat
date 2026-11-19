@@ -44,7 +44,7 @@ export default async function TodayPage() {
     <div className="xl:-mx-40">
       <AutoRefresh />
       <PageTitle
-        sub={`${formatDay(now)} · ${profile.group}`}
+        sub={formatDay(now)}
         aside={
           // Пропуск — на виду с главного экрана, без «Сервисов» и лишних нажатий (отзывы о my.itmo). На телефоне он
           // в шапке на каждом экране (значок QR), здесь — на широком экране рядом с приветствием.

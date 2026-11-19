@@ -31,26 +31,26 @@ function DayStrip({ lessons, next, now }: { lessons: ScheduleLesson[]; next: Sch
   return (
     <div aria-hidden className="mt-5">
     <div className="relative h-2.5">
-      <span className="absolute inset-0 rounded-full bg-on-brand/20" />
+      <span className="absolute inset-0 rounded-full bg-brand-fill/15" />
       {lessons.map((l) => (
         <span
           key={l.id}
-          className={`absolute inset-y-0 rounded-full ${l.id === next.id ? "bg-on-brand" : l.endsAt <= now ? "bg-on-brand/35" : "bg-on-brand/60"}`}
+          className={`absolute inset-y-0 rounded-full ${l.id === next.id ? "bg-brand-fill" : l.endsAt <= now ? "bg-brand-fill/30" : "bg-brand-fill/55"}`}
           style={{ left: pos(min(l.startsAt)), width: `${((min(l.endsAt) - min(l.startsAt)) / (to - from)) * 100}%` }}
         />
       ))}
       {nowMin !== null && nowMin > from && nowMin < to && (
-        <span className="absolute -inset-y-1.5 w-0.75 -translate-x-1/2 rounded-full bg-on-brand ring-2 ring-brand-fill" style={{ left: pos(nowMin) }} />
+        <span className="absolute -inset-y-1.5 w-0.75 -translate-x-1/2 rounded-full bg-ink ring-2 ring-brand-soft" style={{ left: pos(nowMin) }} />
       )}
     </div>
-    <div className="relative mt-1 h-5 text-micro font-medium tabular-nums text-on-brand/80">
+    <div className="relative mt-1 h-5 text-micro font-medium tabular-nums text-ink-2">
       {hours.map((h, i) => (
         <span
           key={h}
           className={`absolute top-0 flex flex-col ${i === 0 && h * 60 === from ? "items-start" : h * 60 === to ? "-translate-x-full items-end" : "-translate-x-1/2 items-center"}`}
           style={{ left: pos(h * 60) }}
         >
-          <span className="h-1 w-px bg-on-brand/50" />
+          <span className="h-1 w-px bg-ink-3/60" />
           {labeled.has(h) && `${h}:00`}
         </span>
       ))}
@@ -70,21 +70,21 @@ export function NextLesson({ next, upcoming, now, indoorHref = null }: { next: S
   const leftMin = Math.max(1, Math.round((next.endsAt.getTime() - now.getTime()) / 60_000));
 
   return (
-    <section aria-label="Следующая пара" className="mb-3 rounded-3xl bg-brand-fill p-5 text-on-brand md:p-6">
+    <section aria-label="Следующая пара" className="mb-3 rounded-3xl bg-brand-soft p-5 text-ink ring-1 ring-brand/15 md:p-6">
       <div className="flex items-center justify-between gap-3">
         <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs font-semibold text-brand">{lessonKindLabel[next.kind]}</span>
         <p className="text-sm font-medium tabular-nums">{ongoing ? `идёт · ещё ${leftMin} мин` : startsIn(next.startsAt, now)}</p>
       </div>
 
       <p className="mt-4 leading-none font-bold tracking-[-0.03em] tabular-nums">
-        <span className="text-display">{formatTime(next.startsAt)}</span>
-        <span className="ml-2 text-title font-semibold tracking-tight">до {formatTime(next.endsAt)}</span>
+        <span className="text-display text-brand">{formatTime(next.startsAt)}</span>
+        <span className="ml-2 text-title font-semibold tracking-tight text-ink-2">до {formatTime(next.endsAt)}</span>
       </p>
 
       <Link
         href={next.href}
         transitionTypes={["nav-forward"]}
-        className="group mt-3 flex min-h-11 w-fit items-center gap-1 focus-visible:outline-focus-on-brand"
+        className="group mt-3 flex min-h-11 w-fit items-center gap-1"
       >
         <h2 className="text-title leading-snug font-semibold tracking-tight">{next.title}</h2>
         <ChevronRight aria-hidden className="size-5 shrink-0 transition-transform group-hover:translate-x-0.5" />
@@ -117,7 +117,7 @@ export function NextLesson({ next, upcoming, now, indoorHref = null }: { next: S
           <Link
             href={indoorHref}
             transitionTypes={["nav-forward"]}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-surface px-4 text-sm font-semibold text-brand transition active:scale-95 focus-visible:outline-focus-on-brand"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-surface px-4 text-sm font-semibold text-brand transition active:scale-95"
           >
             <Route aria-hidden className="size-4" />
             Как пройти к аудитории
@@ -128,7 +128,7 @@ export function NextLesson({ next, upcoming, now, indoorHref = null }: { next: S
             href={yandexRouteUrl(next.building, "mt")}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-surface px-4 text-sm font-semibold text-brand transition active:scale-95 focus-visible:outline-focus-on-brand"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-surface px-4 text-sm font-semibold text-brand transition active:scale-95"
           >
             <Navigation aria-hidden className="size-4" />
             Как доехать до корпуса

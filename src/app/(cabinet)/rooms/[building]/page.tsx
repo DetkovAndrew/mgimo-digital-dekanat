@@ -89,7 +89,7 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
             replace
             aria-current={on ? "true" : undefined}
             className={`inline-flex min-h-11 items-center gap-1.5 rounded-xl px-3 text-sm font-medium transition-colors ${
-              on ? "bg-brand-fill text-on-brand" : "bg-page text-ink ring-1 ring-hairline hover:bg-fill/70"
+              on ? "bg-brand-soft font-semibold text-brand ring-2 ring-brand ring-inset" : "bg-page text-ink ring-1 ring-hairline hover:bg-fill/70"
             }`}
           >
             <st.icon aria-hidden className="size-4" />
@@ -161,7 +161,7 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
             replace
             aria-current={f === floor ? "page" : undefined}
             className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl px-3 text-sm font-semibold tabular-nums transition-colors ${
-              f === floor ? "bg-brand-fill text-on-brand" : "bg-surface text-ink ring-1 ring-hairline hover:bg-fill/70"
+              f === floor ? "bg-brand-soft font-semibold text-brand ring-2 ring-brand ring-inset" : "bg-surface text-ink ring-1 ring-hairline hover:bg-fill/70"
             }`}
           >
             {f} эт.
@@ -274,10 +274,10 @@ export default async function CampusPage({ params, searchParams }: PageProps<"/r
                   replace
                   aria-current={d === day ? "date" : undefined}
                   className={`flex min-h-14 w-12 shrink-0 snap-start flex-col items-center justify-center rounded-2xl text-sm transition-colors ${
-                    d === day ? "bg-brand-fill text-on-brand" : "bg-page text-ink ring-1 ring-hairline"
+                    d === day ? "bg-brand-soft font-semibold text-brand ring-2 ring-brand ring-inset" : "bg-page text-ink ring-1 ring-hairline"
                   }`}
                 >
-                  <span className={`text-micro ${d === day ? "text-on-brand" : "text-ink-3"}`}>{weekday.format(noon(d))}</span>
+                  <span className={`text-micro ${d === day ? "text-brand" : "text-ink-3"}`}>{weekday.format(noon(d))}</span>
                   <span className="font-semibold">{dayNum.format(noon(d))}</span>
                 </Link>
               ))}
