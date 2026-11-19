@@ -28,7 +28,7 @@ export default async function RequestPage({ params, searchParams }: PageProps<"/
 
   return (
     <>
-      <BackLink href="/requests">Заявки</BackLink>
+      <BackLink href="/requests/my">Мои заявки</BackLink>
       {created && (
         <p role="status" className="mb-4 rounded-xl bg-ok-soft px-3 py-2 text-sm text-ok">
           Заявка отправлена. Статус будет обновляться здесь и в уведомлениях.

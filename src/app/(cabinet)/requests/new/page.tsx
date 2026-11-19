@@ -1,10 +1,10 @@
+import { notFound, redirect } from "next/navigation";
 import { BackLink } from "@/components/back-link";
 import { Card, PageTitle } from "@/components/ui";
 import { isRequestType, requestCatalog } from "@/lib/requests/catalog";
 import { requestGuide } from "@/lib/requests/guide";
 import { prefillFor } from "@/lib/requests/prefill";
 import { RequestForm } from "./request-form";
-import { RequestPicker } from "./request-picker";
 
 export default async function NewRequestPage({ searchParams }: PageProps<"/requests/new">) {
   const sp = await searchParams;
@@ -17,7 +17,7 @@ export default async function NewRequestPage({ searchParams }: PageProps<"/reque
     const prefilled = Object.keys(defaults).length > 0;
     return (
       <>
-        <BackLink href="/requests/new">Виды заявок</BackLink>
+        <BackLink href="/requests">Заявки</BackLink>
         <PageTitle sub={`${spec.description} Обычно готово за ${spec.slaDays} раб. дн. (демо-срок).`}>{spec.title}</PageTitle>
         {/* Что подготовить — из опроса 15.11: студенты не знают, какие документы нужны (docs/research/survey.md).
             Над формой: список нужен до заполнения, а не после отправки. */}
@@ -42,13 +42,7 @@ export default async function NewRequestPage({ searchParams }: PageProps<"/reque
     );
   }
 
-  return (
-    <>
-      <BackLink href="/requests">Заявки</BackLink>
-      <PageTitle sub="Справки, заявления и обращения в деканат. Статус придёт в уведомления.">Новая заявка</PageTitle>
-      <RequestPicker
-        items={Object.entries(requestCatalog).map(([key, s]) => ({ key, title: s.title, description: s.description, category: s.category, slaDays: s.slaDays, aka: requestGuide[key as keyof typeof requestGuide].aka.join(" ") }))}
-      />
-    </>
-  );
+  // Каталог теперь — вкладка «Заявки»; неизвестный вид заявки — 404 (ревью Codex 90).
+  if (type !== undefined) notFound();
+  redirect("/requests");
 }

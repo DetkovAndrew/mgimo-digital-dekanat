@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ru" data-status="{{placeholder "http.error.status_code"}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Уже чиним · Деканат University</title>
+<link rel="icon" href="/brand/mark.svg" type="image/svg+xml">
+<noscript><meta http-equiv="refresh" content="20"></noscript>
+<script>(function () {
+  var d = document.documentElement, m = window.matchMedia("(prefers-color-scheme: dark)"), chosen = null;
+  // Выбор в этой вкладке важнее хранилища: при запрещённом localStorage тема всё равно переключается.
+  function pref() { if (chosen) return chosen; try { return localStorage.getItem("theme"); } catch (e) { return null; } }
+  function apply() {
+    var p = pref(), forced = p === "light" || p === "dark", dark = p === "dark" || (!forced && m.matches);
+    d.setAttribute("data-theme", dark ? "dark" : "light");
+    var metas = document.querySelectorAll('meta[name="theme-color"]');
+    for (var i = 0; i < metas.length; i++) {
+      var el = metas[i], media = el.getAttribute("data-media");
+      if (media === null) { media = el.getAttribute("media") || ""; el.setAttribute("data-media", media); }
+      el.setAttribute("media", forced ? ((media.indexOf("dark") >= 0) === dark ? "all" : "not all") : media);
+    }
+  }
+  apply();
+  document.addEventListener("DOMContentLoaded", apply);
+  if (m.addEventListener) m.addEventListener("change", apply);
+  window.addEventListener("storage", function (e) { if (e.key === "theme") { chosen = null; apply(); } });
+  window.__applyTheme = function (p) { if (p) chosen = p; apply(); };
+})();</script>
+<style>
+/* ds-allow-hardcode: отдельная страница вне Tailwind, размеры повторяют шкалу text-micro/body/title из globals.css. */
+:root{color-scheme:light;--page:#f1f3fa;--surface:#ffffff;--fill:#eaedf6;--ink:#171b2b;--ink-2:#4c5570;--ink-3:#5b6480;--hairline:#dfe3ef;--brand:#3b4cca;--brand-fill:#3b4cca;--on-brand:#ffffff;--focus:#3b4cca;--m-floor:#ffffff;--m-ic-glyph:#ffffff;--m-pupil:#161a33}
+@media screen{:root[data-theme="dark"]{color-scheme:dark;--page:#0d0f17;--surface:#161925;--fill:#212536;--ink:#eceef2;--ink-2:#a7aec4;--ink-3:#8b93ab;--hairline:#2a2f42;--brand:#a3adff;--brand-fill:#4b5bd8;--on-brand:#ffffff;--focus:#a3adff;--m-floor:#1b1f2a;--m-ic-glyph:#ffffff;--m-pupil:#161a33}}
+*{box-sizing:border-box}
+body{margin:0;min-height:100dvh;display:flex;flex-direction:column;background:var(--page);color:var(--ink);font:15px/1.5 Onest,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+aside{background:var(--fill);color:var(--ink-2);font-size:11px;line-height:1.35;text-align:center;padding:6px 16px}
+main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 16px;max-width:28rem;margin:0 auto}
+.scene{width:13rem;height:auto;overflow:visible;margin-bottom:16px}
+h1{font-size:22px;line-height:1.25;font-weight:600;margin:0 0 8px}
+p{margin:0}
+.reason{color:var(--ink-2);margin-bottom:6px}
+.wait{color:var(--ink-3);font-size:13px;margin-bottom:24px}
+.wait span{display:inline-block;width:.5em;height:.5em;border-radius:50%;background:var(--brand);margin-right:.4em;vertical-align:.05em}
+@media (prefers-reduced-motion:no-preference){.wait span{animation:blink 1.4s ease-in-out infinite}}
+@keyframes blink{50%{opacity:.25}}
+button{font:inherit;font-weight:600;min-height:44px;padding:0 20px;border:0;border-radius:12px;background:var(--brand-fill);color:var(--on-brand);cursor:pointer}
+button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.code{margin-top:24px;color:var(--ink-3);font-size:11px}
+.fill-brand-fill{fill:var(--brand-fill)}
+.stroke-m-floor{stroke:var(--m-floor)}
+.fill-none{fill:none}
+.stroke-on-brand{stroke:var(--on-brand)}
+.fill-on-brand{fill:var(--on-brand)}
+.stroke-ink-3{stroke:var(--ink-3)}
+.fill-ink-3{fill:var(--ink-3)}
+.fill-surface{fill:var(--surface)}
+.fill-m-ic-glyph{fill:var(--m-ic-glyph)}
+.fill-m-pupil{fill:var(--m-pupil)}
+.stroke-m-pupil{stroke:var(--m-pupil)}
+</style>
+</head>
+<body>
+<aside aria-label="О сервисе">Концепт для конкурса MGIMO AI Challenge 2026. Не является официальным сервисом какого-либо вуза. Все данные вымышлены.</aside>
+<main>
+<svg aria-hidden="true" viewBox="-27 -21 54 54" class="mascot-still h-auto overflow-visible scene"><g transform="translate(0 0) rotate(-3 0 18)"><path d="M-3.4 10.1Q0 9.33 3.4 10.1Q5.2 10.62 5.1 12.42C5.1 13.71 3.75 14.23 3.75 15.43C3.75 16.64 6.1 17.15 6.1 19.05Q6.3 21.63 5.6 23.69Q5.2 25.41 3.1 25.41Q1.1 25.41 0.8 23.69L0.5 21.45Q0 20.94 -0.5 21.45L-0.8 23.69Q-1.1 25.41 -3.1 25.41Q-5.2 25.41 -5.6 23.69Q-6.3 21.63 -6.1 19.05C-6.1 17.15 -3.75 16.64 -3.75 15.43C-3.75 14.23 -5.1 13.71 -5.1 12.42Q-5.2 10.62 -3.4 10.1Z" stroke-width="0.9" stroke-linejoin="round" class="fill-brand-fill stroke-m-floor"></path><path d="M0.75 22.49Q3.2 23.35 5.95 22.4M-0.75 22.49Q-3.2 23.35 -5.95 22.4" stroke-width="0.6" stroke-linecap="round" class="fill-none stroke-on-brand"></path><path d="M0 -4.6Q0.7 -0.7 4.6 0Q0.7 0.7 0 4.6Q-0.7 0.7 -4.6 0Q-0.7 -0.7 0 -4.6Z" transform="translate(0 12.7) scale(0.44 0.48)" class="fill-on-brand"></path></g><path d="M-12.4 16.6Q-14 28 -4 29.6Q6 31 9.8 22.6" stroke-width="1.1" stroke-linecap="round" class="fill-none stroke-ink-3"></path><g transform="translate(-12.4 13.4) rotate(-18)" class="fill-ink-3 stroke-ink-3"><rect x="-2.2" y="-1.4" width="4.4" height="3.6" rx="1" stroke-width="0"></rect><path d="M-1 -1.4V-3.6M1 -1.4V-3.6" stroke-width="0.7" stroke-linecap="round"></path></g><g transform="translate(11.2 21.2) rotate(30)"><rect x="-2.1" y="-2.6" width="4.2" height="3.6" rx="1" class="fill-ink-3"></rect><circle cx="-0.8" cy="-1.2" r="0.4" class="fill-surface"></circle><circle cx="0.8" cy="-1.2" r="0.4" class="fill-surface"></circle></g><circle cx="-12.6" cy="15.6" r="2.6" stroke-width="0.8" class="fill-brand-fill stroke-m-floor"></circle><g transform="translate(13.6 9.4) rotate(28)"><rect x="-1.05" y="-9.4" width="2.1" height="10.4" rx="1.05" class="fill-ink-3"></rect><circle cy="-11" r="3" class="fill-ink-3"></circle><rect x="-1.15" y="-15" width="2.3" height="4.2" rx="0.5" class="fill-surface"></rect></g><circle cx="13.6" cy="9.4" r="2.6" stroke-width="0.8" class="fill-brand-fill stroke-m-floor"></circle><g transform="translate(0 0.8) rotate(-8)"><g class="fill-brand-fill"><g class="mascot-hair-x" style="--hx:-0.63px;animation-duration:5.120000000000001s;animation-delay:0s"><g class="mascot-hair-y" style="--hy:-0.9px;animation-duration:6.720000000000001s;animation-delay:0s"><g><ellipse cx="-8.9" cy="-6.2" rx="2.2" ry="2.9" transform="rotate(35 -8.9 -6.2)"></ellipse></g></g></g><g class="mascot-hair-x" style="--hx:0.72px;animation-duration:4.32s;animation-delay:-0.9s"><g class="mascot-hair-y" style="--hy:-0.72px;animation-duration:5.670000000000001s;animation-delay:-1.53s"><g><ellipse cx="8.2" cy="-6.3" rx="1.6" ry="1.4"></ellipse></g></g></g><g class="mascot-hair-x" style="--hx:0.9px;animation-duration:3.6799999999999997s;animation-delay:-1.6s"><g class="mascot-hair-y" style="--hy:0.36px;animation-duration:4.83s;animation-delay:-2.72s"><g><ellipse cx="9.8" cy="-2.2" rx="1.2" ry="1.2"></ellipse></g></g></g><g class="mascot-hair-x" style="--hx:0.54px;animation-duration:3.04s;animation-delay:-0.4s"><g class="mascot-hair-y" style="--hy:0.81px;animation-duration:3.9899999999999998s;animation-delay:-0.68s"><g><ellipse cx="9.6" cy="0.9" rx="0.45" ry="0.6"></ellipse></g></g></g><g class="mascot-hair-x" style="--hx:-0.9px;animation-duration:4s;animation-delay:-1.2s"><g class="mascot-hair-y" style="--hy:0.27px;animation-duration:5.25s;animation-delay:-2.04s"><g><ellipse cx="-10.5" cy="-1.3" rx="1" ry="0.85"></ellipse></g></g></g><g class="mascot-hair-x" style="--hx:-0.54px;animation-duration:3.3600000000000003s;animation-delay:-0.7s"><g class="mascot-hair-y" style="--hy:0.9px;animation-duration:4.41s;animation-delay:-1.19s"><g><ellipse cx="-10.1" cy="2.3" rx="0.55" ry="1" transform="rotate(-15 -10.1 2.3)"></ellipse></g></g></g></g><circle r="8" stroke-width="1" class="fill-brand-fill stroke-m-floor"></circle><path d="M0 -4.6Q0.7 -0.7 4.6 0Q0.7 0.7 0 4.6Q-0.7 0.7 -4.6 0Q-0.7 -0.7 0 -4.6Z" transform="translate(0 -5.6) scale(0.42)" class="fill-on-brand"></path><g transform="translate(-3.3 1.8) scale(1.3 1.3)"><path d="M-1.9 -2.9Q2.1 -2 1.5 2.6Q-2.3 2.1 -1.9 -2.9Z" class="fill-m-ic-glyph"></path><g transform="translate(0.3846153846153846 0.4230769230769231)"><path d="M-1.2 -1.9Q1.5 -1.2 1.1 2Q-1.6 1.5 -1.2 -1.9Z" class="fill-m-pupil"></path><path d="M0 -4.6Q0.7 -0.7 4.6 0Q0.7 0.7 0 4.6Q-0.7 0.7 -4.6 0Q-0.7 -0.7 0 -4.6Z" transform="translate(0.1 0.1) scale(0.22)" class="fill-m-ic-glyph"></path></g><path d="M-1.9 -2.9Q-2.25 -0.6 -1.75 0.9" stroke-width="0.55" stroke-linecap="round" class="fill-none stroke-m-pupil"></path><path d="M-2.05 -2.75Q-2.6 -3.3 -3.1 -4.1Q-2.3 -3.6 -1.75 -3.05ZM-2.2 -1.95Q-2.9 -2.2 -3.6 -2.6Q-3 -1.9 -2.15 -1.45ZM-2.25 -1Q-2.9 -1 -3.5 -1.05Q-2.9 -0.6 -2.2 -0.5Z" transform="translate(-2.1 -1.8) scale(0.75) translate(2.1 1.8)" stroke-width="0.25" stroke-linejoin="round" class="fill-m-pupil stroke-m-pupil"></path></g><g transform="translate(3.3 1.8) scale(-1.3 1.3)"><path d="M-1.9 -2.9Q2.1 -2 1.5 2.6Q-2.3 2.1 -1.9 -2.9Z" class="fill-m-ic-glyph"></path><g transform="translate(-0.3846153846153846 0.4230769230769231)"><path d="M-1.2 -1.9Q1.5 -1.2 1.1 2Q-1.6 1.5 -1.2 -1.9Z" class="fill-m-pupil"></path><path d="M0 -4.6Q0.7 -0.7 4.6 0Q0.7 0.7 0 4.6Q-0.7 0.7 -4.6 0Q-0.7 -0.7 0 -4.6Z" transform="translate(0.1 0.1) scale(0.22)" class="fill-m-ic-glyph"></path></g><path d="M-1.9 -2.9Q-2.25 -0.6 -1.75 0.9" stroke-width="0.55" stroke-linecap="round" class="fill-none stroke-m-pupil"></path><path d="M-2.05 -2.75Q-2.6 -3.3 -3.1 -4.1Q-2.3 -3.6 -1.75 -3.05ZM-2.2 -1.95Q-2.9 -2.2 -3.6 -2.6Q-3 -1.9 -2.15 -1.45ZM-2.25 -1Q-2.9 -1 -3.5 -1.05Q-2.9 -0.6 -2.2 -0.5Z" transform="translate(-2.1 -1.8) scale(0.75) translate(2.1 1.8)" stroke-width="0.25" stroke-linejoin="round" class="fill-m-pupil stroke-m-pupil"></path></g></g></svg>
+<h1>Уже чиним</h1>
+<p class="reason" id="reason">Сервер деканата не отвечает. Скорее всего, он перезапускается после обновления. Обычно это около минуты.</p>
+<p class="wait" role="status" id="wait"><span aria-hidden="true"></span>Страница откроется сама, как только сервер вернётся</p>
+<button type="button" onclick="location.reload()">Обновить сейчас</button>
+<p class="code" id="code"></p>
+</main>
+<script>
+(function () {
+  var status = document.documentElement.getAttribute("data-status") || "";
+  var reasons = {
+    "502": "Сервер деканата не отвечает. Скорее всего, он перезапускается после обновления. Обычно это около минуты.",
+    "503": "Сервер деканата временно недоступен: он запускается или перегружен.",
+    "504": "Сервер деканата отвечает слишком долго."
+  };
+  if (reasons[status]) document.getElementById("reason").textContent = reasons[status];
+  if (/^\d{3}$/.test(status)) document.getElementById("code").textContent = "Код ответа: " + status + " · " + new Date().toLocaleTimeString("ru-RU", { timeZone: "Europe/Moscow", hour: "2-digit", minute: "2-digit" }) + " МСК";
+  if (!navigator.onLine) document.getElementById("reason").textContent = "Нет подключения к интернету. Проверьте сеть на устройстве.";
+  // Сервер вернулся, если /api/health отвечает 200 (пока приложение лежит, Caddy отдаёт на него эту же страницу с 502).
+  // Один цикл: зависший запрос обрывается через 4 с, «online» лишь ускоряет следующую проверку (ревью Codex 88).
+  var timer = 0, busy = false;
+  function check() {
+    clearTimeout(timer);
+    if (busy) return;
+    busy = true;
+    var ctl = window.AbortController ? new AbortController() : null;
+    var stop = setTimeout(function () { if (ctl) ctl.abort(); }, 4000);
+    fetch("/api/health", { cache: "no-store", signal: ctl ? ctl.signal : undefined }).then(
+      function (r) { done(); if (r.ok) location.reload(); else later(); },
+      function () { done(); later(); }
+    );
+    function done() { clearTimeout(stop); busy = false; }
+  }
+  function later() { clearTimeout(timer); timer = setTimeout(check, 5000); }
+  later();
+  window.addEventListener("online", check);
+})();
+</script>
+</body>
+</html>

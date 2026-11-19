@@ -70,6 +70,10 @@ git archive --format=tar HEAD | ssh root@СЕРВЕР 'tar -x -C /opt/dekanat'  
 ssh root@СЕРВЕР 'cd /opt/dekanat && docker compose up -d --build'
 ```
 
+Пока приложение перезапускается, Caddy показывает страницу «Уже чиним» (`deploy/errors/down.html`, собирается
+`npm run down-page`); она сама откроет сайт, когда `/api/health` ответит. После правки `Caddyfile` —
+`docker compose up -d --force-recreate caddy`.
+
 ## Смена домена
 
 Сейчас: `university-dekanat.duckdns.org` (DuckDNS, A-запись на IP сервера). Без своего домена можно временно работать

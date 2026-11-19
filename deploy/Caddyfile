@@ -12,10 +12,8 @@
 	}
 }
 
-{$DOMAIN} {
-	encode zstd gzip
-	reverse_proxy app:3000
-
+# Заголовки безопасности: и для ответов приложения, и для страницы «Уже чиним» (handle_errors их не наследует).
+(security_headers) {
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
@@ -26,5 +24,25 @@
 		# Концепт для конкурса, а не сервис вуза: в поиск не попадаем.
 		X-Robots-Tag "noindex, nofollow"
 		-Server
+	}
+}
+
+{$DOMAIN} {
+	import security_headers
+	encode zstd gzip
+	reverse_proxy app:3000
+
+	# Приложение не отвечает (перезапуск после выкатки, падение): вместо пустой 502 страница «Уже чиним» с Инвиктией.
+	# Страница собрана заранее (scripts/down-page.tsx), код ответа подставляет templates; сама она ждёт /api/health.
+	handle_errors 502 503 504 {
+		root * /srv/errors
+		rewrite * /down.html
+		templates
+		import security_headers
+		# Адрес может быть /verify/<токен>: опрос /api/health и значок не передают его в Referer (ревью Codex 88).
+		header Referrer-Policy "no-referrer"
+		header Cache-Control "no-store"
+		header Retry-After "30"
+		file_server
 	}
 }
