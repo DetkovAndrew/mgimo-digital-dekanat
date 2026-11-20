@@ -1,5 +1,6 @@
 // Скриншоты живого сайта для отчёта: телефон 390×844 и компьютер 1440×900, светлая и тёмная тема.
 // Ничего не меняет на сайте: помощнице задаются вопросы (бронь только предлагается, не создаётся), заявки не подаются.
+// Исключение — «Календарь и печать»: первое открытие выпускает ссылку подписки (адрес на снимке скрыт под «Показать»).
 //   PW_A=… PW_T=… PW_STAFF=… node shots.mjs [имя,имя]   → docs/submission/img/live/*.png
 import fs from "node:fs";
 import path from "node:path";
@@ -16,10 +17,14 @@ const DESK = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1.5 };
 const common = { locale: "ru-RU", timezoneId: "Europe/Moscow" };
 
 const browser = await chromium.launch();
+const BLANK = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
 const errors = [];
 
 async function context(device, scheme, user, password) {
   const ctx = await browser.newContext({ ...device, ...common, colorScheme: scheme });
+  // Фото профиля демо-аккаунта загружают эксперты и команда (20.11 там оказался чужой скриншот с адресами почты) —
+  // в отчёт оно не попадает: вместо него прозрачная картинка, остаётся пустой кружок.
+  await ctx.route("**/api/avatar**", (r) => r.fulfill({ status: 200, contentType: "image/png", body: BLANK }));
   if (user) {
     if (!password) throw new Error(`нет пароля для ${user}`);
     const r = await ctx.request.post(`${BASE}/api/auth/sign-in/username`, { data: { username: user, password }, headers: { Origin: BASE } });
@@ -85,8 +90,8 @@ const gr = await open(pl, "/grades");
 const courseHref = await gr.locator('a[href^="/courses/"]').first().getAttribute("href");
 await gr.close();
 await shot(pl, courseHref, "course", { full: true, maxHeight: 1700 });
-await shot(pl, "/requests", "requests");
-await shot(pl, "/requests/new", "requests-catalog", {
+await shot(pl, "/requests/my", "requests");
+await shot(pl, "/requests", "requests-catalog", {
   before: async (p) => {
     await p.locator('input[type="search"]').first().fill("академ");
     await p.waitForTimeout(400);
@@ -96,7 +101,7 @@ await shot(pl, "/requests/new?type=study_certificate", "request-form", { full: t
 // Готовая справка и публичная страница проверки (ссылку берём кнопкой «Скопировать ссылку»).
 let verifyUrl = null;
 {
-  const rq = await open(pl, "/requests");
+  const rq = await open(pl, "/requests/my");
   const ready = await rq.locator('a[href^="/requests/c"]').filter({ hasText: "Готова" }).first().getAttribute("href");
   await rq.close();
   await pl.grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE });
@@ -114,6 +119,16 @@ if (verifyUrl && want("verify")) {
   await page.close();
 }
 await shot(pl, "/notifications", "notifications");
+// Режим выбора: кнопка «Выбрать», отмечены две строки — ничего не удаляется.
+await shot(pl, "/notifications", "notifications-select", {
+  before: async (p) => {
+    await p.getByRole("button", { name: /^Выбрать$/ }).first().click();
+    await p.waitForTimeout(300);
+    for (const i of [0, 1]) await p.locator("main ul label").nth(i).click({ position: { x: 28, y: 28 } }); // у кружка, не по ссылке
+    await p.waitForTimeout(400);
+  },
+});
+await shot(pl, "/schedule/export", "export", { full: true, maxHeight: 1700 });
 await shot(pl, "/sport", "sport", { full: true, maxHeight: 1700 });
 await shot(pl, "/services", "services", { full: true, maxHeight: 1800 });
 await shot(pl, "/services/support", "support", { full: true, maxHeight: 1500 });
@@ -127,7 +142,7 @@ await shot(pl, "/map", "map", {
 });
 await shot(pl, "/rooms/kronv?room=3310", "route", {
   before: async (p) => {
-    await p.getByRole("link", { name: /^Маршрут/ }).first().click();
+    await p.getByRole("link", { name: /^Как пройти/ }).first().click();
     await p.waitForLoadState("networkidle");
     await p.waitForTimeout(900);
     for (let i = 0; i < 2; i++) {
@@ -144,7 +159,7 @@ await shot(pl, "/profile", "profile", { full: true, maxHeight: 2000 });
 // Помощница: вопрос о расписании и просьба о брони (только карточка предложения, без брони).
 for (const [name, q] of [
   ["assistant", "Что у меня завтра?"],
-  ["assistant-booking", "Забронируй переговорную 1206 завтра с 15 до 16 для встречи по проекту"],
+  ["assistant-booking", "Забронируй переговорную в понедельник с 15 до 16 для встречи по проекту"],
   ["assistant-docs", "Мне нужна справка для военкомата, что подготовить?"],
 ]) {
   if (!want(name)) continue;
@@ -167,7 +182,7 @@ for (const [name, q] of [
 // Безопасность: Алина открывает заявку Тимура по прямой ссылке → 404.
 if (want("foreign-404")) {
   const tl = await context(PHONE, "light", "timur.orlov", T);
-  const tp = await open(tl, "/requests");
+  const tp = await open(tl, "/requests/my");
   const foreign = await tp.locator('a[href^="/requests/c"]').first().getAttribute("href");
   await tl.close();
   await shot(pl, foreign, "foreign-404");
@@ -205,6 +220,18 @@ if (want("staff-schedule") || want("staff-lesson") || want("staff-announcements"
   await q.close();
   await shot(st, href, "staff-lesson", { full: true, maxHeight: 1600 });
   await shot(st, "/staff/announcements", "staff-announcements", { full: true, maxHeight: 1400 });
+}
+
+// «Уже чиним» — статическая страница, которую Caddy отдаёт, пока приложение перезапускается (deploy/errors/down.html).
+if (want("down")) {
+  const ctx = await browser.newContext({ ...PHONE, ...common, colorScheme: "light" });
+  const page = await ctx.newPage();
+  const html = fs.readFileSync(path.resolve(OUT, "../../../../deploy/errors/down.html"), "utf8").replaceAll(`{{placeholder "http.error.status_code"}}`, "502");
+  await page.route("**/api/health", (r) => r.abort());
+  await page.setContent(html, { waitUntil: "load" });
+  await page.waitForTimeout(600);
+  await save(page, "down");
+  await ctx.close();
 }
 
 console.log("ошибки консоли:", JSON.stringify(errors, null, 1));
