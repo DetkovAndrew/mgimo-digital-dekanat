@@ -70,5 +70,40 @@ export function stepAnimations(page, ms) {
       if (!seen.has(a)) seen.set(a, ms - (Number(a.currentTime) || 0));
       a.currentTime = ms - seen.get(a);
     }
+    window.__videoTime?.(ms);
   }, ms);
+}
+
+/** Скрипт страницы (page.addInitScript): анимации на JS и SMIL — тоже по времени ролика. Без него ход Инвиктии по схеме
+ * (`<animateMotion>`) и наезд камеры (requestAnimationFrame, 550 мс) шли по часам съёмки и в ролике пролетали.
+ * performance.now и метка кадра rAF стоят между кадрами и идут вперёд из stepAnimations; сам rAF настоящий (scrollTo ждёт
+ * отрисовку). SMIL: корневой <svg> ставится на паузу при запуске анимации, его время двигается с первого кадра, где его
+ * увидела съёмка. До первого кадра часы идут как обычно. */
+export function videoClock() {
+  const real = performance.now.bind(performance);
+  let shift = null;
+  let now = null;
+  performance.now = () => now ?? real();
+  const raf = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = (cb) => raf(() => cb(performance.now()));
+  const root = (el) => {
+    let svg = el.ownerSVGElement;
+    while (svg?.ownerSVGElement) svg = svg.ownerSVGElement;
+    return svg;
+  };
+  const begin = SVGAnimationElement.prototype.beginElement;
+  SVGAnimationElement.prototype.beginElement = function () {
+    root(this)?.pauseAnimations();
+    return begin.call(this);
+  };
+  const svgs = new WeakMap();
+  window.__videoTime = (ms) => {
+    shift ??= real() - ms;
+    now = ms + shift;
+    for (const svg of document.querySelectorAll("svg")) {
+      if (svg.ownerSVGElement || !svg.animationsPaused()) continue;
+      if (!svgs.has(svg)) svgs.set(svg, ms / 1000 - svg.getCurrentTime());
+      svg.setCurrentTime(ms / 1000 - svgs.get(svg));
+    }
+  };
 }

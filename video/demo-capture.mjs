@@ -10,7 +10,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import { chromium } from "playwright";
-import { along, BASE, DESK, FPS, PHONE, scrollTo, settle, signIn, stepAnimations } from "./lib.mjs";
+import { along, BASE, DESK, FPS, PHONE, scrollTo, settle, signIn, stepAnimations, videoClock } from "./lib.mjs";
 
 const OUT = new URL("./captures/demo/", import.meta.url).pathname;
 const meta = JSON.parse(await fs.readFile(`${OUT}meta.json`, "utf8").catch(() => '{"shots":{}}'));
@@ -374,19 +374,25 @@ const ACTS = {
     await ctx.close();
   },
 
-  // 7. Как пройти к аудитории следующей пары: схема корпуса по шагам.
+  // 7. Как пройти к аудитории следующей пары: схема корпуса по шагам. Ход Инвиктии и камера — по часам ролика (videoClock),
+  // «Дальше» — через секунду после того, как она дошла, как на сайте (шаги 1 и 3 — по 1.4 с, шаг 2 по коридору — 5.7 с).
+  // ROUTE_HREF=/rooms/… — переснять только схему (план today-route прежний), если сейчас у следующей пары нет «Как пройти».
   async route(browser) {
     const { ctx, page, open, clock } = await phone(browser);
-    await open("/today");
-    await shot(page, "today-route", 2.8, { clock, steps: [{ at: 2.3, tap: page.getByRole("link", { name: /Как пройти/ }).first(), nav: /route|rooms|map/ }] });
+    await page.addInitScript(videoClock);
+    if (process.env.ROUTE_HREF) await open(process.env.ROUTE_HREF);
+    else {
+      await open("/today");
+      await shot(page, "today-route", 2.8, { clock, steps: [{ at: 2.3, tap: page.getByRole("link", { name: /Как пройти/ }).first(), nav: /route|rooms|map/ }] });
+    }
     const next = () => page.getByRole("button", { name: /Дальше/ }).first();
-    await shot(page, "route", 9, {
+    await shot(page, "route", 13.8, {
       clock,
-      scroll: [[0, 0], [0.7, 0], [1.9, 300], [9, 300]],
+      scroll: [[0, 0], [0.7, 0], [1.9, 300], [13.8, 300]],
       steps: [
         { at: 2.6, tap: next() },
-        { at: 4.8, tap: next() },
-        { at: 7.0, tap: next() },
+        { at: 9.4, tap: next() },
+        { at: 11.9, tap: next() },
       ],
     });
     await ctx.close();
