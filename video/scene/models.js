@@ -44,6 +44,19 @@ function slab(w, h, r, depth, bevel) {
   return g;
 }
 
+// Отражение окружения в стекле вокруг экрана ослаблено (20.11): верх экрана засвечивался. Множители подобраны по кадрам 9 и 29.8 с,
+// чтобы засвет рамки (яркость сверх рамки без отражения) упал примерно на 40% — после тон-маппинга ACES это не 0.6.
+const GLASS_ENV = { phone: 0.25, laptop: 0.45 };
+
+/** Окружение сцены с множителем k. Свой envMapIntensity three.js берёт, только если envMap задан у материала, —
+ * задаём перед каждой отрисовкой, чтобы ночное затемнение (environmentIntensity сцены) тоже действовало. */
+function dimEnv(mesh, material, k) {
+  mesh.onBeforeRender = (_renderer, scene) => {
+    material.envMap = scene.environment;
+    material.envMapIntensity = k * scene.environmentIntensity;
+  };
+}
+
 export const PHONE = { w: 0.75, h: 1.62, screenW: 0.7, screenH: 0.7 * (844 / 390) };
 
 export function makePhone(screenTexture) {
@@ -53,6 +66,7 @@ export function makePhone(screenTexture) {
   const glass = new THREE.MeshPhysicalMaterial({ color: 0x08090d, roughness: 0.16, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04 });
   const frame = new THREE.MeshPhysicalMaterial({ color: 0x3a4052, metalness: 0.95, roughness: 0.26 });
   const body = new THREE.Mesh(slab(PHONE.w, PHONE.h, 0.12, depth, bevel), [glass, frame]);
+  dimEnv(body, glass, GLASS_ENV.phone);
   group.add(body);
   const front = depth / 2 + bevel;
 
@@ -62,7 +76,7 @@ export function makePhone(screenTexture) {
   // Стекло поверх экрана: только отражение окружения (сложение), сам экран не темнеет.
   const sheen = new THREE.Mesh(
     roundedPlane(PHONE.screenW + 0.02, PHONE.screenH + 0.02, 0.098),
-    new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.08, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, transparent: true, opacity: 0.22, envMapIntensity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
+    new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.08, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, transparent: true, opacity: 0.13, envMapIntensity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
   );
   sheen.position.z = front + 0.0012;
   group.add(sheen);
@@ -162,6 +176,7 @@ export function makeLaptop(screenTexture) {
     roundedPlane(LAPTOP.baseW - 0.03, LAPTOP.lidH - 0.03, 0.088),
     new THREE.MeshPhysicalMaterial({ color: 0x06070a, roughness: 0.14, clearcoat: 1, clearcoatRoughness: 0.04 }),
   );
+  dimEnv(bezel, bezel.material, GLASS_ENV.laptop);
   bezel.position.set(0, LAPTOP.lidH / 2, front + 0.0005);
   lid.add(bezel);
   const screenMat = new THREE.MeshBasicMaterial({ map: screenTexture, toneMapped: false });
@@ -171,7 +186,7 @@ export function makeLaptop(screenTexture) {
   lid.add(screen);
   const sheen = new THREE.Mesh(
     roundedPlane(LAPTOP.screenW, LAPTOP.screenH, 0.012),
-    new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.03, transparent: true, opacity: 0.07, envMapIntensity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
+    new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.03, transparent: true, opacity: 0.042, envMapIntensity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
   );
   sheen.position.copy(screen.position);
   sheen.position.z += 0.0008;
