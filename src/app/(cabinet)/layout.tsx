@@ -18,8 +18,8 @@ export default async function CabinetLayout({ children }: LayoutProps<"/">) {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Оговорка уезжает при прокрутке, шапка остаётся: экран телефона — для содержимого. */}
         <Disclaimer />
-        <div style={{ viewTransitionName: "app-header" }} className="sticky top-0 z-20 md:hidden">
-          <header className="flex items-center justify-between border-b border-hairline bg-surface/85 py-1 pr-1 pl-4 backdrop-blur-xl">
+        <div style={{ viewTransitionName: "app-header" }} className="sticky top-0 z-20 bg-surface/85 pt-[env(safe-area-inset-top)] backdrop-blur-xl md:hidden">
+          <header className="flex items-center justify-between border-b border-hairline py-1 pr-1 pl-4">
             <span className="flex items-center gap-2.5 text-lead font-bold tracking-tight">
               <Logo size={30} />
               University

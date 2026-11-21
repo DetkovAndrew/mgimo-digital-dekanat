@@ -28,8 +28,8 @@ export function Toaster() {
   }, []);
   const close = (id: number) => setItems((xs) => xs.filter((x) => x.id !== id));
   return (
-    // На телефоне: над кнопкой помощницы (bottom 4.75rem + 56 px): иначе она закрывает «Вернуть» справа.
-    <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[calc(8.75rem+env(safe-area-inset-bottom))] z-40 flex flex-col items-center gap-2 px-4 md:bottom-6">
+    // На телефоне: над кнопкой помощницы (bottom 5.5rem + 56 px): иначе она закрывает «Вернуть» справа.
+    <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-[calc(9.5rem+env(safe-area-inset-bottom))] z-40 flex flex-col items-center gap-2 px-4 md:bottom-6">
       {items.map((t) => (
         <ToastItem key={t.id} t={t} close={() => close(t.id)} />
       ))}

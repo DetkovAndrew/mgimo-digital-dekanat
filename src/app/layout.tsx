@@ -22,6 +22,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // iPhone: страница под полоской «домой», нижнее меню само отступает на env(safe-area-inset-bottom).
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" }, // ds-allow-hardcode
     { media: "(prefers-color-scheme: dark)", color: "#161925" }, // ds-allow-hardcode

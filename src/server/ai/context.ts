@@ -35,7 +35,7 @@ const clip = (s: string | null | undefined, n: number) => {
 };
 const TRANSFER_ANSWER: Record<TransferVerdict["kind"], string> = {
   ok: "Да, успеваете",
-  tight: "Впритык",
+  tight: "Можно не успеть",
   impossible: "Нет, не успеваете",
   "same-building": "Это тот же корпус",
 };
@@ -133,7 +133,7 @@ export async function buildMyContext(now = new Date()): Promise<AssistantContext
       // «Да, успеете» (живой сайт 17.11, сценарий 3). Про тот же корпус — нейтрально (этажи и аудитории разные).
       const next = lessons.find((x) => x.id === t.toLessonId);
       const to = t.verdict.kind === "same-building" ? "" : `, ${t.toTitle}`;
-      const facts = transferText(t.verdict).replace(/^(Не успеть: |Впритык: |Тот же корпус, )/, "");
+      const facts = transferText(t.verdict).replace(/^(Не успеть: |Можно не успеть: |Тот же корпус, )/, "");
       const Facts = `${facts[0].toUpperCase()}${facts.slice(1)}`;
       out.push(`  ↳ переход с «${clip(l.title, 50)}» на «${clip(next?.title, 50)}» в ${formatTime(t.toStartsAt)}${to}: ${TRANSFER_ANSWER[t.verdict.kind]}. ${Facts}`);
       // Тот же переход готовым ответом: на «успею ли с X на Y» отвечает сервер (src/lib/assistant/transfer-answer.ts).

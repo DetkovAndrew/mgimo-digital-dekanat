@@ -82,9 +82,10 @@ export function Nav({ unread, avatar }: { unread: number; avatar: string | null 
       {/* Телефон: нижняя панель */}
       <nav
         style={{ viewTransitionName: "app-nav" }}
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-hairline bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 border-t border-hairline bg-surface/90 pb-[calc(env(safe-area-inset-bottom)+0.375rem)] backdrop-blur-xl md:hidden"
       >
-        {/* Шесть вкладок: от 360 px помещаются целиком, на более узких экранах меню листается вбок. */}
+        {/* Шесть вкладок: от 360 px помещаются целиком, на более узких экранах меню листается вбок. Капитан 21.11: «поднять и
+            чуть расширить» — строка 60 px, подписи 12 px, отступ над полоской «домой» у iPhone (viewportFit: cover в layout). */}
         <ul className="mx-auto flex max-w-lg overflow-x-auto px-1 [scrollbar-width:none]">
           {items.map(({ href, label, icon: Icon }) => {
             const on = active(href);
@@ -94,17 +95,17 @@ export function Nav({ unread, avatar }: { unread: number; avatar: string | null 
                   href={href}
                   transitionTypes={["nav-tab"]}
                   aria-current={on ? "page" : undefined}
-                  className={`relative flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 text-micro whitespace-nowrap transition-colors ${
+                  className={`relative flex min-h-15 flex-col items-center justify-center gap-1 px-1 text-xs whitespace-nowrap transition-colors ${
                     on ? "font-semibold text-brand" : "text-ink-2"
                   }`}
                 >
                   {on && (
                     <ViewTransition name="tab-pill" share="auto">
-                      <span aria-hidden className="absolute top-1.5 h-7 w-12 rounded-full bg-brand-soft" />
+                      <span aria-hidden className="absolute top-1.5 h-8 w-14 rounded-full bg-brand-soft" />
                     </ViewTransition>
                   )}
                   <TabPending />
-                  <Icon aria-hidden className="relative size-5.5" strokeWidth={on ? 2.3 : 1.8} />
+                  <Icon aria-hidden className="relative size-6" strokeWidth={on ? 2.3 : 1.8} />
                   {label}
                 </Link>
               </li>
@@ -165,7 +166,7 @@ function TabPending() {
   return (
     <span
       aria-hidden
-      className={`absolute top-1.5 h-7 w-12 rounded-full bg-brand-soft transition-opacity duration-150 motion-reduce:transition-none ${
+      className={`absolute top-1.5 h-8 w-14 rounded-full bg-brand-soft transition-opacity duration-150 motion-reduce:transition-none ${
         pending ? "opacity-100 motion-safe:animate-pulse" : "opacity-0"
       }`}
     />

@@ -45,7 +45,7 @@ export function transferText(v: TransferVerdict): string {
     case "impossible":
       return `Не успеть: перерыв ${v.gapMin} мин, а дорога ≈ ${v.estimate.transitMin} мин на транспорте. Предупредите преподавателя или подайте заявку.`;
     case "tight":
-      return `Впритык: перерыв ${v.gapMin} мин, транспортом ≈ ${v.estimate.transitMin} мин.`;
+      return `Можно не успеть: перерыв ${v.gapMin} мин, транспортом ≈ ${v.estimate.transitMin} мин.`;
     case "ok":
       return v.mode === "walk"
         ? `Пешком ≈ ${v.estimate.walkMin} мин, перерыв ${v.gapMin} мин.`

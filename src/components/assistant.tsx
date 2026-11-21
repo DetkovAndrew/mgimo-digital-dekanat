@@ -489,7 +489,7 @@ export function Assistant({ configured, owner, skinId }: { configured: boolean; 
         aria-expanded={open}
         onFocus={() => setTucked(false)}
         style={skin.head ? { backgroundColor: skin.head } : undefined}
-        className={`fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-brand-fill text-on-brand ring-4 ring-page transition duration-200 hover:scale-105 active:scale-95 motion-reduce:transition-none md:right-6 md:bottom-6 origin-bottom-right ${open ? "pointer-events-none scale-75 opacity-0" : tucked ? "scale-[0.72]" : ""}`}
+        className={`fixed right-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-brand-fill text-on-brand ring-4 ring-page transition duration-200 hover:scale-105 active:scale-95 motion-reduce:transition-none md:right-6 md:bottom-6 origin-bottom-right ${open ? "pointer-events-none scale-75 opacity-0" : tucked ? "scale-[0.72]" : ""}`}
       >
         {/* Кнопка — голова Инвиктии: волосы-кружочки вокруг круга, звезда на лбу, глаза с ресницами. */}
         <svg aria-hidden viewBox="-8 -8 16 16" className={`pointer-events-none absolute inset-0 size-full overflow-visible transition-opacity duration-200 motion-reduce:transition-none ${tucked ? "opacity-0" : ""}`}>

@@ -47,7 +47,7 @@ describe("тот же корпус и текст перехода", () => {
     expect(transferText(t!.verdict)).toBe("Тот же корпус, перерыв 10 мин.");
   });
 
-  it("текст: не успеть, впритык и успеваете — с перерывом и дорогой", () => {
+  it("текст: не успеть, можно не успеть и успеваете — с перерывом и дорогой", () => {
     const far = transfersForDay([lesson("1", "08:10", "09:40", lom), lesson("2", "09:50", "11:20", grivc)]).get("1")!;
     expect(transferText(far.verdict)).toMatch(/^Не успеть: перерыв 10 мин, а дорога ≈ \d+ мин/);
     const roomy = transfersForDay([lesson("1", "08:10", "09:40", lom), lesson("2", "11:00", "12:30", grivc)]).get("1")!;

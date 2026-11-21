@@ -32,7 +32,7 @@ export function estimateTravel(a: Point, b: Point): TravelEstimate {
 export type TransferVerdict =
   | { kind: "same-building"; gapMin: number }
   | { kind: "ok"; estimate: TravelEstimate; gapMin: number; mode: "walk" | "transit" }
-  | { kind: "tight"; estimate: TravelEstimate; gapMin: number } // только транспортом и впритык
+  | { kind: "tight"; estimate: TravelEstimate; gapMin: number } // только транспортом, и можно не успеть
   | { kind: "impossible"; estimate: TravelEstimate; gapMin: number };
 
 /** Успеет ли студент перейти между корпусами за перерыв между парами. */
