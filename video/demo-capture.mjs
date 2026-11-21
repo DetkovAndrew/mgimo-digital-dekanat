@@ -4,7 +4,7 @@
 //
 //   PW_A=… PW_STAFF=… node demo-capture.mjs [акты через запятую]   → captures/demo/<план>/, captures/demo/meta.json
 //
-// Акты: login, browse, request, staff, status, reschedule, moved, assistant, route, profile. Пишут в локальную БД:
+// Акты: login, browse, request, staff, status, pushon, reschedule, moved, assistant, route, profile. Пишут в локальную БД:
 // request — заявка на справку, staff — её обработка (выпуск справки), reschedule — перенос пары деканатом (после съёмки:
 // npm run db:undo-staff), assistant — бронь переговорной. Пароли — только из окружения.
 import { execFileSync } from "node:child_process";
@@ -16,14 +16,31 @@ const OUT = new URL("./captures/demo/", import.meta.url).pathname;
 const meta = JSON.parse(await fs.readFile(`${OUT}meta.json`, "utf8").catch(() => '{"shots":{}}'));
 // DEMO_FPS=6 — черновая съёмка для подбора прокрутки и касаний (в 10 раз быстрее).
 const RATE = Number(process.env.DEMO_FPS ?? FPS);
+// Подмена push для съёмки: разрешение «granted» по нажатию и подписка с ключами из примера RFC 8291 (не настоящие).
+function fakePush() {
+  let permission = "default";
+  Object.defineProperty(Notification, "permission", { get: () => permission, configurable: true });
+  Notification.requestPermission = async () => (permission = "granted");
+  let sub = null;
+  PushManager.prototype.getSubscription = async () => sub;
+  PushManager.prototype.subscribe = async (opts) => {
+    const endpoint = "https://fcm.googleapis.com/fcm/send/demo-video-capture";
+    const keys = { p256dh: "BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4", auth: "BTBZMqHH6r4Tts7J_aSIgg" };
+    const key = opts.applicationServerKey;
+    sub = { endpoint, options: { applicationServerKey: key.buffer ?? key }, unsubscribe: async () => ((sub = null), true), toJSON: () => ({ endpoint, keys }) };
+    return sub;
+  };
+}
 const PIN = "[data-assistant-fab]{opacity:1!important;translate:0 0!important}";
 
 /**
  * План телефона: n кадров, на каждом — шаги, чьё время пришло, прокрутка по ключам [с, y] и анимации по часам акта.
  * Шаги: { at, tap: локатор } — касание (координаты в meta; nav — нажать после плана и дождаться адреса, show — только
- * нарисовать); { at, type, dur } — набор текста в поле с фокусом по буквам; { at, run } — действие, съёмка его ждёт.
+ * нарисовать); { at, type, dur } — набор текста в поле с фокусом по буквам; { at, run } — действие, съёмка его ждёт;
+ * { at, point: [x, y] } — касание того, что рисует сцена (баннер уведомления), координаты холста без строки состояния.
+ * banner: { at, until, title, body } — push-уведомление поверх страницы: его рисует сцена, в снимок страницы оно не попадает.
  */
-async function shot(page, name, seconds, { scroll = [[0, 0]], steps = [], clock }) {
+async function shot(page, name, seconds, { scroll = [[0, 0]], steps = [], clock, banner }) {
   const dir = `${OUT}${name}/`;
   await fs.rm(dir, { recursive: true, force: true });
   await fs.mkdir(dir, { recursive: true });
@@ -50,6 +67,7 @@ async function shot(page, name, seconds, { scroll = [[0, 0]], steps = [], clock 
         if (s.nav) nav = s;
         else if (!s.show) await s.tap.tap();
       }
+      if (s.point) taps.push({ t: s.at, x: s.point[0], y: s.point[1] });
       if (s.run) await s.run(page);
     }
     await scrollTo(page, along(scroll, t));
@@ -57,7 +75,7 @@ async function shot(page, name, seconds, { scroll = [[0, 0]], steps = [], clock 
     await page.screenshot({ path: `${dir}${String(i).padStart(4, "0")}.jpg`, type: "jpeg", quality: 92 });
   }
   clock.t += seconds;
-  meta.shots[name] = { device: "phone", frames: n, fps: RATE, taps };
+  meta.shots[name] = { device: "phone", frames: n, fps: RATE, taps, ...(banner ? { banner } : {}) };
   console.log(`${name}: ${n} кадров${taps.length ? `, касаний ${taps.length}` : ""}`);
   if (nav) {
     await Promise.all([page.waitForURL(nav.nav, { timeout: 30_000 }), nav.tap.tap()]);
@@ -269,6 +287,24 @@ const ACTS = {
     await ctx.close();
   },
 
+  // 5. Уведомления на телефон: «Включить» в профиле. У браузера без экрана нет службы push — разрешение и подписку
+  // подменяем (адрес с ненастоящим токеном: сервер сохранит его в локальной базе, служба ответит 404, и подписка удалится).
+  async pushon(browser) {
+    const { ctx, page, open, clock } = await phone(browser);
+    await page.addInitScript(fakePush);
+    await open("/today");
+    await shot(page, "today-push", 2.4, { clock, steps: [{ at: 1.9, tap: page.locator('a[href="/profile"]').filter({ visible: true }).first(), nav: /\/profile/ }] });
+    const block = page.getByRole("heading", { name: "Уведомления на телефон" });
+    const y = Math.max(0, Math.round((await block.evaluate((el) => el.getBoundingClientRect().top + window.scrollY)) - 260));
+    await shot(page, "push-on", 6.4, {
+      clock,
+      scroll: [[0, 0], [0.8, 0], [2.4, y], [6.4, y]],
+      steps: [{ at: 3.4, tap: page.getByRole("button", { name: "Включить" }) }],
+    });
+    if (!(await page.getByText("Включены на этом устройстве").count())) throw new Error("push-on: уведомления не включились");
+    await ctx.close();
+  },
+
   // 5а. Деканат на ноутбуке переносит онлайн-семинар группы Алины очно в переговорную. Пишет в БД (откат —
   // npm run db:undo-staff). Пара — ближайшая онлайн-«Философия» группы H3301 в списке расписания факультета (уведомление ведёт на её неделю).
   async reschedule(browser) {
@@ -307,13 +343,24 @@ const ACTS = {
     };
   },
 
-  // 5б. Алина: уведомление о переносе → расписание недели → пара «Изменено», новая аудитория и путь до неё.
+  // 5б. Алина: push о переносе → расписание недели → пара «Изменено», новая аудитория и путь до неё.
   async moved(browser) {
     if (!meta.movedLessonId) throw new Error("сначала акт reschedule");
     const { ctx, page, open, clock } = await phone(browser);
+    // Куда ведёт уведомление о переносе — та же ссылка, что у push (неделя пары).
+    const list = await ctx.newPage();
+    await list.goto(`${BASE}/notifications`);
+    const href = await list.locator('main a[href^="/schedule"]').first().getAttribute("href");
+    await list.close();
     await open("/today");
-    await shot(page, "moved-bell", 3, { clock, steps: [{ at: 2.5, tap: page.locator('a[href="/notifications"]').filter({ visible: true }).first(), nav: /\/notifications/ }] });
-    await shot(page, "moved-notifications", 4.6, { clock, steps: [{ at: 4.1, tap: page.locator('main a[href^="/schedule"]').first(), nav: /\/schedule/ }] });
+    // Push о переносе: баннер сверху (текст — как на экране блокировки), касание по нему открывает неделю пары.
+    await shot(page, "moved-push", 4.8, {
+      clock,
+      banner: { at: 0.7, until: 3.9, title: "Изменение в расписании", body: "Откройте кабинет University, чтобы посмотреть." },
+      steps: [{ at: 3.5, point: [390, 100] }],
+    });
+    await page.goto(BASE + href);
+    await ready(page);
     const card = page.locator(`a[href="/lessons/${meta.movedLessonId}"]`).first();
     const y = Math.max(0, Math.round((await card.evaluate((el) => el.getBoundingClientRect().top + window.scrollY)) - 300));
     await shot(page, "moved-schedule", 6.4, {
@@ -404,9 +451,10 @@ const ACTS = {
     await open("/today");
     await shot(page, "today-profile", 2.4, { clock, steps: [{ at: 1.9, tap: page.locator('a[href="/profile"]').filter({ visible: true }).first(), nav: /\/profile/ }] });
     const theme = page.locator('label:has(input[name="theme"][value="dark"])');
+    const y = Math.max(0, Math.round((await theme.evaluate((el) => el.getBoundingClientRect().top + window.scrollY)) - 520));
     await shot(page, "profile", 11, {
       clock,
-      scroll: [[0, 0], [2.4, 0], [4.6, 560], [8.6, 560], [10.4, 0]],
+      scroll: [[0, 0], [2.4, 0], [4.6, y], [8.6, y], [10.4, 0]],
       steps: [{ at: 5.6, tap: theme, reveal: true }],
     });
     await ctx.close();

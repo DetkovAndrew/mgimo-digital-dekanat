@@ -48,7 +48,7 @@ export class PhoneScreen {
   /** cur/prev — картинки страниц, slide 0..1 — переход от prev к cur: kind "slide" (вглубь: cur справа), "back"
    * (назад: prev уходит вправо), "fade" (вкладки). tap/taps — касания {x, y, p} в пикселях холста; reveal — круг
    * новой темы {img: кадр до, x, y, p}. */
-  draw({ cur, prev, slide = 1, kind = "slide", tap = null, taps = [], reveal = null }) {
+  draw({ cur, prev, slide = 1, kind = "slide", tap = null, taps = [], reveal = null, banner = null }) {
     const g = this.ctx;
     const w = this.canvas.width;
     g.fillStyle = "#f1f3fa";
@@ -91,6 +91,7 @@ export class PhoneScreen {
     g.fillStyle = `rgb(${r},${gg},${b})`;
     g.fillRect(0, 0, w, SB);
     this.statusBar(g, w, 0.2126 * r + 0.7152 * gg + 0.0722 * b < 110 ? "#eceef2" : "#171b2b");
+    if (banner && banner.p > 0) this.banner(g, w, banner);
     for (const t of tap ? [tap, ...taps] : taps) {
       if (!(t.p > 0 && t.p < 1)) continue;
       const rad = 24 + t.p * 120;
@@ -103,6 +104,57 @@ export class PhoneScreen {
       g.stroke();
     }
     this.texture.needsUpdate = true;
+  }
+
+  /** Push-уведомление сверху экрана: значок University, название, «сейчас», заголовок и текст — как приходит на телефон.
+   * Общий вид системного баннера, без копирования конкретной системы. p 0..1 — выезд сверху. */
+  banner(g, w, { p, icon, title, body }) {
+    const x = 22;
+    const bw = w - 44;
+    const tx = x + 124;
+    const maxText = bw - 124 - 34;
+    g.font = "400 27px Onest";
+    // Текст в две строки, если не помещается.
+    const words = body.split(" ");
+    const lines = [""];
+    for (const word of words) {
+      const next = lines.at(-1) ? `${lines.at(-1)} ${word}` : word;
+      if (g.measureText(next).width > maxText && lines.at(-1)) lines.push(word);
+      else lines[lines.length - 1] = next;
+    }
+    const h = 128 + lines.length * 36;
+    const y = SB + 14 - (1 - p) * (h + SB + 40);
+    g.save();
+    g.globalAlpha = Math.min(1, p * 1.6);
+    g.shadowColor = "rgba(23,27,43,0.22)";
+    g.shadowBlur = 36;
+    g.shadowOffsetY = 10;
+    g.fillStyle = "rgba(250,250,252,0.97)";
+    g.beginPath();
+    g.roundRect(x, y, bw, h, 40);
+    g.fill();
+    g.shadowColor = "transparent";
+    g.save();
+    g.beginPath();
+    g.roundRect(x + 30, y + 30, 76, 76, 18);
+    g.clip();
+    g.drawImage(icon, x + 30, y + 30, 76, 76);
+    g.restore();
+    g.textBaseline = "alphabetic";
+    g.fillStyle = "#5b6275";
+    g.font = "600 23px Onest";
+    g.fillText("UNIVERSITY", tx, y + 52);
+    g.textAlign = "right";
+    g.font = "400 23px Onest";
+    g.fillText("сейчас", x + bw - 34, y + 52);
+    g.textAlign = "left";
+    g.fillStyle = "#171b2b";
+    g.font = "700 30px Onest";
+    g.fillText(title, tx, y + 94);
+    g.fillStyle = "#2b3040";
+    g.font = "400 27px Onest";
+    lines.forEach((line, i) => g.fillText(line, tx, y + 134 + i * 36));
+    g.restore();
   }
 
   statusBar(g, w, ink = "#171b2b") {

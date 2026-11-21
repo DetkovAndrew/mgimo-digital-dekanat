@@ -39,12 +39,16 @@ export const STEPS = [
     ],
   },
   {
+    title: "Уведомления на телефон",
+    sub: "Кабинет на экране «Домой»:\nв профиле — «Включить»",
+    shots: [{ name: "today-push", in: "fade" }, { name: "push-on", in: "slide" }],
+  },
+  {
     title: "Перенос пары",
     sub: "Деканат переносит семинар\nв аудиторию — сервер проверяет\nнакладки и уведомляет группу",
     shots: [
       { name: "reschedule", in: "flash" },
-      { name: "moved-bell", in: "flash", sub: "Студентка сразу получает\nуведомление о переносе" },
-      { name: "moved-notifications", in: "slide", sub: "Студентка сразу получает\nуведомление о переносе" },
+      { name: "moved-push", in: "flash", sub: "Push приходит сразу —\nнажатие открывает неделю пары" },
       { name: "moved-schedule", in: "slide", sub: "В расписании — «Изменено»,\nбыло и стало, причина" },
       { name: "moved-lesson", in: "slide", sub: "Новая аудитория\nи путь до неё по схеме" },
     ],
@@ -155,7 +159,10 @@ export function createDemo(ctx) {
       const before = Math.max(0, Math.round(rv.t * it.m.fps) - 1);
       reveal = { img: await image(frameUrl(it.name, before, "demo")), x: rv.x, y: rv.y + 88, p: (lt - rv.t) / 0.75 };
     }
-    phoneScreen.draw({ cur, prev, slide, kind, taps, reveal });
+    // Push-уведомление поверх страницы: выезжает сверху и уходит вверх (рисует сцена — в снимок страницы оно не попадает).
+    const b = it.m.banner;
+    const banner = b && lt >= b.at ? { ...b, p: smooth(b.at, b.at + 0.4, lt) * (1 - smooth(b.until, b.until + 0.3, lt)), icon: await image("/scene/icon-192.png") } : null;
+    phoneScreen.draw({ cur, prev, slide, kind, taps, reveal, banner });
   }
 
   /** Ноутбук деканата: снимок по времени, прокрутка, курсор к целям щелчков. */
@@ -266,6 +273,7 @@ export function createDemo(ctx) {
       }
       for (const tp of it.m.taps) taps.push(offset + it.start + tp.t);
       if (it.name === "answer") dings.push(offset + it.start + it.m.taps[0].t + 0.32);
+      if (it.m.banner) dings.push(offset + it.start + it.m.banner.at);
     }
     return { taps, clicks, dings, flashes };
   }
