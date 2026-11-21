@@ -4,13 +4,16 @@ import { Disclosure, List, Section } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import { SKINS } from "@/lib/invictia/skins";
 import { getMyAvatarUrl } from "@/server/dal/avatar";
+import { getPushPublicKey } from "@/server/dal/push";
 import { getMyProfile } from "@/server/dal/profile";
 import { getMyWardrobe } from "@/server/dal/skins";
+import { requireStudent } from "@/server/session";
 import { AvatarEditor } from "./avatar";
+import { PushToggle } from "./push-toggle";
 import { Wardrobe } from "./wardrobe";
 
 export default async function ProfilePage() {
-  const [p, avatar, wardrobe] = await Promise.all([getMyProfile(), getMyAvatarUrl(), getMyWardrobe()]);
+  const [p, avatar, wardrobe, { userId }] = await Promise.all([getMyProfile(), getMyAvatarUrl(), getMyWardrobe(), requireStudent()]);
   const [last, first] = p.fullName.split(" ");
   const initials = `${first?.[0] ?? ""}${last?.[0] ?? ""}`; // «Лебедева Алина» → «АЛ»
   const main: [string, string][] = [
@@ -49,6 +52,10 @@ export default async function ProfilePage() {
       <Disclosure title="Подробнее">
         <List>{rows(more)}</List>
       </Disclosure>
+      {/* key: при смене аккаунта состояние прежнего не переносится. */}
+      <Section title="Уведомления на телефон">
+        <PushToggle key={userId} owner={userId} publicKey={getPushPublicKey()} />
+      </Section>
       <Section title="Оформление">
         <ThemePicker />
       </Section>

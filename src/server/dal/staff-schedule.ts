@@ -6,6 +6,7 @@ import { addDays, formatDay, formatTime, mskStartOfDay } from "@/lib/format";
 import { lessonVersion, mskAt, MOVE_WINDOW_DAYS, rescheduleSchema, type ScheduleActionState } from "@/lib/staff/schedule";
 import { prisma } from "../db";
 import { requireStaff } from "../session";
+import { pushAfterResponse } from "./push";
 import { conflictOf, lockLesson, originalOf, revertLesson } from "../staff-undo";
 
 // Перенос и отмена пары сотрудником деканата. Граница — факультет сотрудника (как у заявок, src/server/dal/staff.ts):
@@ -84,7 +85,8 @@ export async function rescheduleFacultyLesson(input: unknown): Promise<ScheduleA
     target = { buildingId: building.id, room: `ауд. ${v.room}`, roomId: ref?.id ?? null, title: building.title };
   }
 
-  return prisma.$transaction(async (tx) => {
+  let pushId: string | null = null; // уведомление группе — на телефоны после коммита
+  const result = await prisma.$transaction(async (tx) => {
     // Блокируем группу и пару своего факультета (чужая → 404). Значения — параметрами tagged SQL.
     if (!(await lockLesson(tx, v.id, facultyCode))) notFound();
     // Время — после ожидания блокировок: пока ждали, пара могла начаться (ревью Codex 79).
@@ -107,7 +109,8 @@ export async function rescheduleFacultyLesson(input: unknown): Promise<ScheduleA
       if (!res.ok) return { ok: false, message: `Вернуть нельзя: ${res.message.charAt(0).toLowerCase()}${res.message.slice(1)}` };
       const r = res.lesson;
       const group = await students();
-      await tx.notification.create({
+      pushId = (await tx.notification.create({
+        select: { id: true },
         data: {
           kind: "SCHEDULE_CHANGE",
           title: `Снова по расписанию: ${title}`,
@@ -117,7 +120,7 @@ export async function rescheduleFacultyLesson(input: unknown): Promise<ScheduleA
           staffId,
           recipients: { create: group.map((s) => ({ userId: s.userId })) },
         },
-      });
+      })).id;
       return { ok: true, message: `Пара снова по исходному расписанию. Уведомление получили студенты группы: ${group.length}.` };
     }
     if (lesson.status === "CANCELLED") return { ok: false, message: "Пара уже отменена" };
@@ -175,7 +178,8 @@ export async function rescheduleFacultyLesson(input: unknown): Promise<ScheduleA
       },
     });
     const group = await students();
-    await tx.notification.create({
+    pushId = (await tx.notification.create({
+      select: { id: true },
       data: {
         kind: "SCHEDULE_CHANGE",
         title: v.action === "cancel" ? `Отмена: ${title}` : `Изменение: ${title}`,
@@ -185,8 +189,10 @@ export async function rescheduleFacultyLesson(input: unknown): Promise<ScheduleA
         staffId,
         recipients: { create: group.map((s) => ({ userId: s.userId })) },
       },
-    });
+    })).id;
     const n = group.length;
     return { ok: true, message: `${v.action === "cancel" ? "Пара отменена" : "Пара перенесена"}. Уведомление получили студенты группы: ${n}.` };
   });
+  pushAfterResponse(pushId);
+  return result;
 }

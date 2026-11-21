@@ -4,7 +4,9 @@ import { Bell as BellIcon, CalendarDays, CircleUserRound, DoorOpen, Dumbbell, Fi
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, ViewTransition } from "react";
+import { pushReleaseAction } from "@/app/push-actions";
 import { authClient } from "@/lib/auth-client";
+import { currentPushSubscription } from "@/lib/push-client";
 import { UniversityMark } from "./university-mark";
 
 // Нижнее меню телефона, 6 разделов: ядро ТЗ, спорт (решение капитана 14.11: своя вкладка, даже если меню
@@ -194,6 +196,12 @@ export function SignOut({ className }: { className?: string }) {
     <button
       className={className}
       onClick={async () => {
+        // Устройство перестаёт получать уведомления этого входа (docs/plans/push.md). Сбой не мешает выйти.
+        const sub = await currentPushSubscription().catch(() => null);
+        if (sub) {
+          await pushReleaseAction(sub.endpoint).catch(() => undefined);
+          await sub.unsubscribe().catch(() => undefined);
+        }
         await authClient.signOut();
         router.replace("/login");
         router.refresh();

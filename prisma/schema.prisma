@@ -1,7 +1,7 @@
 // Схема БД «Цифрового деканата».
 // Модели User/Session/Account/Verification/RateLimit генерирует Better Auth
 // (`npx auth@1.7.18 generate --config src/server/auth.ts --output prisma/schema.prisma`);
-// после перегенерации верните связи User -> student/staff/..., Account.@@unique([providerId, accountId])
+// после перегенерации верните связи User -> student/staff/..., Session.pushSubscriptions, Account.@@unique([providerId, accountId])
 // и раздел предметной модели ниже.
 
 generator client {
@@ -27,10 +27,11 @@ model User {
   sessions        Session[]
   accounts        Account[]
 
-  student       StudentProfile?
-  staff         StaffProfile?
-  notifications NotificationRecipient[]
-  requestEvents RequestEvent[]
+  student           StudentProfile?
+  staff             StaffProfile?
+  notifications     NotificationRecipient[]
+  requestEvents     RequestEvent[]
+  pushSubscriptions PushSubscription[]
 
   @@unique([email])
   @@unique([username])
@@ -47,6 +48,8 @@ model Session {
   userAgent String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  pushSubscriptions PushSubscription[]
 
   @@unique([token])
   @@index([userId])
@@ -187,6 +190,24 @@ model CalendarFeed {
   rotatedAt DateTime       @default(now()) @db.Timestamptz(6)
 
   @@map("calendar_feed")
+}
+
+/// Уведомления на телефон (docs/plans/push.md): подписка браузера привязана к сессии — выход удаляет сессию,
+/// а с ней и подписку. endpoint — адрес службы push (только из списка в src/server/push/webpush.ts).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@map("push_subscription")
 }
 
 model StaffProfile {

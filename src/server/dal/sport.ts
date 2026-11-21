@@ -5,6 +5,7 @@ import { addDays, formatDateTime, mskDayKey, mskStartOfDay } from "@/lib/format"
 import { checkSlot, type BusyItem } from "@/lib/sport/availability";
 import { prisma } from "../db";
 import { requireStudent } from "../session";
+import { pushAfterResponse } from "./push";
 
 // Правила University (демо, docs/plans/sport-fcfs.md): «успел — записался».
 // Тренировка = 5 баллов, минимум 60 за тренировки, всего 100; не больше 2 в неделю и 1 в день.
@@ -232,7 +233,8 @@ async function lockedSlot<T>(slotId: string, run: (tx: Tx, slot: Slot) => Promis
  */
 export async function bookSlot(slotId: string, { queue = false } = {}): Promise<SportActionResult> {
   const { studentId } = await requireStudent();
-  return lockedSlot(slotId, async (tx, slot) => {
+  const pushIds: string[] = []; // места из очереди — уведомления на телефон после коммита
+  const result = await lockedSlot<SportActionResult>(slotId, async (tx, slot) => {
     const now = new Date();
     if (slot.startsAt <= now) return { ok: false, error: "Тренировка уже началась" };
     if (slot.startsAt > windowEnd(now)) return { ok: false, error: `Запись откроется ${formatDateTime(addDays(slot.startsAt, -SPORT_RULES.windowDays))}` };
@@ -243,7 +245,7 @@ export async function bookSlot(slotId: string, { queue = false } = {}): Promise<
 
     // Сначала очередь: прямая запись не обгоняет тех, кто ждёт и подходит. Проверять студента —
     // уже после продвижения: оно могло выдать ему место из его же очереди (ревью Codex 12).
-    await promoteWeek(tx, slot.weekStart, now);
+    await promoteWeek(tx, slot.weekStart, now, pushIds);
     const reason = await blockedReason(tx, studentId, slot);
     if (reason) return { ok: false, error: `Нельзя: ${reason}` };
     const save = (status: "CONFIRMED" | "WAITLIST") =>
@@ -266,6 +268,8 @@ export async function bookSlot(slotId: string, { queue = false } = {}): Promise<
     await save("WAITLIST");
     return { ok: true, message: "Вы в очереди. Место пока не подтверждено — пришлём уведомление" };
   });
+  pushIds.forEach(pushAfterResponse);
+  return result;
 }
 
 /** Отменить запись или выйти из очереди до начала. Освободившееся место — первому подходящему в очереди. */
@@ -273,7 +277,8 @@ export async function cancelMyBooking(bookingId: string): Promise<SportActionRes
   const { studentId } = await requireStudent();
   const own = await prisma.sportBooking.findFirst({ where: { id: bookingId, studentId }, select: { slotId: true } });
   if (!own) notFound();
-  return lockedSlot(own.slotId, async (tx, slot) => {
+  const pushIds: string[] = [];
+  const result = await lockedSlot<SportActionResult>(own.slotId, async (tx, slot) => {
     const now = new Date();
     const b = await tx.sportBooking.findFirst({ where: { id: bookingId, studentId }, select: { status: true } });
     if (!b) notFound();
@@ -283,13 +288,15 @@ export async function cancelMyBooking(bookingId: string): Promise<SportActionRes
     await tx.sportBooking.update({ where: { id: bookingId }, data: { status: "CANCELLED", statusAt: now } });
     if (b.status === "WAITLIST") return { ok: true, message: "Вы вышли из очереди" };
     // Освободились место и квота — пересматриваем очереди всей недели.
-    const promoted = await promoteWeek(tx, slot.weekStart, now);
+    const promoted = await promoteWeek(tx, slot.weekStart, now, pushIds);
     return { ok: true, message: promoted ? "Запись отменена, место перешло следующему в очереди" : "Запись отменена" };
   });
+  pushIds.forEach(pushAfterResponse);
+  return result;
 }
 
 /** Продвигает очереди недели (FIFO, с повторной проверкой). Вызывать под блокировкой недели. */
-async function promoteWeek(tx: Tx, weekStart: Date, now: Date) {
+async function promoteWeek(tx: Tx, weekStart: Date, now: Date, pushIds: string[]) {
   let promoted = 0;
   for (let changed = true; changed; ) {
     changed = false;
@@ -315,7 +322,8 @@ async function promoteWeek(tx: Tx, weekStart: Date, now: Date) {
         if (await blockedReason(tx, w.studentId, slot)) continue; // не подходит сейчас — остаётся в очереди
         await tx.sportBooking.update({ where: { id: w.id }, data: { status: "CONFIRMED", statusAt: now } });
         if (w.student.user.accounts.length) {
-          await tx.notification.create({
+          const created = await tx.notification.create({
+            select: { id: true },
             data: {
               kind: "ANNOUNCEMENT",
               title: `Освободилось место: ${slot.section.title}`,
@@ -324,6 +332,7 @@ async function promoteWeek(tx: Tx, weekStart: Date, now: Date) {
               recipients: { create: { userId: w.student.userId } },
             },
           });
+          pushIds.push(created.id);
         }
         free--;
         promoted++;

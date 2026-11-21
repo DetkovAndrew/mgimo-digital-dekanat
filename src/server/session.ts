@@ -34,6 +34,14 @@ export const requireStudent = cache(async (): Promise<StudentContext> => {
   return s;
 });
 
+/** Студент и id текущей сессии: подписка на push привязана к сессии и удаляется вместе с ней при выходе. */
+export async function requireStudentSession(): Promise<StudentContext & { sessionId: string }> {
+  const student = await requireStudent();
+  const session = await getSession();
+  if (!session || session.user.id !== student.userId) redirect("/login");
+  return { ...student, sessionId: session.session.id };
+}
+
 /** Для Route Handlers: без редиректов, чтобы API отвечал JSON 401/403. */
 export async function studentForApi(): Promise<{ ok: true; student: StudentContext } | { ok: false; status: 401 | 403 }> {
   const s = await loadStudent();

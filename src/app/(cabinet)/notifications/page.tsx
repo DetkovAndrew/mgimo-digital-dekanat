@@ -1,15 +1,12 @@
 import { revalidatePath } from "next/cache";
 import { PageTitle } from "@/components/ui";
-import { formatDateTime, mskDayKey } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
+import { notificationLink } from "@/lib/notification-link";
 import { listMyNotifications, markAllMyNotificationsRead } from "@/server/dal/notifications";
 import { requireStudent } from "@/server/session";
 import { NotificationList } from "./notification-list";
 
 const LIMIT = 100;
-
-/** «К расписанию» — на неделю, где сейчас стоит пара: перенос на следующую неделю иначе не виден на текущей.
- * Дата, а не номер недели: неделю считает расписание при открытии (ревью Codex 95). */
-const scheduleHref = (lessonAt: Date | undefined) => (lessonAt ? `/schedule?view=week&on=${mskDayKey(lessonAt)}` : "/schedule");
 
 async function markAll() {
   "use server";
@@ -50,7 +47,7 @@ export default async function NotificationsPage() {
           when: formatDateTime(n.publishedAt),
           at: n.publishedAt.getTime(),
           read: Boolean(n.readAt),
-          link: n.requestId ? { href: `/requests/${n.requestId}`, label: "Открыть заявку" } : n.kind === "SCHEDULE_CHANGE" ? { href: scheduleHref(n.lesson?.startsAt), label: "К расписанию" } : null,
+          link: notificationLink(n),
         }))}
       />
     </>

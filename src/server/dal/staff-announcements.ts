@@ -4,6 +4,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { ANNOUNCE_LIMIT, announcementSchema, type AnnounceActionState } from "@/lib/staff/announcements";
 import { prisma } from "../db";
 import { requireStaff } from "../session";
+import { pushAfterResponse } from "./push";
 
 // Объявления деканата (уведомление ANNOUNCEMENT): только студентам факультета сотрудника — всем, курсу или группе.
 // Получателей выбирает сервер по факультету из сессии: код группы из формы — лишь селектор внутри факультета.
@@ -50,7 +51,8 @@ export async function sendFacultyAnnouncement(input: unknown): Promise<AnnounceA
   if (!students.length) return { ok: false, message: v.audience === "group" ? "Такой группы на вашем факультете нет" : "Получателей нет: на этом курсе нет студентов" };
   if (!takeSlot(staffId)) return { ok: false, message: `Не больше ${ANNOUNCE_LIMIT.perHour} объявлений в час. Попробуйте позже.` };
 
-  await prisma.notification.create({
+  const created = await prisma.notification.create({
+    select: { id: true },
     data: {
       kind: "ANNOUNCEMENT",
       title: v.title,
@@ -60,6 +62,7 @@ export async function sendFacultyAnnouncement(input: unknown): Promise<AnnounceA
       recipients: { create: students.map((s) => ({ userId: s.userId })) },
     },
   });
+  pushAfterResponse(created.id);
   return { ok: true, message: `Объявление отправлено. Получили студентов: ${students.length}.` };
 }
 

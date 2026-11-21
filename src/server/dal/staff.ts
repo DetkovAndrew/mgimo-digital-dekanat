@@ -7,6 +7,7 @@ import { formatRequestNumber, isRequestType, requestCatalog } from "@/lib/reques
 import { changeRequestSchema, isStaffFilter, requestPriority, type StaffActionState } from "@/lib/staff/requests";
 import { prisma } from "../db";
 import { requireStaff } from "../session";
+import { pushAfterResponse } from "./push";
 import { certificateContentFor, issueCertificate } from "./documents";
 
 const facultyScope = (facultyCode: string) => ({
@@ -54,7 +55,8 @@ export async function changeFacultyRequest(input: unknown): Promise<StaffActionS
   const { id, fromStatus, toStatus, comment } = parsed.data;
   const where = { id, ...facultyScope(facultyCode) };
 
-  return prisma.$transaction(async (tx) => {
+  let pushId: string | null = null; // уведомление студенту — на телефон после коммита
+  const result = await prisma.$transaction(async (tx) => {
     // Блокируем только заявку своего факультета. Значения передаются параметрами tagged SQL.
     const locked = await tx.$queryRaw<{ id: string }[]>`
       SELECT r."id" FROM "request" r
@@ -100,7 +102,8 @@ export async function changeFacultyRequest(input: unknown): Promise<StaffActionS
     const document = content ? await issueCertificate(tx, id, content, at) : null;
     const issued = document ? ` Справка ${formatDocumentNumber(document.number)}: PDF в заявке.` : "";
     const title = isRequestType(current.type) ? requestCatalog[current.type].title : "Заявка";
-    await tx.notification.create({
+    pushId = (await tx.notification.create({
+      select: { id: true },
       data: {
         kind: "REQUEST_STATUS", requestId: id,
         title: `${title}: ${requestStatusLabel[toStatus].label.toLowerCase()}`,
@@ -108,7 +111,9 @@ export async function changeFacultyRequest(input: unknown): Promise<StaffActionS
         important: toStatus === "NEEDS_INFO" || toStatus === "READY",
         recipients: { create: { userId: current.student.userId } },
       },
-    });
+    })).id;
     return { ok: true, message: document ? `Статус сохранён, справка ${formatDocumentNumber(document.number)} выпущена. Студент получил уведомление.` : "Статус сохранён. Студент получил уведомление." };
   });
+  pushAfterResponse(pushId);
+  return result;
 }
