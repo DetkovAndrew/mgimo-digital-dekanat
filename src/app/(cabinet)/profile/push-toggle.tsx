@@ -103,9 +103,9 @@ export function PushToggle({ owner, publicKey }: { owner: string; publicKey: str
             </button>
           ) : (
             <>
-              <button type="button" onClick={test} disabled={pending} className={`${btn} flex-1 bg-brand-soft text-brand`}>
+              <button type="button" onClick={test} disabled={pending} aria-label="Прислать проверочное уведомление" className={`${btn} flex-1 bg-brand-soft text-brand`}>
                 {pending ? <LoaderCircle aria-hidden className="size-4.5 animate-spin" /> : <Send aria-hidden className="size-4.5" />}
-                Прислать проверочное
+                Проверить
               </button>
               <button type="button" onClick={disable} disabled={pending} className={`${btn} text-ink ring-1 ring-hairline`}>
                 Выключить
@@ -122,19 +122,19 @@ export function PushToggle({ owner, publicKey }: { owner: string; publicKey: str
 }
 
 const TITLE: Record<State, string> = {
-  checking: "Уведомления на телефон",
-  unsupported: "Этот браузер не присылает уведомления",
+  checking: "Проверяем браузер",
+  unsupported: "Браузер их не поддерживает",
   "ios-install": "Сначала добавьте на экран «Домой»",
-  denied: "Уведомления запрещены в браузере",
-  off: "Уведомления на телефон выключены",
-  on: "Уведомления на это устройство включены",
+  denied: "Запрещены в браузере",
+  off: "Выключены",
+  on: "Включены на этом устройстве",
 };
 
 const TEXT: Record<State, string> = {
-  checking: "Проверяем, что умеет браузер…",
+  checking: "Смотрим, умеет ли браузер присылать уведомления.",
   unsupported: "Откройте кабинет в Chrome, Edge, Firefox или Safari либо добавьте его на экран «Домой».",
-  "ios-install": "На iPhone уведомления приходят только у сайта с экрана «Домой»: «Поделиться» → «На экран „Домой“», затем откройте University с иконки и войдите.",
+  "ios-install": "На iPhone они приходят только у сайта с экрана «Домой»: «Поделиться» → «На экран „Домой“», затем откройте University с иконки.",
   denied: "Разрешите уведомления для этого сайта в настройках браузера и обновите страницу.",
-  off: "Переносы пар, статусы заявок и объявления деканата придут, даже когда кабинет закрыт. На экране блокировки виден только тип события, подробности после входа.",
-  on: "Придут переносы пар, статусы заявок и объявления деканата. После выхода из кабинета уведомления на это устройство прекращаются.",
+  off: "Переносы пар, статусы заявок и объявления придут, даже когда кабинет закрыт. На заблокированном экране виден только тип события.",
+  on: "Переносы пар, статусы заявок и объявления придут сюда. После выхода из кабинета перестанут.",
 };
