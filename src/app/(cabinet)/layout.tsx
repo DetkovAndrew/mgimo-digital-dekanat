@@ -1,4 +1,5 @@
 import { Disclaimer } from "@/components/disclaimer";
+import { AppBadge } from "@/components/app-badge";
 import { Assistant } from "@/components/assistant";
 import { Bell, Logo, Nav, PassLink, ProfileLink } from "@/components/nav";
 import { RouteMotion } from "@/components/route-motion";
@@ -6,6 +7,7 @@ import { Toaster } from "@/components/toast";
 import { isAssistantConfigured } from "@/server/ai/gigachat";
 import { getMyAvatarUrl } from "@/server/dal/avatar";
 import { countMyUnread } from "@/server/dal/notifications";
+import { badgeOwnerOf } from "@/server/dal/push";
 import { getMySkinId } from "@/server/dal/skins";
 import { requireStudent } from "@/server/session";
 
@@ -15,6 +17,7 @@ export default async function CabinetLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-dvh">
       <Nav unread={unread} avatar={avatar} />
+      <AppBadge owner={badgeOwnerOf(userId)} count={unread} />
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Оговорка уезжает при прокрутке, шапка остаётся: экран телефона — для содержимого. */}
         <Disclaimer />

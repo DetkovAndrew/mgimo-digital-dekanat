@@ -96,7 +96,7 @@ export function NotificationList({ owner, items }: { owner: string; items: Notif
   const all = visible.every((n) => selected.has(n.id));
   return (
     <>
-      <div className="sticky top-13 z-10 -mx-1 mb-2 flex min-h-12 items-center gap-1 bg-page/90 px-1 backdrop-blur-md md:top-0">
+      <div className="sticky top-[calc(3.25rem+env(safe-area-inset-top))] z-10 -mx-1 mb-2 flex min-h-12 items-center gap-1 bg-page/90 px-1 backdrop-blur-md md:top-0">
         {selecting ? (
           <>
             <button type="button" onClick={() => (setSelecting(false), setSelected(new Set()))} className="min-h-11 rounded-xl px-3 text-sm font-medium text-ink-2 hover:bg-fill">

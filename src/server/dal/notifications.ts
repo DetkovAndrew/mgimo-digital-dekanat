@@ -39,6 +39,12 @@ export type MyNotification = Awaited<ReturnType<typeof listMyNotifications>>[num
 
 export async function countMyUnread() {
   const { userId } = await requireStudent();
+  return unreadCountOf(userId);
+}
+
+/** Непрочитанные получателя — для колокольчика и числа на значке приложения (push). Вызывать только с userId
+ * из сессии или из получателей уведомления. */
+export function unreadCountOf(userId: string) {
   return prisma.notificationRecipient.count({
     where: { userId, hiddenAt: null, readAt: null, notification: { publishedAt: { lte: new Date() } } },
   });

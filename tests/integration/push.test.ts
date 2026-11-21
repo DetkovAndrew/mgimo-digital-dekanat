@@ -197,6 +197,11 @@ describe("рассылка по уведомлению", () => {
     const message = vi.mocked(sendPush).mock.calls[0][1];
     expect(message.title).not.toContain("Секрет");
     expect(message.url).toBe("/notifications");
+    // На значке — непрочитанные Алины, как на её колокольчике.
+    expect(message.badge).toBe(await prisma.notificationRecipient.count({ where: { userId: A.userId, hiddenAt: null, readAt: null, notification: { publishedAt: { lte: new Date() } } } }));
+    expect(message.badge).toBeGreaterThan(0);
+    expect(message.owner).toMatch(/^[\w-]{22}$/);
+    expect(message.owner).not.toContain(A.userId);
 
     vi.mocked(sendPush).mockClear();
     await pushNotification(await notify([A, B], [A]));

@@ -1,10 +1,12 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { after } from "next/server";
 import { z } from "zod";
 import { notificationLink } from "@/lib/notification-link";
 import { prisma } from "../db";
 import { isAuthSecret, isPushEndpoint, isUaPublicKey, sendPush, vapidPublicKey } from "../push/webpush";
 import { requireStudentSession } from "../session";
+import { unreadCountOf } from "./notifications";
 
 // Уведомления на телефон (docs/plans/push.md, ревью Codex 98). Подписка — браузер этого устройства в текущей сессии
 // студента: владелец и сессия только из cookies, из запроса — адрес службы и ключи браузера. owner — userId, для которого
@@ -23,6 +25,10 @@ const subscriptionSchema = z.object({
 });
 
 export const getPushPublicKey = () => vapidPublicKey();
+
+/** Метка аккаунта для числа на значке: worker ставит число из push, только если оно для того, кто сейчас вошёл на этом
+ * устройстве (задержавшийся push прежнего аккаунта значок не трогает — ревью Codex 102). Не секрет, но и не id. */
+export const badgeOwnerOf = (userId: string) => createHash("sha256").update(`univ-badge:${userId}`).digest("base64url").slice(0, 22);
 
 /** Включено ли на этом устройстве: подписка с таким адресом есть у текущей сессии. */
 export async function isMyDeviceSubscribed(owner: unknown, endpoint: unknown): Promise<boolean> {
@@ -91,7 +97,7 @@ export async function sendMyTestPush(owner: unknown, endpoint: unknown): Promise
   const now = Date.now();
   if (now - (lastTest.get(userId) ?? 0) < PUSH_LIMIT.testEveryMs) return { ok: false, message: "Проверочное можно отправить раз в 30 секунд." };
   lastTest.set(userId, now);
-  const status = await deliver(sub, { title: "Уведомления работают", body: "Так придут переносы пар, статусы заявок и объявления.", url: "/notifications", tag: "test" });
+  const status = await deliver(sub, { title: "Уведомления работают", body: "Так придут переносы пар, статусы заявок и объявления.", url: "/notifications", tag: "test", badge: await unreadCountOf(userId), owner: badgeOwnerOf(userId) });
   return status >= 200 && status < 300 ? { ok: true, message: "Отправлено — уведомление придёт через несколько секунд." } : { ok: false, message: "Служба уведомлений браузера не приняла сообщение. Выключите и включите снова." };
 }
 
@@ -123,19 +129,22 @@ export async function pushNotification(notificationId: string): Promise<void> {
   if (!n || !n.recipients.length) return;
   const subs = await prisma.pushSubscription.findMany({
     where: { userId: { in: n.recipients.map((r) => r.userId) }, session: { expiresAt: { gt: new Date() } } },
-    select: { id: true, endpoint: true, p256dh: true, auth: true },
+    select: { id: true },
   });
   const message = { title: LOCK_SCREEN_TITLE[n.kind] ?? "Новое уведомление", body: "Откройте кабинет University, чтобы посмотреть.", url: notificationLink(n)?.href ?? "/notifications", tag: notificationId };
   const stillWanted = (id: string) =>
     prisma.pushSubscription.findFirst({
       where: { id, session: { expiresAt: { gt: new Date() } }, user: { notifications: { some: { notificationId, hiddenAt: null } } } },
-      select: { id: true, endpoint: true, p256dh: true, auth: true },
+      select: { id: true, userId: true, endpoint: true, p256dh: true, auth: true },
     });
+  // Число на значке — непрочитанные этого получателя, как на колокольчике; считается один раз на студента.
+  const badges = new Map<string, Promise<number>>();
+  const badgeOf = (userId: string) => badges.get(userId) ?? badges.set(userId, unreadCountOf(userId)).get(userId)!;
   for (let i = 0; i < subs.length; i += 4) {
     await Promise.all(
       subs.slice(i, i + 4).map(async ({ id }) => {
         const sub = await stillWanted(id);
-        if (sub) await deliver(sub, message);
+        if (sub) await deliver(sub, { ...message, badge: await badgeOf(sub.userId), owner: badgeOwnerOf(sub.userId) });
       }),
     );
   }

@@ -107,7 +107,9 @@ export function encryptPayload(plaintext: Buffer, ua: { p256dh: string; auth: st
 }
 
 export type PushTarget = { endpoint: string; p256dh: string; auth: string };
-export type PushMessage = { title: string; body: string; url: string; tag: string };
+/** badge — число непрочитанных на значке приложения (iPhone с экрана «Домой», установленный сайт на компьютере),
+ * owner — метка аккаунта, для которого это число. */
+export type PushMessage = { title: string; body: string; url: string; tag: string; badge: number; owner: string };
 
 // Apple просит не обновлять JWT чаще раза в час (ревью Codex 99): готовый заголовок — на час для каждой службы.
 const authCache = new Map<string, { header: string; until: number }>();

@@ -5,6 +5,7 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, ViewTransition } from "react";
 import { pushReleaseAction } from "@/app/push-actions";
+import { clearBadge } from "@/lib/app-badge";
 import { authClient } from "@/lib/auth-client";
 import { currentPushSubscription } from "@/lib/push-client";
 import { UniversityMark } from "./university-mark";
@@ -203,6 +204,7 @@ export function SignOut({ className }: { className?: string }) {
           await pushReleaseAction(sub.endpoint).catch(() => undefined);
           await sub.unsubscribe().catch(() => undefined);
         }
+        await clearBadge(); // число прежнего аккаунта на значке
         await authClient.signOut();
         router.replace("/login");
         router.refresh();
