@@ -12,7 +12,7 @@
 | **Сайт** | **https://university-dekanat.duckdns.org** — сервер в России, HTTPS |
 | **Аккаунты** | логины ниже, пароли — в комментарии к работе |
 | **Отчёт о работе с ИИ** | [`docs/submission/report.pdf`](docs/submission/report.pdf) |
-| **Видео** | демонстрация 3:27 — ссылка в комментарии к работе; ролик собран кодом ([`video/`](video/README.md)) |
+| **Видео** | [демонстрация 3:35](https://vkvideo.ru/video-243572858_456239019?list=ln-kRm621YIcpRR2rBuHx) и [тизер 37 с](https://vkvideo.ru/video-243572858_456239020?list=ln-ErBlEozbCNAjhfh69t) в VK Видео; ролик собран кодом ([`video/`](video/README.md)) |
 
 <p>
   <img src="docs/submission/img/live/schedule-dark.png" width="200" alt="Расписание недели с переносами, тёмная тема">
