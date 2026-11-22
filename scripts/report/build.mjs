@@ -199,6 +199,13 @@ figure.narrow { width: 42%; }
 .flow { display: flex; flex-wrap: wrap; gap: 2mm; align-items: center; margin: 0 0 4mm; font-size: 8.8pt; }
 .flow span { background: var(--soft); border-radius: 2mm; padding: 1.5mm 2.5mm; }
 .flow i { color: var(--ink3); font-style: normal; }
+.bars { margin: 0 0 4mm; padding: 3.5mm 4.5mm; border: 1px solid var(--hair); border-radius: 3mm; break-inside: avoid; }
+.bar { display: grid; grid-template-columns: 78mm 1fr 15mm; gap: 3mm; align-items: center; font-size: 9pt; margin: 0 0 1.8mm; }
+.bar:last-child { margin: 0; }
+.bar .track { height: 3.2mm; background: var(--page); border-radius: 1.6mm; overflow: hidden; }
+.bar .fill { display: block; height: 100%; background: var(--brand); border-radius: 1.6mm; }
+.bar.muted .fill { background: var(--ink3); }
+.bar b { font-weight: 600; text-align: right; white-space: nowrap; }
 `;
 
 const md = fs.readFileSync(SRC, "utf8");
