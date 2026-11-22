@@ -18,7 +18,7 @@
       <tr><td>Аккаунты</td><td>Студенты Алина и Тимур, сотрудник деканата — логины и пароли в комментарии к работе</td></tr>
       <tr><td>Репозиторий</td><td><a href="https://github.com/DetkovAndrew/mgimo-digital-dekanat">github.com/DetkovAndrew/mgimo-digital-dekanat</a></td></tr>
       <tr><td>Команда</td><td>Детков Андрей — капитан; NursuUwU — исследование, маскот, контент, правки дизайна, проверка</td></tr>
-      <tr><td>Видео</td><td>Демонстрация 3:35:<br><a style="white-space:nowrap" href="https://vkvideo.ru/video-243572858_456239017?list=ln-tT6Uuf7bpVUrZuq9uH">vkvideo.ru/video-243572858_456239017?list=ln-tT6Uuf7bpVUrZuq9uH</a><br>Тизер 37 с:<br><a style="white-space:nowrap" href="https://vkvideo.ru/video-243572858_456239018?list=ln-NcfofZZ583A6S2kavY">vkvideo.ru/video-243572858_456239018?list=ln-NcfofZZ583A6S2kavY</a></td></tr>
+      <tr><td>Видео</td><td>Демонстрация 3:35:<br><a style="white-space:nowrap" href="https://vkvideo.ru/video-243572858_456239019?list=ln-kRm621YIcpRR2rBuHx">vkvideo.ru/video-243572858_456239019?list=ln-kRm621YIcpRR2rBuHx</a><br>Тизер 37 с:<br><a style="white-space:nowrap" href="https://vkvideo.ru/video-243572858_456239020?list=ln-ErBlEozbCNAjhfh69t">vkvideo.ru/video-243572858_456239020?list=ln-ErBlEozbCNAjhfh69t</a></td></tr>
       <tr><td>ИИ</td><td>Claude Code — ведущий разработчик; Codex — ревьюер; GigaChat-2 — помощница внутри кабинета</td></tr>
     </table>
     <p class="disclaimer">Концепт для конкурса MGIMO AI Challenge 2026. Не является официальным сервисом какого-либо вуза. Все данные вымышлены. University — вымышленный университет «по мотивам» ИТМО; символика реальных вузов не используется.</p>
@@ -54,7 +54,7 @@ cover-->
 **Как проверить.** Откройте сайт с телефона, войдите Алиной: «Сегодня» → «Расписание» → «Учёба» → «Заявки» → новая
 справка → статус во вкладке «Мои заявки». Войдите Тимуром — у него другие группа, оценки и заявки; заявка Алины по прямой ссылке даёт 404.
 
-**Ролик-демонстрация** (3:35, сценарий студента с телефона и деканат на ноутбуке): [VK Video](https://vkvideo.ru/video-243572858_456239017?list=ln-tT6Uuf7bpVUrZuq9uH) (ссылка с ключом доступа: без `?list=…` видео не открывается); тизер 37 с — [VK Video](https://vkvideo.ru/video-243572858_456239018?list=ln-NcfofZZ583A6S2kavY).
+**Ролик-демонстрация** (3:35, сценарий студента с телефона и деканат на ноутбуке): [VK Video](https://vkvideo.ru/video-243572858_456239019?list=ln-kRm621YIcpRR2rBuHx) (ссылка с ключом доступа: без `?list=…` видео не открывается); тизер 37 с — [VK Video](https://vkvideo.ru/video-243572858_456239020?list=ln-ErBlEozbCNAjhfh69t).
 
 **Где доказательства** (GitHub; доступ для жюри открывает капитан):
 
