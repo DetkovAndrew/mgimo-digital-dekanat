@@ -44,9 +44,10 @@ function slab(w, h, r, depth, bevel) {
   return g;
 }
 
-// Отражение окружения в стекле вокруг экрана ослаблено (20.11): верх экрана засвечивался. Множители подобраны по кадрам 9 и 29.8 с,
-// чтобы засвет рамки (яркость сверх рамки без отражения) упал примерно на 40% — после тон-маппинга ACES это не 0.6.
-const GLASS_ENV = { phone: 0.25, laptop: 0.45 };
+// Отражение окружения в стекле вокруг экрана ослаблено: 20.11 — засвет рамки на ~40%, 22.11 — ещё на 60% (капитан).
+// Множители подобраны по кадрам 9 и 29.8 с: засвет — яркость сверх рамки без отражения; после тон-маппинга ACES
+// зависимость нелинейная. Телефон 235 → 173 → 124 (без отражения 92), верх рамки ноутбука 139 → 85 → 35.
+const GLASS_ENV = { phone: 0.07, laptop: 0.15 };
 
 /** Окружение сцены с множителем k. Свой envMapIntensity three.js берёт, только если envMap задан у материала, —
  * задаём перед каждой отрисовкой, чтобы ночное затемнение (environmentIntensity сцены) тоже действовало. */
@@ -76,7 +77,7 @@ export function makePhone(screenTexture) {
   // Стекло поверх экрана: только отражение окружения (сложение), сам экран не темнеет.
   const sheen = new THREE.Mesh(
     roundedPlane(PHONE.screenW + 0.02, PHONE.screenH + 0.02, 0.098),
-    new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.08, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, transparent: true, opacity: 0.13, envMapIntensity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
+    new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.08, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, transparent: true, opacity: 0.052, envMapIntensity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
   );
   sheen.position.z = front + 0.0012;
   group.add(sheen);
@@ -186,7 +187,7 @@ export function makeLaptop(screenTexture) {
   lid.add(screen);
   const sheen = new THREE.Mesh(
     roundedPlane(LAPTOP.screenW, LAPTOP.screenH, 0.012),
-    new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.03, transparent: true, opacity: 0.042, envMapIntensity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
+    new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.03, transparent: true, opacity: 0.017, envMapIntensity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
   );
   sheen.position.copy(screen.position);
   sheen.position.z += 0.0008;
